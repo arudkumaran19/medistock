@@ -1,0 +1,50 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node / React
+web/node_modules/
+web/dist/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Flutter / Dart
+mobile/build/
+mobile/.dart_tool/
+mobile/.packages/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# Python
+agent-service/.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Coverage
+coverage/
+
+# Performance results
+performance/results/*.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets / credentials
+*.pem
+*.key
