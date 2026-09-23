@@ -1,4 +1,4 @@
 namespace MediStock.Api.Features.Auth.DTOs;
 
-public sealed record RefreshTokenRequest(
+public sealed record LogoutRequest(
     string RefreshToken);
