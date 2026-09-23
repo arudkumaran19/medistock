@@ -3,6 +3,7 @@ using MediStock.Api.Features.Auth.DTOs;
 using MediStock.Api.Features.Auth.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediStock.Api.Security;
 
 namespace MediStock.Api.Controllers;
 
@@ -11,10 +12,14 @@ namespace MediStock.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly CurrentUserService _currentUserService;
 
-    public AuthController(AuthService authService)
+    public AuthController(
+        AuthService authService,
+        CurrentUserService currentUserService)
     {
         _authService = authService;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost("register")]
@@ -97,11 +102,9 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public ActionResult<object> Me()
     {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var userId = _currentUserService.UserId;
 
-        var email = User.FindFirstValue(
-            ClaimTypes.Email);
+        var email = _currentUserService.Email;
 
         var roles = User.FindAll(
                 ClaimTypes.Role)

@@ -3,6 +3,7 @@ using System;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MediStock.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923035336_AddFacilitiesAndUserFacilities")]
+    partial class AddFacilitiesAndUserFacilities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,68 +59,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("FacilityId");
 
                     b.ToTable("UserFacilities", (string)null);
-                });
-
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("FacilityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SupplierId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacilityId");
-
-                    b.HasIndex("SupplierId");
-
-                    b.ToTable("PurchaseOrders", (string)null);
-                });
-
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("PurchaseOrderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("RequestedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PurchaseOrderId");
-
-                    b.ToTable("PurchaseOrderItems", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_PurchaseOrderItems_RequestedQuantity_Positive", "\"RequestedQuantity\" > 0");
-                        });
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Supplier", b =>
@@ -407,30 +348,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
-                {
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
-                        .WithMany()
-                        .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Features.Procurement.Models.Supplier", null)
-                        .WithMany()
-                        .HasForeignKey("SupplierId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
-                {
-                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", null)
-                        .WithMany()
-                        .HasForeignKey("PurchaseOrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MediStock.Api.Features.Validation.Services;
+using MediStock.Api.Features.Procurement.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +54,11 @@ builder.Services.AddSingleton(jwtConfiguration);
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RefreshTokenService>();
+builder.Services.AddScoped<SupplierService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentUserService>();
+builder.Services.AddScoped<FacilityAuthorizationService>();
+builder.Services.AddScoped<PolicyValidationService>();
 
 // JWT Bearer authentication
 builder.Services
