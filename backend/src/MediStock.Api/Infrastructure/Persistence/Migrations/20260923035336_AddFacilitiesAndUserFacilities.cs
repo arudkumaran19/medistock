@@ -12,19 +12,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Facilities",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Facilities", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "UserFacilities",
                 columns: table => new
                 {
@@ -57,11 +44,7 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "UserFacilities");
-
-            migrationBuilder.DropTable(
-                name: "Facilities");
+            migrationBuilder.DropTable(name: "UserFacilities");
         }
     }
 }

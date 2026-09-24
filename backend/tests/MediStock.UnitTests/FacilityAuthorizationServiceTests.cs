@@ -1,8 +1,9 @@
 using System.Security.Claims;
-using MediStock.Api.Domain.Entities;
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Infrastructure.Persistence.Identity;
 using MediStock.Api.Security;
+using Facility = MediStock.Api.Features.Inventory.Models.Facility;
+using UserFacility = MediStock.Api.Domain.Entities.UserFacility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,7 @@ public sealed class FacilityAuthorizationServiceTests : IDisposable
             new Facility
             {
                 Id = unauthorizedFacilityId,
+                Code = $"FAC-{unauthorizedFacilityId:N}",
                 Name = "Unauthorized Facility",
                 IsActive = true
             });
@@ -96,6 +98,7 @@ public sealed class FacilityAuthorizationServiceTests : IDisposable
             new Facility
             {
                 Id = facilityId,
+                Code = $"FAC-{facilityId:N}",
                 Name = "Test Facility",
                 IsActive = true
             });
@@ -133,6 +136,7 @@ public sealed class FacilityAuthorizationServiceTests : IDisposable
             new Facility
             {
                 Id = facilityId,
+                Code = $"FAC-{facilityId:N}",
                 Name = "Test Facility",
                 IsActive = true
             });

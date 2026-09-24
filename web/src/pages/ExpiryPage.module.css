@@ -1,0 +1,14 @@
+.page { max-width: 1320px; }
+.description { color: #64706a; margin-bottom: 24px; }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+.summary article { padding: 18px; border: 1px solid #d9e2da; border-radius: 12px; background: white; }
+.summary span { display: block; color: #64706a; font-size: 13px; }
+.summary strong { display: block; margin-top: 8px; font-size: 26px; }
+.critical { color: #a5281e; border-color: #eab3ac !important; background: #fff5f3 !important; }
+.filters { display: flex; gap: 14px; margin-bottom: 20px; }
+.filters label { display: grid; min-width: 190px; gap: 6px; color: #4c5b52; font-size: 13px; font-weight: 700; }
+.filters input, .filters select { min-height: 42px; padding: 8px 10px; border: 1px solid #c9d7ca; border-radius: 7px; background: white; font: inherit; }
+.badge { display: inline-flex; padding: 5px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+.soon { color: #915b00; background: #fff2d5; }
+.empty { padding: 28px; text-align: center; color: #64706a; }
+@media (max-width: 640px) { .summary { grid-template-columns: 1fr; } .filters { flex-direction: column; } }

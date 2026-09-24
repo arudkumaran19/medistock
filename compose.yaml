@@ -1,16 +1,16 @@
 services:
   postgres:
-    image: postgres:17
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     container_name: medistock-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: medistock
-      POSTGRES_USER: medistock
-      POSTGRES_PASSWORD: medistock_dev_password
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the environment}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the environment}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
     ports:
-      - "5434:5432"
+      - "5432:5432"
     volumes:
-      - medistock-postgres-data:/var/lib/postgresql/data
+      - medistock-postgres:/var/lib/postgresql/data
 
 volumes:
-  medistock-postgres-data:
+  medistock-postgres:
