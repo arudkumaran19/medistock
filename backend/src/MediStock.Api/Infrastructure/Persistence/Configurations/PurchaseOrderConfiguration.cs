@@ -1,4 +1,5 @@
 using MediStock.Api.Features.Procurement.Models;
+using Facility = MediStock.Api.Features.Inventory.Models.Facility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -37,7 +38,7 @@ public sealed class PurchaseOrderConfiguration
             .HasForeignKey(purchaseOrder => purchaseOrder.SupplierId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<Domain.Entities.Facility>()
+        builder.HasOne<Facility>()
             .WithMany()
             .HasForeignKey(purchaseOrder => purchaseOrder.FacilityId)
             .OnDelete(DeleteBehavior.Restrict);
