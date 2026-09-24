@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { InventoryAgentPanel } from "../components/InventoryAgentPanel";
 import { inventoryApi, medicineApi } from "../services/inventoryApi";
@@ -28,18 +28,19 @@ export function InventoryPage() {
   const [draftErrors, setDraftErrors] = useState<MedicineErrors>({});
   const [saving, setSaving] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
+    await Promise.resolve();
     setIsLoading(true);
     setError("");
     try {
       const [balanceRows, medicineRows, facilityRows, batchRows] = await Promise.all([
         inventoryApi.list(true), inventoryApi.medicines(true), inventoryApi.facilities(), inventoryApi.batches(),
       ]);
-      setItems(balanceRows); setMedicines(medicineRows); setFacilities(facilityRows); setBatches(batchRows);
+      setItems(balanceRows); setMedicines(medicineRows); setFacilities(facilityRows); setBatches(batchRows); setError("");
     } catch (e) { setError(e instanceof Error ? e.message : "Inventory could not be loaded."); }
     finally { setIsLoading(false); }
-  }
-  useEffect(() => { void load(); }, []);
+  }, []);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const expiryByBalance = useMemo(() => {
     const result = new Map<string, number>();
@@ -50,7 +51,7 @@ export function InventoryPage() {
     }
     return result;
   }, [batches]);
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const filtered = useMemo(() => items.filter((item) => {
     const medicine = medicines.find((x) => x.id === item.medicineId);
     const search = `${item.medicineName} ${medicine?.code ?? ""}`.toLocaleLowerCase();

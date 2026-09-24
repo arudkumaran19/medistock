@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { inventoryApi, medicineApi } from "../services/inventoryApi";
 import type { Inventory, Medicine, StockTransaction } from "../types/inventory";
@@ -18,8 +18,9 @@ export function InventoryDetailPage() {
   const [message, setMessage] = useState("");
   const [editErrors, setEditErrors] = useState<{ name?: string; unit?: string; minimumStockLevel?: string }>({});
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!id) return;
+    await Promise.resolve();
     setIsLoading(true); setError("");
     try {
       const balance = await inventoryApi.get(id);
@@ -27,8 +28,8 @@ export function InventoryDetailPage() {
       setItem(balance); setMedicine(medicineData); setTransactions(history);
     } catch (e) { setError((e as Error).message); }
     finally { setIsLoading(false); }
-  };
-  useEffect(() => { void refresh(); }, [id]);
+  }, [id]);
+  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   const adjust = async (event: FormEvent) => {
     event.preventDefault(); if (!item) return;

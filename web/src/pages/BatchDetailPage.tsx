@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { inventoryApi } from "../services/inventoryApi";
 import type { Batch, Facility, Inventory } from "../types/inventory";
@@ -15,9 +15,11 @@ export function BatchDetailPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [now] = useState(() => Date.now());
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!id) return;
+    await Promise.resolve();
     setLoading(true); setError("");
     try {
       const batchData = await inventoryApi.batch(id);
@@ -26,8 +28,8 @@ export function BatchDetailPage() {
       setBalance(balances.find(x => x.medicineId === batchData.medicineId && x.facilityId === batchData.facilityId));
     } catch (e) { setError(e instanceof Error ? e.message : "Batch could not be loaded."); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { void refresh(); }, [id]);
+  }, [id]);
+  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   const retire = async (event: FormEvent) => {
     event.preventDefault(); if (!id || !batch || !reason.trim() || batch.quantityOnHand <= 0) return;
@@ -48,7 +50,7 @@ export function BatchDetailPage() {
     finally { setIsSubmitting(false); }
   };
 
-  const expired = batch ? new Date(batch.expiryDateUtc).getTime() < Date.now() : false;
+  const expired = batch ? new Date(batch.expiryDateUtc).getTime() < now : false;
   return <main>
     <Link to="/inventory/expiry">← Back to expiry watch</Link>
     {loading && <p role="status">Loading batch details…</p>}
