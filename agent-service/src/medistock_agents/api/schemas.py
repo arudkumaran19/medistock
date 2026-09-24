@@ -11,3 +11,4 @@ class InventoryAgentResponse(BaseModel):
 	approval_required: bool
 	executed: bool
 	backend_result: dict | None
+	answer: str | None = None

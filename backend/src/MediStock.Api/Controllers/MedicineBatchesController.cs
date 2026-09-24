@@ -9,6 +9,9 @@ namespace MediStock.Api.Controllers;
 [Route("api/medicine-batches")]
 public sealed class MedicineBatchesController(BatchService service) : ControllerBase
 {
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<BatchResponse>>>> GetActive([FromQuery] Guid? facilityId, CancellationToken cancellationToken) => Ok(new ApiResponse<IReadOnlyList<BatchResponse>>(await service.GetActiveAsync(facilityId, cancellationToken)));
+
     [HttpPost]
     public async Task<ActionResult<ApiResponse<BatchResponse>>> Create(CreateMedicineBatchRequest request, CancellationToken cancellationToken) => Created(string.Empty, new ApiResponse<BatchResponse>(await service.CreateAsync(request, cancellationToken)));
 

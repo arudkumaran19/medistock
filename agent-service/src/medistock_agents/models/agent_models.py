@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class ActionType(str, Enum):
 	ANALYZE = "analyze"
+	ASK = "ask"
 	RECEIVE = "receive"
 	ADJUST = "adjust"
 	RESERVE = "reserve"
@@ -18,6 +19,7 @@ class InventoryInsight(BaseModel):
 	medicine_id: str | None = None
 	facility_id: str | None = None
 	severity: str = "info"
+	details: dict = Field(default_factory=dict)
 
 class AgentResult(BaseModel):
 	plan: list[str]
@@ -26,3 +28,4 @@ class AgentResult(BaseModel):
 	approval_required: bool = False
 	executed: bool = False
 	backend_result: dict | None = None
+	answer: str | None = None

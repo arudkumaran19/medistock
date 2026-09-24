@@ -193,3 +193,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+.askForm { margin: 0 0 20px; max-width: none; }
+.askForm label { display: block; margin-bottom: 7px; color: #4c5b52; font-weight: 700; }
+.askForm > div { display: flex; gap: 8px; }
+.askForm input { flex: 1; min-width: 0; border: 1px solid #c9d7ca; border-radius: 8px; padding: 12px; font: inherit; }
+.askForm button { flex: none; width: auto; border: 0; border-radius: 8px; padding: 12px 18px; background: #176b56; color: white; font-weight: 700; cursor: pointer; }
+.agentContext, .agentAnswer { margin: 16px 0; padding: 14px 16px; border-radius: 8px; background: white; border: 1px solid #d5ddd7; }
+.agentContext p, .agentAnswer p { margin: 6px 0 0; }
+.agentAnswer { border-color: #bfd9c7; background: #f1f8f2; }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediStock.Api.Common;
 using MediStock.Api.Features.Inventory.Services;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -21,7 +22,11 @@ public sealed class MediStockExceptionHandler(ILogger<MediStockExceptionHandler>
         httpContext.Response.ContentType = "application/json";
         var code = exception is InventoryException known ? known.Code : "INTERNAL_ERROR";
         var message = status == StatusCodes.Status500InternalServerError ? "An unexpected error occurred." : exception.Message;
-        await httpContext.Response.WriteAsync(JsonSerializer.Serialize(new { code, message }), cancellationToken);
+        var response = new ErrorResponse
+        {
+            Error = new ErrorDetail { Code = code, Message = message, TraceId = httpContext.TraceIdentifier }
+        };
+        await httpContext.Response.WriteAsync(JsonSerializer.Serialize(response), cancellationToken);
         return true;
     }
 }

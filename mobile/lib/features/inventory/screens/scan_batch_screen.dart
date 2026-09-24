@@ -10,7 +10,16 @@ class ScanBatchScreen extends StatefulWidget {
 class _ScanBatchScreenState extends State<ScanBatchScreen> {
   final controller = TextEditingController();
   bool handled = false;
-  void openBatch(String value) { if (handled || value.isEmpty) return; handled = true; Navigator.push(context, MaterialPageRoute(builder: (_) => BatchDetailScreen(batchNumber: value))); }
+  String feedback = '';
+  Future<void> openBatch(String raw) async {
+    final value = raw.trim();
+    if (handled) return;
+    if (value.isEmpty) { setState(() => feedback = 'No batch number was found. Scan again or enter it below.'); return; }
+    setState(() { handled = true; feedback = 'Batch $value found. Loading details…'; });
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => BatchDetailScreen(batchNumber: value)));
+    if (mounted) setState(() { handled = false; feedback = 'Ready to scan another batch.'; });
+  }
+  @override void dispose() { controller.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Scan batch')),
@@ -21,7 +30,8 @@ class _ScanBatchScreenState extends State<ScanBatchScreen> {
         const SizedBox(height: 16),
         const Text('DataMatrix scan or manual development fallback'),
         TextField(controller: controller, decoration: const InputDecoration(labelText: 'Manual batch number fallback')),
-        FilledButton(onPressed: () => openBatch(controller.text), child: const Text('Retrieve stock')),
+        FilledButton(onPressed: handled ? null : () => openBatch(controller.text), child: const Text('Retrieve stock')),
+        if (feedback.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(feedback, textAlign: TextAlign.center)),
       ]),
     ),
   );

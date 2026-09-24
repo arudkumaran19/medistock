@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   inventoryAgentApi,
   type InventoryAgentResponse,
@@ -9,6 +9,8 @@ export function InventoryAgentPanel() {
   const [result, setResult] = useState<InventoryAgentResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [question, setQuestion] = useState("");
+  const [submittedQuestion, setSubmittedQuestion] = useState("");
 
   async function analyzeInventory() {
     setIsLoading(true);
@@ -31,14 +33,33 @@ export function InventoryAgentPanel() {
     }
   }
 
+  async function askInventory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!question.trim()) return;
+    setIsLoading(true); setError(""); setSubmittedQuestion(question.trim());
+    try {
+      setResult(await inventoryAgentApi.run({ action_type: "ask", payload: { question: question.trim() } }));
+    } catch (e) { setError(e instanceof Error ? e.message : "Inventory question failed."); }
+    finally { setIsLoading(false); }
+  }
+
+  async function approveMutation() {
+    if (!submittedQuestion) return;
+    setIsLoading(true); setError("");
+    try {
+      setResult(await inventoryAgentApi.run({ action_type: "ask", payload: { question: submittedQuestion }, approved: true }));
+    } catch (e) { setError(e instanceof Error ? e.message : "Approved inventory action failed."); }
+    finally { setIsLoading(false); }
+  }
+
   return (
     <section className={styles.agentPanel}>
       <div className={styles.agentPanelHeader}>
         <div>
           <p className="eyebrow">AI ASSISTANT</p>
-          <h2>Inventory Intelligence</h2>
+            <h2>Inventory Intelligence Agent</h2>
           <p className={styles.agentDescription}>
-            Analyze stock levels and identify inventory risks.
+            Ask about stock, batches, expiry, and transaction history. Read-only answers use current inventory data.
           </p>
         </div>
 
@@ -52,10 +73,17 @@ export function InventoryAgentPanel() {
         </button>
       </div>
 
+      <form className={styles.askForm} onSubmit={askInventory}>
+        <label htmlFor="inventory-question">Ask about inventory</label>
+        <div><input id="inventory-question" value={question} onChange={e => setQuestion(e.target.value)} placeholder="e.g. Which medicines are low in Central Facility?" /><button type="submit" disabled={isLoading || !question.trim()}>{isLoading ? "Checking…" : "Ask"}</button></div>
+      </form>
+
       {error && <p className={styles.error}>{error}</p>}
 
       {result && (
         <>
+          {submittedQuestion && <div className={styles.agentContext}><strong>Your request</strong><p>{submittedQuestion}</p></div>}
+          {result.answer && <div className={styles.agentAnswer}><strong>Inventory insight</strong><p>{result.answer}</p></div>}
           <div className={styles.agentSummary}>
             <div className={styles.summaryCard}>
               <strong className={styles.summaryValue}>
@@ -151,6 +179,11 @@ export function InventoryAgentPanel() {
                 The agent requires approval before any
                 stock-changing action can be executed.
               </p>
+              {result.validation_errors.length === 0 && submittedQuestion && (
+                <button type="button" onClick={approveMutation} disabled={isLoading}>
+                  {isLoading ? "Applying…" : "Approve and execute"}
+                </button>
+              )}
             </div>
           )}
 

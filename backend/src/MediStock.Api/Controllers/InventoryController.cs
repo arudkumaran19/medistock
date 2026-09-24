@@ -7,10 +7,10 @@ namespace MediStock.Api.Controllers;
 
 [ApiController]
 [Route("api/inventory")]
-public sealed class InventoryController(InventoryService service) : ControllerBase
+public sealed class InventoryController(InventoryService service, StockTransactionService transactions) : ControllerBase
 {
 	[HttpGet]
-	public async Task<ActionResult<ApiResponse<IReadOnlyList<InventoryResponse>>>> GetAll([FromQuery] Guid? facilityId, CancellationToken cancellationToken) => Ok(new ApiResponse<IReadOnlyList<InventoryResponse>>(await service.GetAllAsync(facilityId, cancellationToken)));
+	public async Task<ActionResult<ApiResponse<IReadOnlyList<InventoryResponse>>>> GetAll([FromQuery] Guid? facilityId, [FromQuery] bool includeArchived, CancellationToken cancellationToken) => Ok(new ApiResponse<IReadOnlyList<InventoryResponse>>(await service.GetAllAsync(facilityId, cancellationToken, includeArchived)));
 
 	[HttpGet("{id:guid}")]
 	public async Task<ActionResult<ApiResponse<InventoryResponse>>> Get(Guid id, CancellationToken cancellationToken) => (await service.GetAsync(id, cancellationToken)) is { } result ? Ok(new ApiResponse<InventoryResponse>(result)) : NotFound(new { code = "INVENTORY_NOT_FOUND", message = "Inventory balance was not found." });
@@ -26,4 +26,8 @@ public sealed class InventoryController(InventoryService service) : ControllerBa
 
 	[HttpGet("expiring")]
 	public async Task<ActionResult<ApiResponse<IReadOnlyList<BatchResponse>>>> Expiring([FromQuery] int days = 90, CancellationToken cancellationToken = default) => Ok(new ApiResponse<IReadOnlyList<BatchResponse>>(await service.GetExpiringAsync(days, cancellationToken)));
+
+	[HttpGet("transactions")]
+	public async Task<ActionResult<ApiResponse<IReadOnlyList<StockTransactionResponse>>>> Transactions([FromQuery] Guid medicineId, [FromQuery] Guid facilityId, CancellationToken cancellationToken) =>
+		Ok(new ApiResponse<IReadOnlyList<StockTransactionResponse>>(await transactions.GetHistoryAsync(medicineId, facilityId, cancellationToken)));
 }

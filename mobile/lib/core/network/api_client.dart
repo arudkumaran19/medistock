@@ -9,7 +9,7 @@ class ApiClient {
 		final uri = Uri.parse('$baseUrl$path');
 		final response = method == 'POST' ? await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body)) : await http.get(uri);
 		final decoded = jsonDecode(response.body);
-		if (response.statusCode < 200 || response.statusCode >= 300) throw Exception(decoded['message'] ?? 'Request failed');
+		if (response.statusCode < 200 || response.statusCode >= 300) throw Exception(decoded['error']?['message'] ?? decoded['message'] ?? 'Request failed');
 		return decoded['data'] ?? decoded;
 	}
 }

@@ -2,7 +2,7 @@ const AGENT_BASE_URL =
   import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8000";
 
 export type InventoryAgentRequest = {
-  action_type: "analyze" | "receive_stock" | "adjust_stock" | "reserve_stock";
+  action_type: "analyze" | "ask" | "receive" | "adjust" | "reserve";
   payload?: Record<string, unknown>;
   approved?: boolean;
 };
@@ -14,6 +14,7 @@ export type InventoryAgentResponse = {
   approval_required: boolean;
   executed: boolean;
   backend_result: Record<string, unknown> | null;
+  answer: string | null;
 };
 
 export const inventoryAgentApi = {

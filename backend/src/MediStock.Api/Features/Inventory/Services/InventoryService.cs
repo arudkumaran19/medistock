@@ -8,11 +8,11 @@ namespace MediStock.Api.Features.Inventory.Services;
 
 public sealed class InventoryService(ApplicationDbContext db)
 {
-    public async Task<IReadOnlyList<InventoryResponse>> GetAllAsync(Guid? facilityId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<InventoryResponse>> GetAllAsync(Guid? facilityId, CancellationToken cancellationToken, bool includeArchived = false)
     {
-        var query = db.InventoryBalances.AsNoTracking().Include(x => x.Medicine).Include(x => x.Facility).Where(x => x.Medicine.IsActive && x.Facility.IsActive).AsQueryable();
+        var query = db.InventoryBalances.AsNoTracking().Include(x => x.Medicine).Include(x => x.Facility).Where(x => x.Facility.IsActive && (includeArchived || x.Medicine.IsActive)).AsQueryable();
         if (facilityId.HasValue) query = query.Where(x => x.FacilityId == facilityId.Value);
-        return await query.OrderBy(x => x.Medicine.Name).Select(x => new InventoryResponse(x.Id, x.MedicineId, x.Medicine.Name, x.FacilityId, x.Facility.Name, x.QuantityOnHand, x.QuantityReserved, x.QuantityOnHand - x.QuantityReserved, x.Medicine.MinimumStockLevel, x.QuantityOnHand < x.Medicine.MinimumStockLevel)).ToListAsync(cancellationToken);
+        return await query.OrderBy(x => x.Medicine.Name).Select(x => new InventoryResponse(x.Id, x.MedicineId, x.Medicine.Name, x.FacilityId, x.Facility.Name, x.QuantityOnHand, x.QuantityReserved, x.QuantityOnHand - x.QuantityReserved, x.Medicine.MinimumStockLevel, x.QuantityOnHand < x.Medicine.MinimumStockLevel, x.Medicine.IsActive)).ToListAsync(cancellationToken);
     }
 
     public async Task<InventoryResponse?> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -98,7 +98,7 @@ public sealed class InventoryService(ApplicationDbContext db)
     }
 
     private static InventoryResponse Map(InventoryBalance x) => Map(x, x.Medicine, x.Facility);
-    private static InventoryResponse Map(InventoryBalance x, Medicine medicine, Facility facility) => new(x.Id, medicine.Id, medicine.Name, facility.Id, facility.Name, x.QuantityOnHand, x.QuantityReserved, x.AvailableQuantity, medicine.MinimumStockLevel, x.QuantityOnHand < medicine.MinimumStockLevel);
+    private static InventoryResponse Map(InventoryBalance x, Medicine medicine, Facility facility) => new(x.Id, medicine.Id, medicine.Name, facility.Id, facility.Name, x.QuantityOnHand, x.QuantityReserved, x.AvailableQuantity, medicine.MinimumStockLevel, x.QuantityOnHand < medicine.MinimumStockLevel, medicine.IsActive);
 }
 
 public sealed class InventoryException(string code, string message) : Exception(message)

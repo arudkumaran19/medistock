@@ -8,6 +8,13 @@ namespace MediStock.Api.Features.Inventory.Services;
 
 public sealed class BatchService(ApplicationDbContext db)
 {
+    public async Task<IReadOnlyList<BatchResponse>> GetActiveAsync(Guid? facilityId, CancellationToken cancellationToken)
+    {
+        var query = db.MedicineBatches.AsNoTracking().Include(x => x.Medicine).Where(x => x.Medicine.IsActive && x.Facility.IsActive && x.QuantityOnHand > 0);
+        if (facilityId.HasValue) query = query.Where(x => x.FacilityId == facilityId.Value);
+        return await query.OrderBy(x => x.ExpiryDateUtc).Select(x => new BatchResponse(x.Id, x.MedicineId, x.Medicine.Name, x.FacilityId, x.BatchNumber, x.QuantityOnHand, x.ExpiryDateUtc, x.ManufacturingDateUtc)).ToListAsync(cancellationToken);
+    }
+
     public async Task<BatchResponse> CreateAsync(CreateMedicineBatchRequest request, CancellationToken cancellationToken)
     {
         InventoryValidator.ValidateQuantity(request.Quantity);
