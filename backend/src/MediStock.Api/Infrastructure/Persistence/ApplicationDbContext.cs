@@ -1,33 +1,46 @@
 using MediStock.Api.Features.Inventory.Models;
+using UserFacility = MediStock.Api.Domain.Entities.UserFacility;
+using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Infrastructure.Persistence.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediStock.Api.Infrastructure.Persistence;
 
-public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
+public sealed class ApplicationDbContext
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<UserFacility> UserFacilities => Set<UserFacility>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Facility> Facilities => Set<Facility>();
     public DbSet<MedicineBatch> MedicineBatches => Set<MedicineBatch>();
     public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
     public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        modelBuilder.Entity<Medicine>(entity =>
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        builder.Entity<Medicine>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.Code).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(64).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
         });
-        modelBuilder.Entity<Facility>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-            entity.HasIndex(x => x.Code).IsUnique();
-            entity.Property(x => x.Code).HasMaxLength(64).IsRequired();
-            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
-        });
-        modelBuilder.Entity<MedicineBatch>(entity =>
+        builder.Entity<MedicineBatch>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.MedicineId, x.FacilityId, x.BatchNumber }).IsUnique();
@@ -35,14 +48,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasOne(x => x.Medicine).WithMany(x => x.Batches).HasForeignKey(x => x.MedicineId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Facility).WithMany(x => x.Batches).HasForeignKey(x => x.FacilityId).OnDelete(DeleteBehavior.Restrict);
         });
-        modelBuilder.Entity<InventoryBalance>(entity =>
+        builder.Entity<InventoryBalance>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.MedicineId, x.FacilityId }).IsUnique();
             entity.HasOne(x => x.Medicine).WithMany(x => x.InventoryBalances).HasForeignKey(x => x.MedicineId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Facility).WithMany(x => x.InventoryBalances).HasForeignKey(x => x.FacilityId).OnDelete(DeleteBehavior.Restrict);
         });
-        modelBuilder.Entity<StockTransaction>(entity =>
+        builder.Entity<StockTransaction>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Reason).HasMaxLength(500).IsRequired();

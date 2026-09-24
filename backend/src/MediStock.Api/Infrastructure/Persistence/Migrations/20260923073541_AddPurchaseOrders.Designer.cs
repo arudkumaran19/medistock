@@ -3,6 +3,7 @@ using System;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MediStock.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923073541_AddPurchaseOrders")]
+    partial class AddPurchaseOrders
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,23 +25,16 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Facility", b =>
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.Facility", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -47,154 +43,10 @@ modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Facility", b =>
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("Facilities");
+                    b.ToTable("Facilities", (string)null);
                 });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
 
-                    b.Property<Guid>("FacilityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("QuantityOnHand")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("QuantityReserved")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacilityId");
-
-                    b.HasIndex("MedicineId", "FacilityId")
-                        .IsUnique();
-
-                    b.ToTable("InventoryBalances");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Medicine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("MinimumStockLevel")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("Medicines");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.MedicineBatch", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BatchNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("ExpiryDateUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("FacilityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("ManufacturingDateUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("QuantityOnHand")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacilityId");
-
-                    b.HasIndex("MedicineId", "FacilityId", "BatchNumber")
-                        .IsUnique();
-
-                    b.ToTable("MedicineBatches");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.StockTransaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActorId")
-                        .HasColumnType("text");
-
-                    b.Property<int>("BalanceAfter")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("FacilityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("MedicineBatchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MedicineBatchId");
-
-                    b.ToTable("StockTransactions");
-                });
-modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -208,7 +60,8 @@ modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
 
                     b.ToTable("UserFacilities", (string)null);
                 });
-modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
+
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -240,7 +93,8 @@ modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b
 
                     b.ToTable("PurchaseOrders", (string)null);
                 });
-modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
+
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -268,7 +122,8 @@ modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem
                             t.HasCheckConstraint("CK_PurchaseOrderItems_RequestedQuantity_Positive", "\"RequestedQuantity\" > 0");
                         });
                 });
-modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Supplier", b =>
+
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -314,7 +169,8 @@ modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Supplier", b =>
                             t.HasCheckConstraint("CK_Suppliers_LeadTimeDays_NonNegative", "\"LeadTimeDays\" >= 0");
                         });
                 });
-modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", b =>
+
+            modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -378,7 +234,8 @@ modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.Applicati
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
-modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
+
+            modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -410,7 +267,8 @@ modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshTo
 
                     b.ToTable("RefreshTokens", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -436,7 +294,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b
 
                     b.ToTable("AspNetRoles", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -459,7 +318,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid
 
                     b.ToTable("AspNetRoleClaims", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -482,7 +342,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid
 
                     b.ToTable("AspNetUserClaims", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
                     b.Property<string>("LoginProvider")
                         .HasColumnType("text");
@@ -502,7 +363,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid
 
                     b.ToTable("AspNetUserLogins", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -516,7 +378,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>
 
                     b.ToTable("AspNetUserRoles", (string)null);
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -535,70 +398,9 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
                 {
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Facility", "Facility")
-                        .WithMany("InventoryBalances")
-                        .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Medicine", "Medicine")
-                        .WithMany("InventoryBalances")
-                        .HasForeignKey("MedicineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Facility");
-
-                    b.Navigation("Medicine");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.MedicineBatch", b =>
-                {
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Facility", "Facility")
-                        .WithMany("Batches")
-                        .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Medicine", "Medicine")
-                        .WithMany("Batches")
-                        .HasForeignKey("MedicineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Facility");
-
-                    b.Navigation("Medicine");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.StockTransaction", b =>
-                {
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.MedicineBatch", "MedicineBatch")
-                        .WithMany("StockTransactions")
-                        .HasForeignKey("MedicineBatchId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("MedicineBatch");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Facility", b =>
-                {
-                    b.Navigation("Batches");
-
-                    b.Navigation("InventoryBalances");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Medicine", b =>
-                {
-                    b.Navigation("Batches");
-
-                    b.Navigation("InventoryBalances");
-                });
-modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.MedicineBatch", b =>
-                {
-                    b.Navigation("StockTransactions");
-                });
-modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
-                {
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Facility", null)
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
                         .WithMany()
                         .HasForeignKey("FacilityId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -610,9 +412,10 @@ modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
+
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
                 {
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Facility", null)
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
                         .WithMany()
                         .HasForeignKey("FacilityId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -624,7 +427,8 @@ modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
-modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
+
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem", b =>
                 {
                     b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", null)
                         .WithMany()
@@ -632,7 +436,8 @@ modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrderItem
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
-modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
+
+            modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
                 {
                     b.HasOne("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", "User")
                         .WithMany()
@@ -642,7 +447,8 @@ modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshTo
 
                     b.Navigation("User");
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
                         .WithMany()
@@ -650,7 +456,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", null)
                         .WithMany()
@@ -658,7 +465,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
                     b.HasOne("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", null)
                         .WithMany()
@@ -666,7 +474,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
                         .WithMany()
@@ -680,7 +489,8 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
                     b.HasOne("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", null)
                         .WithMany()
@@ -688,7 +498,6 @@ modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
-
 #pragma warning restore 612, 618
         }
     }
