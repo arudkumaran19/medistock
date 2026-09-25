@@ -1,5 +1,5 @@
+using MediStock.Api.Domain.Entities;
 using MediStock.Api.Features.Inventory.Models;
-using UserFacility = MediStock.Api.Domain.Entities.UserFacility;
 using MediStock.Api.Features.Procurement.Models;
 using MediStock.Api.Infrastructure.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -40,26 +40,51 @@ public sealed class ApplicationDbContext
             entity.Property(x => x.Code).HasMaxLength(64).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
         });
+
         builder.Entity<MedicineBatch>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.MedicineId, x.FacilityId, x.BatchNumber }).IsUnique();
             entity.Property(x => x.BatchNumber).HasMaxLength(100).IsRequired();
-            entity.HasOne(x => x.Medicine).WithMany(x => x.Batches).HasForeignKey(x => x.MedicineId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Facility).WithMany(x => x.Batches).HasForeignKey(x => x.FacilityId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Medicine)
+                .WithMany(x => x.Batches)
+                .HasForeignKey(x => x.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Facility)
+                .WithMany()
+                .HasForeignKey(x => x.FacilityId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
+
         builder.Entity<InventoryBalance>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.MedicineId, x.FacilityId }).IsUnique();
-            entity.HasOne(x => x.Medicine).WithMany(x => x.InventoryBalances).HasForeignKey(x => x.MedicineId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Facility).WithMany(x => x.InventoryBalances).HasForeignKey(x => x.FacilityId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Medicine)
+                .WithMany(x => x.InventoryBalances)
+                .HasForeignKey(x => x.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Facility)
+                .WithMany()
+                .HasForeignKey(x => x.FacilityId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
+
         builder.Entity<StockTransaction>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Reason).HasMaxLength(500).IsRequired();
-            entity.HasOne(x => x.MedicineBatch).WithMany(x => x.StockTransactions).HasForeignKey(x => x.MedicineBatchId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(x => x.Reason)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.HasOne(x => x.MedicineBatch)
+                .WithMany(x => x.StockTransactions)
+                .HasForeignKey(x => x.MedicineBatchId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

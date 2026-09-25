@@ -1,5 +1,5 @@
+using MediStock.Api.Domain.Entities;
 using MediStock.Api.Features.Procurement.Models;
-using Facility = MediStock.Api.Features.Inventory.Models.Facility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

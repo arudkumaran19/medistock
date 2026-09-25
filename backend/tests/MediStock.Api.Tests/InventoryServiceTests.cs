@@ -1,5 +1,6 @@
 using MediStock.Api.Features.Inventory.DTOs;
 using MediStock.Api.Features.Inventory.Models;
+using MediStock.Api.Domain.Entities;
 using MediStock.Api.Features.Inventory.Services;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

@@ -2,7 +2,7 @@ using System.Security.Claims;
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Infrastructure.Persistence.Identity;
 using MediStock.Api.Security;
-using Facility = MediStock.Api.Features.Inventory.Models.Facility;
+using Facility = MediStock.Api.Domain.Entities.Facility;
 using UserFacility = MediStock.Api.Domain.Entities.UserFacility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;

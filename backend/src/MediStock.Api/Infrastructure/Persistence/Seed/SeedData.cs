@@ -1,4 +1,5 @@
 using MediStock.Api.Features.Inventory.Models;
+using MediStock.Api.Domain.Entities;
 using MediStock.Api.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
