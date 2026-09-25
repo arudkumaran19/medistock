@@ -13,34 +13,39 @@ public sealed class PurchaseOrderConfiguration
     {
         builder.ToTable("PurchaseOrders");
 
-        builder.HasKey(purchaseOrder => purchaseOrder.Id);
+        builder.HasKey(x => x.Id);
 
-        builder.Property(purchaseOrder => purchaseOrder.SupplierId)
+        builder.Property(x => x.SupplierId)
             .IsRequired();
 
-        builder.Property(purchaseOrder => purchaseOrder.FacilityId)
+        builder.Property(x => x.FacilityId)
             .IsRequired();
 
-        builder.Property(purchaseOrder => purchaseOrder.Status)
+        builder.Property(x => x.Status)
             .IsRequired();
 
-        builder.Property(purchaseOrder => purchaseOrder.RequestedAt)
+        builder.Property(x => x.RequestedAt)
             .IsRequired();
 
-        builder.Property(purchaseOrder => purchaseOrder.ApprovedAt)
+        builder.Property(x => x.ApprovedAt)
             .IsRequired(false);
 
-        builder.Property(purchaseOrder => purchaseOrder.ReceivedAt)
+        builder.Property(x => x.ReceivedAt)
             .IsRequired(false);
 
         builder.HasOne<Supplier>()
             .WithMany()
-            .HasForeignKey(purchaseOrder => purchaseOrder.SupplierId)
+            .HasForeignKey(x => x.SupplierId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Facility>()
             .WithMany()
-            .HasForeignKey(purchaseOrder => purchaseOrder.FacilityId)
+            .HasForeignKey(x => x.FacilityId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Items)
+            .WithOne()
+            .HasForeignKey(x => x.PurchaseOrderId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

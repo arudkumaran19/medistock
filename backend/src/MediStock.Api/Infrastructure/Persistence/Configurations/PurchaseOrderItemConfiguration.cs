@@ -1,3 +1,4 @@
+using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -16,24 +17,24 @@ public sealed class PurchaseOrderItemConfiguration
                 "CK_PurchaseOrderItems_RequestedQuantity_Positive",
                 "\"RequestedQuantity\" > 0"));
 
-        builder.HasKey(purchaseOrderItem => purchaseOrderItem.Id);
+        builder.HasKey(x => x.Id);
 
-        builder.Property(purchaseOrderItem => purchaseOrderItem.PurchaseOrderId)
+        builder.Property(x => x.PurchaseOrderId)
             .IsRequired();
 
-        builder.Property(purchaseOrderItem => purchaseOrderItem.MedicineId)
+        builder.Property(x => x.MedicineId)
             .IsRequired();
 
-        builder.Property(purchaseOrderItem => purchaseOrderItem.RequestedQuantity)
+        builder.Property(x => x.RequestedQuantity)
             .IsRequired();
 
-        builder.Property(purchaseOrderItem => purchaseOrderItem.UnitPrice)
+        builder.Property(x => x.UnitPrice)
             .IsRequired()
             .HasPrecision(18, 2);
 
-        builder.HasOne<PurchaseOrder>()
+        builder.HasOne<Medicine>()
             .WithMany()
-            .HasForeignKey(purchaseOrderItem => purchaseOrderItem.PurchaseOrderId)
+            .HasForeignKey(x => x.MedicineId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
