@@ -21,6 +21,7 @@ public sealed class ApplicationDbContext
     public DbSet<UserFacility> UserFacilities => Set<UserFacility>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
 
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Facility> Facilities => Set<Facility>();
@@ -86,5 +87,7 @@ public sealed class ApplicationDbContext
                 .HasForeignKey(x => x.MedicineBatchId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+
     }
 }

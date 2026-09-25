@@ -3,6 +3,7 @@ using System;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MediStock.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925060732_AddPurchaseOrderMedicineForeignKey")]
+    partial class AddPurchaseOrderMedicineForeignKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -216,47 +219,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("StockTransactions");
                 });
 
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Delivery", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ExpectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("PurchaseOrderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("TrackingNumber")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PurchaseOrderId");
-
-                    b.ToTable("Deliveries");
-                });
-
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -302,6 +264,9 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("PurchaseOrderId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PurchaseOrderId1")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("RequestedQuantity")
                         .HasColumnType("integer");
 
@@ -314,6 +279,8 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("MedicineId");
 
                     b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("PurchaseOrderId1");
 
                     b.ToTable("PurchaseOrderItems", null, t =>
                         {
@@ -659,17 +626,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Navigation("MedicineBatch");
                 });
 
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Delivery", b =>
-                {
-                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", "PurchaseOrder")
-                        .WithMany("Deliveries")
-                        .HasForeignKey("PurchaseOrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("PurchaseOrder");
-                });
-
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
                 {
                     b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
@@ -694,10 +650,14 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", null)
-                        .WithMany("Items")
+                        .WithMany()
                         .HasForeignKey("PurchaseOrderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", null)
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseOrderId1");
                 });
 
             modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
@@ -776,8 +736,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.PurchaseOrder", b =>
                 {
-                    b.Navigation("Deliveries");
-
                     b.Navigation("Items");
                 });
 #pragma warning restore 612, 618

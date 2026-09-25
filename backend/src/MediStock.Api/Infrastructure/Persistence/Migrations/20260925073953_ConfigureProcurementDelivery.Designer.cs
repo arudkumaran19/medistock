@@ -3,6 +3,7 @@ using System;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MediStock.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925073953_ConfigureProcurementDelivery")]
+    partial class ConfigureProcurementDelivery
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -238,6 +241,9 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("PurchaseOrderId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PurchaseOrderId1")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -253,6 +259,8 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("PurchaseOrderId1");
 
                     b.ToTable("Deliveries");
                 });
@@ -662,10 +670,14 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Delivery", b =>
                 {
                     b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", "PurchaseOrder")
-                        .WithMany("Deliveries")
+                        .WithMany()
                         .HasForeignKey("PurchaseOrderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", null)
+                        .WithMany("Deliveries")
+                        .HasForeignKey("PurchaseOrderId1");
 
                     b.Navigation("PurchaseOrder");
                 });
