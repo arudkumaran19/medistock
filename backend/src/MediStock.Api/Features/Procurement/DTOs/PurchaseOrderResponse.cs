@@ -15,6 +15,7 @@ public sealed record PurchaseOrderResponse(
     DateTime? ApprovedAt,
     DateTime? ReceivedAt,
     IReadOnlyList<PurchaseOrderItemResponse> Items,
+    // Approval workflow fields (procurement branch)
     Guid? ApprovedById = null,
     string? RejectionReason = null,
     string? RevisionReason = null);

@@ -52,6 +52,7 @@ public static class ProcurementValidator
         }
     }
 
+    // Supplier validation (procurement branch — required by SupplierService)
     public static void ValidateSupplier(SupplierRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

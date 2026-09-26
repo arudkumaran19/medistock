@@ -22,25 +22,19 @@ public sealed class ProcurementService(
         ArgumentNullException.ThrowIfNull(request);
 
         if (request.SupplierId == Guid.Empty)
-        {
             throw new ProcurementException(
                 "SUPPLIER_REQUIRED",
                 "Supplier is required.");
-        }
 
         if (request.FacilityId == Guid.Empty)
-        {
             throw new ProcurementException(
                 "FACILITY_REQUIRED",
                 "Facility is required.");
-        }
 
         if (request.Items is null || request.Items.Count == 0)
-        {
             throw new ProcurementException(
                 "ITEMS_REQUIRED",
                 "At least one purchase order item is required.");
-        }
 
         // --------------------------------------------------------
         // Validate supplier
@@ -54,11 +48,9 @@ public sealed class ProcurementService(
                 cancellationToken);
 
         if (!supplierExists)
-        {
             throw new ProcurementException(
                 "SUPPLIER_NOT_FOUND",
                 "Active supplier was not found.");
-        }
 
         // --------------------------------------------------------
         // Validate facility
@@ -72,11 +64,9 @@ public sealed class ProcurementService(
                 cancellationToken);
 
         if (!facilityExists)
-        {
             throw new ProcurementException(
                 "FACILITY_NOT_FOUND",
                 "Active facility was not found.");
-        }
 
         // --------------------------------------------------------
         // Validate medicines
@@ -85,56 +75,41 @@ public sealed class ProcurementService(
         foreach (var item in request.Items)
         {
             if (item.MedicineId == Guid.Empty)
-            {
                 throw new ProcurementException(
                     "MEDICINE_REQUIRED",
                     "Medicine is required for every purchase order item.");
-            }
 
             if (item.RequestedQuantity <= 0)
-            {
                 throw new ProcurementException(
                     "INVALID_QUANTITY",
                     "Requested quantity must be greater than zero.");
-            }
 
             if (item.UnitPrice < 0)
-            {
                 throw new ProcurementException(
                     "INVALID_UNIT_PRICE",
                     "Unit price cannot be negative.");
-            }
         }
 
         var medicineIds = request.Items
             .Select(x => x.MedicineId)
-            .ToList();
-
-        var distinctMedicineIds = medicineIds
             .Distinct()
             .ToList();
 
-        if (distinctMedicineIds.Count != medicineIds.Count)
-        {
+        if (medicineIds.Count != request.Items.Count)
             throw new ProcurementException(
                 "DUPLICATE_MEDICINE",
                 "A medicine can appear only once in a purchase order.");
-        }
 
         var medicines = await db.Medicines
-            .AsNoTracking()
-            .Where(x =>
-                distinctMedicineIds.Contains(x.Id) &&
-                x.IsActive)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
+            .Where(x => medicineIds.Contains(x.Id) && x.IsActive)
+            .ToDictionaryAsync(
+                x => x.Id,
+                cancellationToken);
 
-        if (medicines.Count != distinctMedicineIds.Count)
-        {
+        if (medicines.Count != medicineIds.Count)
             throw new ProcurementException(
                 "MEDICINE_NOT_FOUND",
                 "One or more medicines were not found or are inactive.");
-        }
 
         // --------------------------------------------------------
         // Create purchase order
@@ -193,19 +168,13 @@ public sealed class ProcurementService(
             .AsQueryable();
 
         if (facilityId.HasValue && facilityId.Value != Guid.Empty)
-        {
             query = query.Where(x => x.FacilityId == facilityId.Value);
-        }
 
         if (status.HasValue)
-        {
             query = query.Where(x => x.Status == status.Value);
-        }
 
         if (supplierId.HasValue && supplierId.Value != Guid.Empty)
-        {
             query = query.Where(x => x.SupplierId == supplierId.Value);
-        }
 
         return await query
             .OrderByDescending(x => x.RequestedAt)
@@ -240,9 +209,7 @@ public sealed class ProcurementService(
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
-        {
             return null;
-        }
 
         return await db.PurchaseOrders
             .AsNoTracking()
@@ -288,19 +255,15 @@ public sealed class ProcurementService(
             PurchaseOrderStatus.RevisionRequired);
 
         if (purchaseOrder.Items.Count == 0)
-        {
             throw new ProcurementException(
                 "ITEMS_REQUIRED",
                 "A purchase order must contain at least one item.");
-        }
 
         purchaseOrder.Status = PurchaseOrderStatus.PendingApproval;
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetRequiredAsync(
-            id,
-            cancellationToken);
+        return await GetRequiredAsync(id, cancellationToken);
     }
 
     // ============================================================
@@ -315,6 +278,7 @@ public sealed class ProcurementService(
             id,
             cancellationToken);
 
+        // RevisionRequired also allowed: re-approval after revision
         EnsureStatus(
             purchaseOrder,
             PurchaseOrderStatus.PendingApproval,
@@ -328,9 +292,7 @@ public sealed class ProcurementService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetRequiredAsync(
-            id,
-            cancellationToken);
+        return await GetRequiredAsync(id, cancellationToken);
     }
 
     // ============================================================
@@ -361,9 +323,7 @@ public sealed class ProcurementService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetRequiredAsync(
-            id,
-            cancellationToken);
+        return await GetRequiredAsync(id, cancellationToken);
     }
 
     // ============================================================
@@ -393,13 +353,11 @@ public sealed class ProcurementService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetRequiredAsync(
-            id,
-            cancellationToken);
+        return await GetRequiredAsync(id, cancellationToken);
     }
 
     // ============================================================
-    // GET TRACKED PURCHASE ORDER
+    // GET TRACKED PURCHASE ORDER (internal)
     // ============================================================
 
     private async Task<PurchaseOrder> GetTrackedPurchaseOrderAsync(
@@ -431,9 +389,7 @@ public sealed class ProcurementService(
         Guid id,
         CancellationToken cancellationToken)
     {
-        return await GetByIdAsync(
-                   id,
-                   cancellationToken)
+        return await GetByIdAsync(id, cancellationToken)
                ?? throw new ProcurementException(
                    "PURCHASE_ORDER_NOT_FOUND",
                    "Purchase order was not found.");
@@ -448,9 +404,7 @@ public sealed class ProcurementService(
         params PurchaseOrderStatus[] allowedStatuses)
     {
         if (allowedStatuses.Contains(purchaseOrder.Status))
-        {
             return;
-        }
 
         throw new ProcurementException(
             "INVALID_PURCHASE_ORDER_STATE",
@@ -464,10 +418,8 @@ public sealed class ProcurementService(
     private static void ValidateReason(string? reason)
     {
         if (string.IsNullOrWhiteSpace(reason))
-        {
             throw new ProcurementException(
                 "REASON_REQUIRED",
                 "A reason is required for this workflow action.");
-        }
     }
 }
