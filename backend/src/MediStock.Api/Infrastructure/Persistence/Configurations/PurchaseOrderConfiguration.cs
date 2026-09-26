@@ -30,7 +30,18 @@ public sealed class PurchaseOrderConfiguration
         builder.Property(x => x.ApprovedAt)
             .IsRequired(false);
 
+        builder.Property(x => x.ApprovedById)
+            .IsRequired(false);
+
         builder.Property(x => x.ReceivedAt)
+            .IsRequired(false);
+
+        builder.Property(x => x.RejectionReason)
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        builder.Property(x => x.RevisionReason)
+            .HasMaxLength(500)
             .IsRequired(false);
 
         builder.HasOne<Supplier>()

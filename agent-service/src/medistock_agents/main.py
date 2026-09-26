@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from medistock_agents.api.routes import router
+from medistock_agents.api.routes import router, procurement_router
 
 
-app = FastAPI(title="MediStock Inventory Intelligence Agent")
+app = FastAPI(
+    title="MediStock Intelligence Agents",
+    description="Inventory & Procurement Policy Validation agents for MediStock.",
+    version="1.0.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(procurement_router)
 
 
 @app.get("/health")

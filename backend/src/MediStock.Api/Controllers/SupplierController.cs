@@ -19,9 +19,13 @@ public sealed class SupplierController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupplierResponse>>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] bool? isActive,
         CancellationToken cancellationToken)
     {
         var suppliers = await _supplierService.GetAllAsync(
+            search,
+            isActive,
             cancellationToken);
 
         return Ok(suppliers);

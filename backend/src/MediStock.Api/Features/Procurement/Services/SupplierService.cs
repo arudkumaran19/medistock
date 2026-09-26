@@ -15,10 +15,27 @@ public sealed class SupplierService
     }
 
     public async Task<IReadOnlyList<SupplierResponse>> GetAllAsync(
+        string? search = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Suppliers
-            .AsNoTracking()
+        var query = _dbContext.Suppliers.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var trimmedSearch = search.Trim();
+            query = query.Where(s =>
+                EF.Functions.Like(s.Name, $"%{trimmedSearch}%") ||
+                EF.Functions.Like(s.ContactPerson, $"%{trimmedSearch}%") ||
+                EF.Functions.Like(s.Email, $"%{trimmedSearch}%"));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(s => s.IsActive == isActive.Value);
+        }
+
+        return await query
             .OrderBy(supplier => supplier.Name)
             .Select(supplier => new SupplierResponse(
                 supplier.Id,
@@ -55,14 +72,16 @@ public sealed class SupplierService
         SupplierRequest request,
         CancellationToken cancellationToken = default)
     {
+        Validators.ProcurementValidator.ValidateSupplier(request);
+
         var supplier = new Supplier
         {
             Id = Guid.NewGuid(),
-            Name = request.Name,
-            ContactPerson = request.ContactPerson,
-            Email = request.Email,
-            Phone = request.Phone,
-            Address = request.Address,
+            Name = request.Name.Trim(),
+            ContactPerson = request.ContactPerson.Trim(),
+            Email = request.Email.Trim(),
+            Phone = request.Phone.Trim(),
+            Address = request.Address.Trim(),
             LeadTimeDays = request.LeadTimeDays,
             IsActive = request.IsActive
         };
@@ -87,6 +106,8 @@ public sealed class SupplierService
         SupplierRequest request,
         CancellationToken cancellationToken = default)
     {
+        Validators.ProcurementValidator.ValidateSupplier(request);
+
         var supplier = await _dbContext.Suppliers
             .SingleOrDefaultAsync(
                 supplier => supplier.Id == id,
@@ -97,11 +118,11 @@ public sealed class SupplierService
             return null;
         }
 
-        supplier.Name = request.Name;
-        supplier.ContactPerson = request.ContactPerson;
-        supplier.Email = request.Email;
-        supplier.Phone = request.Phone;
-        supplier.Address = request.Address;
+        supplier.Name = request.Name.Trim();
+        supplier.ContactPerson = request.ContactPerson.Trim();
+        supplier.Email = request.Email.Trim();
+        supplier.Phone = request.Phone.Trim();
+        supplier.Address = request.Address.Trim();
         supplier.LeadTimeDays = request.LeadTimeDays;
         supplier.IsActive = request.IsActive;
 
