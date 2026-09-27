@@ -88,10 +88,10 @@ export const procurementAgentApi = {
       return (await response.json()) as ProcurementAgentResponse;
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") {
-        throw new Error("AI assistant timed out after 2 minutes. The LLM is under load — please try again in a moment.");
+        throw new Error("AI assistant timed out after 2 minutes. The LLM is under load — please try again in a moment.", { cause: e });
       }
       if (e instanceof Error && (e.message.includes("Failed to fetch") || e.message.includes("NetworkError") || e.message.includes("fetch failed"))) {
-        throw new Error("AI assistant unavailable. The procurement system is still available. Try again later or continue manually.");
+        throw new Error("AI assistant unavailable. The procurement system is still available. Try again later or continue manually.", { cause: e });
       }
       throw e;
     } finally {

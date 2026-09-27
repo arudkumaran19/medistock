@@ -2,7 +2,7 @@ import React, { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import styles from "./procurement/ProcurementPages.module.css";
-import { UserPlus, ArrowLeft, AlertCircle, Info, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { UserPlus, AlertCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 export function RegisterPage() {
   const { register } = useAuth();

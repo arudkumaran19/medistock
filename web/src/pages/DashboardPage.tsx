@@ -133,7 +133,7 @@ interface AnalyticsRowProps {
 }
 
 function AnalyticsRow({ orders, batches, inventory, isLoading }: AnalyticsRowProps) {
-  const now = Date.now();
+  const now = useMemo(() => Date.now(), []);
 
   const poStatusData = useMemo(() => {
     const counts = {
@@ -239,7 +239,7 @@ function AnalyticsRow({ orders, batches, inventory, isLoading }: AnalyticsRowPro
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: any) => [`${value} Orders`, "Volume"]}
+                  formatter={(value: unknown) => [`${value} Orders`, "Volume"]}
                   contentStyle={{ borderRadius: 8, fontSize: "12px", border: "1px solid #e2e8f0" }}
                 />
                 <Legend
@@ -278,7 +278,7 @@ function AnalyticsRow({ orders, batches, inventory, isLoading }: AnalyticsRowPro
               <XAxis dataKey="category" tick={{ fontSize: 11, fill: "#64748b" }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
               <Tooltip
-                formatter={(value: any) => [`${value} Items / Batches`, "Count"]}
+                formatter={(value: unknown) => [`${value} Items / Batches`, "Count"]}
                 contentStyle={{ borderRadius: 8, fontSize: "12px", border: "1px solid #e2e8f0" }}
               />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
@@ -739,11 +739,13 @@ function ProcurementOfficerDashboard({ email }: { email: string }) {
 function OperationalStaffDashboard({ email }: { email: string }) {
   const { orders, inventory, batches, medicines, isLoading, error, refetch } = useDashboardData();
 
-  const now = Date.now();
-  const expiringSoonCount = batches.filter((b) => {
-    const ms = new Date(b.expiryDateUtc).getTime() - now;
-    return ms > 0 && ms <= 30 * 86400000;
-  }).length;
+  const expiringSoonCount = useMemo(() => {
+    const now = Date.now();
+    return batches.filter((b) => {
+      const ms = new Date(b.expiryDateUtc).getTime() - now;
+      return ms > 0 && ms <= 30 * 86400000;
+    }).length;
+  }, [batches]);
 
   const lowStockCount = inventory.filter((i) => i.isBelowMinimum).length;
   const receivedCount = orders.filter((o) => o.status === "Received").length;

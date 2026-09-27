@@ -9,14 +9,10 @@ import {
 import { PageHeader, KPICard } from "../../components/ui";
 import styles from "./ProcurementPages.module.css";
 import {
-  BadgeCheck,
   CheckCircle2,
   AlertTriangle,
-  CircleX,
-  FileCheck2,
   ShieldCheck,
   Clock,
-  ArrowRight,
   X,
   AlertCircle,
   FileText,

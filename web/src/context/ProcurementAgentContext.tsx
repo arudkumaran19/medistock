@@ -70,22 +70,22 @@ export function ProcurementAgentProvider({ children }: { children: ReactNode }) 
 
   // Keep timer running as long as isLoading is true
   useEffect(() => {
-    if (isLoading) {
-      setElapsedSecs(0);
-      timerRef.current = setInterval(() => {
-        setElapsedSecs((s) => s + 1);
-      }, 1000);
-    } else {
+    if (!isLoading) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      return;
     }
+
+    const timer = setInterval(() => {
+      setElapsedSecs((s) => s + 1);
+    }, 1000);
+    timerRef.current = timer;
+
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      clearInterval(timer);
+      timerRef.current = null;
     };
   }, [isLoading]);
 
@@ -154,6 +154,7 @@ export function ProcurementAgentProvider({ children }: { children: ReactNode }) 
     onOrderCreated?: () => void
   ) {
     if (isLoading) return; // Prevent duplicate concurrent requests
+    setElapsedSecs(0);
     setIsLoading(true);
     setError("");
 

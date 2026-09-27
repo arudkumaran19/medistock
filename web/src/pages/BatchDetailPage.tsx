@@ -10,9 +10,6 @@ import {
   CheckCircle2,
   ShieldAlert,
   Sliders,
-  Package,
-  Calendar,
-  Building2,
   Activity,
 } from "lucide-react";
 

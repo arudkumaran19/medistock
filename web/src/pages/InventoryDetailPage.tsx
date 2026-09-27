@@ -16,9 +16,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Save,
-  RotateCw,
-  Package,
-  TrendingDown,
   Activity,
 } from "lucide-react";
 

@@ -12,16 +12,10 @@ import {
 } from "../utils/inventoryValidation";
 import styles from "./InventoryPage.module.css";
 import {
-  Pill,
-  Building2,
-  Boxes,
-  TrendingDown,
   CalendarCheck,
   PackagePlus,
   Plus,
-  Search,
   Eye,
-  RotateCw,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
