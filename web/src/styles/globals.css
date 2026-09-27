@@ -1,0 +1,402 @@
+/*
+ * SHARED REACT DESIGN SYSTEM - primary owner: Arudkumaran V. (IT24103011).
+ * Base layer and application shell created by the Demand vertical
+ * (Sathurstiga S., IT24103156). Replace with the owner's implementation.
+ *
+ * Background imagery note: the decorative motifs here are inline SVG data URIs drawn
+ * in-house - a clinical cross lattice and an ECG trace. Photographs were deliberately
+ * not used: a photograph behind dense figures costs legibility and contrast, adds
+ * weight to every page load, and carries licensing obligations this project has no
+ * need to take on. The motifs sit at very low opacity behind the header only, never
+ * behind data.
+ */
+@import './variables.css';
+@import './components.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--plane);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-weight: 620;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Application shell
+   --------------------------------------------------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100%;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-md);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.sidebar__mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sidebar__section {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-inline: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.sidebar__link:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.sidebar__link[aria-current='page'] {
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar__footer {
+  margin-top: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding-inline: var(--space-3);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Top bar — carries the clinical cross lattice at low opacity
+   --------------------------------------------------------------------------- */
+
+.topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%230f6d72' stroke-width='1.5'%3E%3Cpath d='M28 20v16M20 28h16'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.topbar > * {
+  position: relative;
+}
+
+.topbar__context {
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar__facility {
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+
+.topbar__meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.topbar__session {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbar__role {
+  padding: 3px 10px;
+  border: 1px solid var(--accent-ring);
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 640;
+}
+
+.content {
+  min-width: 0;
+  padding: var(--space-6);
+  animation: page-in var(--dur-slow) var(--ease) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Development sign-in — ECG trace motif
+   --------------------------------------------------------------------------- */
+
+.signin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--space-5);
+  background: var(--plane);
+  overflow: hidden;
+}
+
+.signin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='80' viewBox='0 0 240 80'%3E%3Cpath d='M0 40h40l10-22 14 44 10-22h30l8-14 10 28 8-14h40l10-18 12 36 10-18h38' fill='none' stroke='%230f6d72' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.signin__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(560px, 100%);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: page-in var(--dur-slow) var(--ease) both;
+}
+
+.signin__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.signin__title {
+  font-size: var(--text-xl);
+  font-weight: 680;
+}
+
+.signin__subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.signin__notice {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--sev-medium-border);
+  border-radius: var(--radius);
+  background: var(--sev-medium-bg);
+  color: var(--sev-medium-ink);
+  font-size: var(--text-sm);
+}
+
+.signin__prompt {
+  font-size: var(--text-md);
+  font-weight: 620;
+}
+
+.signin__roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-3);
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--space-4);
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.role-card:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  transform: translateY(-1px);
+}
+
+.role-card__name {
+  font-weight: 650;
+}
+
+.role-card__blurb {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.role-card__pending {
+  font-size: var(--text-xs);
+  color: var(--accent);
+}
+
+.signin__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive — intentional reflow, not a shrunken desktop
+   --------------------------------------------------------------------------- */
+
+/* Tablet: the sidebar becomes a horizontal strip and stops being sticky. */
+@media (max-width: 1024px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-5);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-3) var(--space-5);
+  }
+
+  .sidebar__section {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    gap: var(--space-1);
+  }
+
+  .sidebar__footer {
+    display: none;
+  }
+
+  .content {
+    padding: var(--space-5);
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    padding-inline: var(--space-4);
+  }
+
+  .content {
+    padding: var(--space-4);
+  }
+}
