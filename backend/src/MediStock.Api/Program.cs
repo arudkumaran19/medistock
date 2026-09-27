@@ -13,8 +13,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Infrastructure.AI;
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Infrastructure.Persistence.Seed;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -51,6 +53,30 @@ builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
 builder.Services.AddScoped<DemandValidator>();
+
+// Internal agent service (blueprint section 37). Infrastructure/AI has no assigned
+// owner in the blueprint; added by the Demand vertical so the Demand & Shortage Agent
+// is reachable. See AgentServiceOptions for the ownership note.
+builder.Services.Configure<AgentServiceOptions>(
+    builder.Configuration.GetSection(AgentServiceOptions.SectionName));
+
+builder.Services.AddHttpClient<AgentServiceClient>((serviceProvider, client) =>
+{
+    var agentOptions = serviceProvider
+        .GetRequiredService<IOptions<AgentServiceOptions>>()
+        .Value;
+
+    // An unconfigured or malformed base URL must not stop the API starting. The
+    // agent is advisory, so leave the address unset and let AgentServiceClient
+    // report a safe failure instead (blueprint section 41).
+    if (Uri.TryCreate(agentOptions.BaseUrl, UriKind.Absolute, out var agentBaseAddress))
+    {
+        client.BaseAddress = agentBaseAddress;
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(
+        agentOptions.TimeoutSeconds > 0 ? agentOptions.TimeoutSeconds : 30);
+});
 
 // ---------------------------------------------------------------------------
 // Authentication and authorization.
