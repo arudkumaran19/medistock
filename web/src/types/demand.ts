@@ -183,3 +183,58 @@ export interface ShortageUpdateRequest {
   currentStock?: number;
   leadTimeDays?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Agentic AI
+// ---------------------------------------------------------------------------
+
+/** One numeric or narrative observation the agent made. */
+export interface AgentFinding {
+  code: string;
+  summary: string;
+  value: number | null;
+  unit: string | null;
+}
+
+/** An operational suggestion. Advisory only - the agent approves nothing. */
+export interface AgentRecommendation {
+  code: string;
+  summary: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+/** Which tool produced which value, so every number is traceable. */
+export interface AgentEvidence {
+  source: string;
+  detail: string;
+  value: unknown;
+}
+
+/** Agent output contract (blueprint section 73). */
+export interface AgentResult {
+  agent: string;
+  status: 'SUCCESS' | 'SAFE_FAILURE';
+  confidence: number;
+  findings: AgentFinding[];
+  recommendations: AgentRecommendation[];
+  requiredValidation: boolean;
+  requestedAction: string | null;
+  evidence: AgentEvidence[];
+}
+
+/** Envelope from POST /api/demand/agent/analyze. */
+export interface AgentRunResult {
+  intent: string;
+  plan: string[];
+  handledBy: string | null;
+  result: AgentResult | null;
+  durationMs: number;
+}
+
+export interface AgentAnalyzeRequest {
+  facilityId: string;
+  medicineId: string;
+  objective?: string;
+  currentStock?: number;
+  windowDays?: number;
+}

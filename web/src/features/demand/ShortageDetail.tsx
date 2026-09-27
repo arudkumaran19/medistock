@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ErrorState } from '@/components/ErrorState';
 import { toErrorMessage } from '@/services/apiClient';
+import { AgentPanel } from './AgentPanel';
 import { DemandChain } from './DemandChain';
 import { ForecastTimeline } from './components/ForecastTimeline';
 import { Icon } from './components/Icon';
@@ -201,6 +202,12 @@ export function ShortageDetail({ shortageId }: { shortageId?: string }) {
           </Panel>
         </div>
       </div>
+
+      <AgentPanel
+        facilityId={alert.facilityId}
+        medicineId={alert.medicineId}
+        currentStock={alert.currentStock ?? undefined}
+      />
 
       {confirmDelete && (
         <ConfirmDialog

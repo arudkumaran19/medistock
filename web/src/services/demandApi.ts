@@ -14,6 +14,8 @@
  */
 import { apiClient } from './apiClient';
 import type {
+  AgentAnalyzeRequest,
+  AgentRunResult,
   ApiResponse,
   ConsumptionQuery,
   ConsumptionRecord,
@@ -155,4 +157,29 @@ export async function deleteConsumption(id: string): Promise<void> {
 
 export async function deleteForecast(id: string): Promise<void> {
   await apiClient.delete(`/api/demand/forecasts/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Agentic AI
+//
+// Not in the frozen contract (blueprint section 36). React calls ASP.NET, which
+// calls the agent service - the client never reaches the agent directly
+// (blueprint section 37).
+// ---------------------------------------------------------------------------
+
+export async function runAgentAnalysis(
+  request: AgentAnalyzeRequest,
+): Promise<AgentRunResult> {
+  const response = await apiClient.post<ApiResponse<AgentRunResult>>(
+    '/api/demand/agent/analyze',
+    request,
+  );
+  return response.data.data;
+}
+
+export async function getAgentHealth(): Promise<boolean> {
+  const response = await apiClient.get<ApiResponse<{ healthy: boolean }>>(
+    '/api/demand/agent/health',
+  );
+  return response.data.data.healthy;
 }
