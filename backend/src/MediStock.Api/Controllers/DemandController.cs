@@ -4,6 +4,7 @@ using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
 using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Infrastructure.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,15 +35,18 @@ public class DemandController : ControllerBase
     private readonly ConsumptionService _consumptionService;
     private readonly ForecastService _forecastService;
     private readonly DemandValidator _validator;
+    private readonly AgentServiceClient _agentService;
 
     public DemandController(
         ConsumptionService consumptionService,
         ForecastService forecastService,
-        DemandValidator validator)
+        DemandValidator validator,
+        AgentServiceClient agentService)
     {
         _consumptionService = consumptionService;
         _forecastService = forecastService;
         _validator = validator;
+        _agentService = agentService;
     }
 
     // -----------------------------------------------------------------------
@@ -272,4 +276,92 @@ public class DemandController : ControllerBase
 
         return NoContent();
     }
+
+    // -----------------------------------------------------------------------
+    // Agentic AI
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Runs a demand objective through the Demand &amp; Shortage Agent and returns its
+    /// structured result.
+    ///
+    /// Not in the frozen API contract (blueprint section 36), which lists no agent
+    /// endpoint under Demand. Section 37 states that ASP.NET Core - never a client -
+    /// calls the agent service, so this endpoint is the boundary that keeps React and
+    /// Flutter away from it. Do not assume or introduce a new decision without
+    /// team-level confirmation.
+    ///
+    /// The agent is advisory. It validates nothing authoritatively and approves
+    /// nothing: every figure it reports comes from the deterministic internal tools,
+    /// and its result always carries requiredValidation = true.
+    ///
+    /// When the agent service is unreachable this returns 503 with a safe-failure
+    /// body rather than an exception (blueprint section 41).
+    /// </summary>
+    [HttpPost("demand/agent/analyze")]
+    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
+    [ProducesResponseType(typeof(ApiResponse<AgentRunResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> RunDemandAgent(
+        [FromBody] DemandAgentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _agentService.RunAsync(
+            new AgentRunRequest(
+                request.FacilityId.ToString(),
+                request.MedicineId.ToString(),
+                request.Objective,
+                request.CurrentStock,
+                request.WindowDays ?? 30),
+            cancellationToken);
+
+        if (result is null)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                ErrorResponse.Create(
+                    "AGENT_UNAVAILABLE",
+                    "The agent service is not running or refused the request. "
+                        + "No analysis was produced and nothing was changed.",
+                    HttpContext.TraceIdentifier));
+        }
+
+        return Ok(ApiResponse<AgentRunResult>.Ok(result));
+    }
+
+    /// <summary>Whether the internal agent service is reachable.</summary>
+    [HttpGet("demand/agent/health")]
+    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
+    [ProducesResponseType(typeof(ApiResponse<AgentHealthResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAgentHealth(CancellationToken cancellationToken)
+    {
+        var healthy = await _agentService.IsHealthyAsync(cancellationToken);
+
+        return Ok(ApiResponse<AgentHealthResponse>.Ok(new AgentHealthResponse(healthy)));
+    }
 }
+
+/// <summary>Request body for POST /api/demand/agent/analyze.</summary>
+public sealed record DemandAgentRequest
+{
+    public Guid FacilityId { get; init; }
+
+    public Guid MedicineId { get; init; }
+
+    /// <summary>
+    /// Plain-language objective. Screened by the agent's input guard before any tool
+    /// runs, so an injected instruction is refused rather than obeyed.
+    /// </summary>
+    public string? Objective { get; init; }
+
+    /// <summary>
+    /// Stock on hand. Owned by the Inventory vertical, so the caller supplies it.
+    /// Without it the agent reports what it still needs instead of guessing.
+    /// </summary>
+    public decimal? CurrentStock { get; init; }
+
+    public int? WindowDays { get; init; }
+}
+
+/// <summary>Agent service liveness.</summary>
+public sealed record AgentHealthResponse(bool Healthy);
