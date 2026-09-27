@@ -1,0 +1,9 @@
+# SHARED SCAFFOLDING - NOT owned by the Demand vertical.
+# Minimum dependencies for the Demand & Shortage Agent and its tests.
+# LangGraph and the Gemini provider are added by the orchestration and provider
+# owners; this vertical's specialist agent deliberately does not import them, so it
+# stays independently testable.
+
+pydantic>=2.0
+httpx>=0.27
+pytest>=8.0
