@@ -397,6 +397,13 @@ class _AdminPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _QuickAction(
+            icon: Icons.group_outlined,
+            title: 'User Management',
+            subtitle: 'Manage access, roles, and account status',
+            onTap: () => onAction(AppRouter.userManagement),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
             icon: Icons.add_shopping_cart,
             title: 'Create Procurement Request',
             subtitle: 'Draft a new purchase order',

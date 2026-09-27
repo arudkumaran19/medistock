@@ -3,6 +3,7 @@ import '../../features/auth/data/auth_service.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/dashboard_screen.dart';
+import '../../features/admin/screens/user_management_screen.dart';
 import '../../features/inventory/models/inventory_models.dart';
 import '../../features/inventory/screens/batch_detail_screen.dart';
 import '../../features/inventory/screens/receive_stock_screen.dart';
@@ -22,6 +23,9 @@ class AppRouter {
   static const login = '/login';
   static const register = '/register';
   static const dashboard = '/dashboard';
+
+  // Admin routes
+  static const userManagement = '/admin/users';
 
   // Inventory routes
   static const inventory = '/inventory';
@@ -48,12 +52,19 @@ class AppRouter {
         break;
 
       case dashboard:
-        final user = _authService.currentUser;
+        final user = (settings.arguments as AuthUser?) ?? _authService.currentUser;
         if (user == null) {
           page = const LoginScreen();
         } else {
           page = DashboardScreen(user: user, authService: _authService);
         }
+        break;
+
+      case userManagement:
+        final user = _authService.currentUser;
+        page = user != null && user.isAdmin
+            ? UserManagementScreen(currentUser: user)
+            : const LoginScreen();
         break;
 
       // ─── Root: guard → dashboard or login ────────────────────────────

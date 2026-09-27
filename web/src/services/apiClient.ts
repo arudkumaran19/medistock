@@ -1,4 +1,4 @@
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5182";
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5050";
 
 export function getStoredToken(): string | null {
   return localStorage.getItem("medistock_access_token");

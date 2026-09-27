@@ -1034,6 +1034,13 @@ function AdministratorDashboard({ email }: { email: string }) {
               icon={<Pill size={18} />}
               accent="#16a34a"
             />
+            <QuickAction
+              to="/admin/users"
+              label="User Management"
+              description="Manage administrator access, roles, and active account status"
+              icon={<Users size={18} />}
+              accent="#7c3aed"
+            />
           </div>
         </div>
       </div>

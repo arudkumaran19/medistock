@@ -3,19 +3,26 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-  ApiClient({String? baseUrl, this.authToken})
-      : baseUrl = baseUrl ?? _resolveDefaultBaseUrl();
+  ApiClient({String? baseUrl, String? authToken})
+      : baseUrl = baseUrl ?? _resolveDefaultBaseUrl(),
+        _instanceAuthToken = authToken;
 
   final String baseUrl;
-  String? authToken;
+  static String? globalAuthToken;
+  final String? _instanceAuthToken;
+
+  String? get authToken => _instanceAuthToken ?? globalAuthToken;
+  set authToken(String? token) {
+    globalAuthToken = token;
+  }
 
   static String _resolveDefaultBaseUrl() {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5182';
+      return 'http://10.0.2.2:5050';
     }
-    return 'http://localhost:5182';
+    return 'http://localhost:5050';
   }
 
   Future<dynamic> request(

@@ -15,6 +15,7 @@ import { ProcurementPriority } from "../pages/procurement/ProcurementPriority";
 import { ApprovalConsole } from "../pages/procurement/ApprovalConsole";
 import { WorkflowMonitor } from "../pages/procurement/WorkflowMonitor";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { AdminPage } from "../pages/AdminPage";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -65,5 +66,15 @@ export const router = createBrowserRouter([
   {
     path: "/procurement/workflow",
     element: <ProtectedRoute><WorkflowMonitor /></ProtectedRoute>,
+  },
+
+  // Admin routes
+  {
+    path: "/admin/users",
+    element: (
+      <ProtectedRoute requiredRole="Administrator">
+        <AdminPage />
+      </ProtectedRoute>
+    ),
   },
 ]);
