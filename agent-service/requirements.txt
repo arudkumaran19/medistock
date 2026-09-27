@@ -7,3 +7,8 @@
 pydantic>=2.0
 httpx>=0.27
 pytest>=8.0
+
+# Host for the internal agent API (blueprint section 37), added with main.py.
+# main.py has no assigned owner in the blueprint - see its module docstring.
+fastapi>=0.110
+uvicorn[standard]>=0.29
