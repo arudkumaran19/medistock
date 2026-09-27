@@ -77,7 +77,8 @@ public sealed class AuthService
             throw new InvalidOperationException(errors);
         }
 
-        var targetRole = request.Role == 0 ? Domain.Enums.UserRole.OperationalStaff : request.Role;
+        // All public registrations are assigned the base least-privilege role (OperationalStaff)
+        var targetRole = Domain.Enums.UserRole.OperationalStaff;
         var role = targetRole.ToString();
 
         var roleResult = await _userManager.AddToRoleAsync(
@@ -131,6 +132,11 @@ public sealed class AuthService
         if (!result.Succeeded)
         {
             return null;
+        }
+
+        if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException("This user account has been deactivated. Please contact an administrator.");
         }
 
         var roles = await _userManager.GetRolesAsync(user);

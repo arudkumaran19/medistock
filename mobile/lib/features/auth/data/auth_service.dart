@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 
 class AuthUser {
@@ -62,9 +64,18 @@ class AuthResponse {
 }
 
 class MobileAuthService {
-  MobileAuthService({ApiClient? client}) : _client = client ?? ApiClient();
+  static final MobileAuthService _instance = MobileAuthService._internal();
 
-  final ApiClient _client;
+  factory MobileAuthService({ApiClient? client}) {
+    if (client != null) {
+      _instance._client = client;
+    }
+    return _instance;
+  }
+
+  MobileAuthService._internal({ApiClient? client}) : _client = client ?? ApiClient();
+
+  ApiClient _client;
 
   // In-memory session; in production, persist via SharedPreferences or flutter_secure_storage
   AuthUser? _currentUser;
@@ -73,6 +84,21 @@ class MobileAuthService {
   AuthUser? get currentUser => _currentUser;
   String? get token => _token;
   bool get isAuthenticated => _token != null && _currentUser != null;
+
+  Future<bool> tryRestoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString('auth_token');
+      final savedUserJson = prefs.getString('auth_user');
+      if (savedToken != null && savedUserJson != null) {
+        _token = savedToken;
+        _client.authToken = _token;
+        _currentUser = AuthUser.fromJson(jsonDecode(savedUserJson) as Map<String, dynamic>);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
 
   Future<AuthResponse> login({
     required String email,
@@ -87,6 +113,17 @@ class MobileAuthService {
     _token = response.accessToken;
     _client.authToken = _token;
     _currentUser = response.user;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', _token!);
+      await prefs.setString('auth_user', jsonEncode({
+        'userId': _currentUser!.userId,
+        'email': _currentUser!.email,
+        'roles': _currentUser!.roles,
+      }));
+    } catch (_) {}
+
     return response;
   }
 
@@ -114,6 +151,17 @@ class MobileAuthService {
     _token = response.accessToken;
     _client.authToken = _token;
     _currentUser = response.user;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', _token!);
+      await prefs.setString('auth_user', jsonEncode({
+        'userId': _currentUser!.userId,
+        'email': _currentUser!.email,
+        'roles': _currentUser!.roles,
+      }));
+    } catch (_) {}
+
     return response;
   }
 
@@ -121,5 +169,9 @@ class MobileAuthService {
     _token = null;
     _client.authToken = null;
     _currentUser = null;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('auth_token');
+      prefs.remove('auth_user');
+    }).catchError((_) {});
   }
 }

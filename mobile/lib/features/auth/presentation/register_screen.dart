@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/auth_service.dart';
 import '../../../core/routing/app_router.dart';
+import 'dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -40,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorMessage = null;
     });
     try {
-      await _authService.register(
+      final response = await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         confirmPassword: _confirmPasswordController.text,
@@ -49,7 +50,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: 'OperationalStaff',
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRouter.dashboard);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          settings: const RouteSettings(name: AppRouter.dashboard),
+          builder: (_) => DashboardScreen(user: response.user, authService: _authService),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {

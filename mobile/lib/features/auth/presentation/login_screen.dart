@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/auth_service.dart';
 import '../../../core/routing/app_router.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,8 +12,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _authService = MobileAuthService();
-  final _emailController = TextEditingController(text: 'manager@medistock.com');
-  final _passwordController = TextEditingController(text: 'Password123!');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
@@ -33,12 +34,18 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
     try {
-      await _authService.login(
+      final response = await _authService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRouter.dashboard);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          settings: const RouteSettings(name: AppRouter.dashboard),
+          builder: (_) => DashboardScreen(user: response.user, authService: _authService),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -189,29 +196,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Demo accounts
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Default seed accounts:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 4),
-                              Text('• Manager: manager@medistock.com', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                              Text('• Staff: store@medistock.com', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                              Text('• Supplier: supplier@medistock.com', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                              const SizedBox(height: 2),
-                              Text('Password: Password123!', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                            ],
-                          ),
                         ),
                       ],
                     ),

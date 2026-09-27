@@ -2,13 +2,13 @@ import React, { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import styles from "./procurement/ProcurementPages.module.css";
-import { Pill, Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Pill, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("manager@medistock.com");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +25,6 @@ export function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function applyPreset(presetEmail: string) {
-    setEmail(presetEmail);
-    setPassword("Password123!");
   }
 
   return (
@@ -176,90 +171,6 @@ export function LoginPage() {
           <Link to="/register" style={{ color: "#0f766e", fontWeight: 600, textDecoration: "none" }}>
             Register an Account
           </Link>
-        </div>
-
-        {/* Quick Demo Role Selector Pills */}
-        <div
-          style={{
-            marginTop: 24,
-            padding: "14px 16px",
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            borderRadius: 10,
-            fontSize: "0.75rem",
-            color: "#64748b",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontWeight: 600, color: "#334155" }}>
-            <ShieldCheck size={14} style={{ color: "#0f766e" }} />
-            Quick Demo Logins:
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <button
-              type="button"
-              onClick={() => applyPreset("admin@medistock.com")}
-              style={{
-                background: email === "admin@medistock.com" ? "#ede9fe" : "#ffffff",
-                border: "1px solid #cbd5e1",
-                padding: "4px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                cursor: "pointer",
-                color: "#7c3aed",
-                fontWeight: 600,
-              }}
-            >
-              Administrator
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("manager@medistock.com")}
-              style={{
-                background: email === "manager@medistock.com" ? "#ccfbf1" : "#ffffff",
-                border: "1px solid #cbd5e1",
-                padding: "4px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                cursor: "pointer",
-                color: "#0f766e",
-                fontWeight: 600,
-              }}
-            >
-              Facility Manager
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("supplier@medistock.com")}
-              style={{
-                background: email === "supplier@medistock.com" ? "#ccfbf1" : "#ffffff",
-                border: "1px solid #cbd5e1",
-                padding: "4px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                cursor: "pointer",
-                color: "#0f766e",
-                fontWeight: 600,
-              }}
-            >
-              Supplier Officer
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("store@medistock.com")}
-              style={{
-                background: email === "store@medistock.com" ? "#ccfbf1" : "#ffffff",
-                border: "1px solid #cbd5e1",
-                padding: "4px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                cursor: "pointer",
-                color: "#0f766e",
-                fontWeight: 600,
-              }}
-            >
-              Store Officer
-            </button>
-          </div>
         </div>
       </div>
     </div>

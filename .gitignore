@@ -57,3 +57,4 @@ agent-service/e2e_verification.py
 agent-service/edge_cases_test.py
 agent-service/notebooks/
 MediStock-Architecture-Blueprint-Final.md
+.fake

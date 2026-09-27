@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
 
     ports:
-      - "5434:5432"
+      - "${POSTGRES_PORT:-5430}:5432"
 
     volumes:
       - medistock-postgres:/var/lib/postgresql/data

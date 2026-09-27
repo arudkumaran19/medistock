@@ -12,6 +12,7 @@ import {
   BadgeCheck,
   GitBranch,
   User,
+  Users,
   LogOut,
   ChevronDown,
   Menu,
@@ -107,6 +108,17 @@ const NAV_GROUPS: NavGroup[] = [
         path: "/procurement/workflow",
         icon: <GitBranch size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
         roles: ["SupplierOfficer", "SUPPLIER_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+    ],
+  },
+  {
+    group: "Administration",
+    items: [
+      {
+        label: "User Management",
+        path: "/admin/users",
+        icon: <Users size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["Administrator", "ADMIN"],
       },
     ],
   },
