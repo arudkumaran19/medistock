@@ -1,0 +1,42 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'backend/**'
+      - 'MediStock.sln'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'MediStock.sln'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test .NET Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore MediStock.sln
+
+      - name: Build Solution
+        run: dotnet build MediStock.sln --no-restore --configuration Release
+
+      - name: Run xUnit Tests
+        run: dotnet test MediStock.sln --no-build --configuration Release --verbosity normal
