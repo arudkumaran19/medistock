@@ -1,5 +1,6 @@
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Infrastructure.Persistence.Identity;
+using MediStock.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediStock.Api.Features.Auth.Services;
@@ -8,13 +9,16 @@ public sealed class RefreshTokenService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly JwtConfiguration? _configuration;
 
     public RefreshTokenService(
         ApplicationDbContext dbContext,
-        JwtTokenService jwtTokenService)
+        JwtTokenService jwtTokenService,
+        JwtConfiguration? configuration = null)
     {
         _dbContext = dbContext;
         _jwtTokenService = jwtTokenService;
+        _configuration = configuration;
     }
 
     public async Task<string> CreateAsync(
@@ -27,13 +31,17 @@ public sealed class RefreshTokenService
         var tokenHash =
             _jwtTokenService.HashRefreshToken(refreshToken);
 
+        var expirationDays = _configuration?.RefreshTokenExpirationDays > 0
+            ? _configuration.RefreshTokenExpirationDays
+            : 7;
+
         var entity = new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
             TokenHash = tokenHash,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
+            ExpiresAt = DateTime.UtcNow.AddDays(expirationDays)
         };
 
         _dbContext.RefreshTokens.Add(entity);

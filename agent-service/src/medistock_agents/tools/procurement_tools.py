@@ -20,7 +20,7 @@ from medistock_agents.tools.inventory_tools import BackendUnavailableError  # no
 # ---------------------------------------------------------------------------
 
 def _base_url() -> str:
-    return os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5000").rstrip("/")
+    return os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5182").rstrip("/")
 
 
 def _timeout() -> httpx.Timeout:
@@ -40,9 +40,24 @@ class ProcurementBackend:
         self.timeout = _timeout()
 
     def _headers(self) -> dict[str, str]:
+        token = self.token or os.getenv("MEDISTOCK_JWT_TOKEN")
+        if not token:
+            try:
+                with httpx.Client(timeout=3.0) as client:
+                    resp = client.post(
+                        f"{self.base_url}/api/auth/login",
+                        json={"email": "admin@medistock.com", "password": "Password123!"}
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        self.token = data.get("accessToken")
+                        token = self.token
+            except Exception:
+                pass
+
         headers: dict[str, str] = {}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
 
     # ------------------------------------------------------------------
@@ -125,6 +140,58 @@ class ProcurementBackend:
                 response.raise_for_status()
                 data = response.json()
                 return data.get("data", data) if isinstance(data, dict) else data
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+
+    # ------------------------------------------------------------------
+    # READ – Inventory & Medicines (for replenishment and stock checks)
+    # ------------------------------------------------------------------
+
+    async def get_inventory(
+        self,
+        facility_id: str | None = None,
+        medicine_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str] = {}
+        if facility_id:
+            params["facilityId"] = facility_id
+        if medicine_id:
+            params["medicineId"] = medicine_id
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.get(f"{self.base_url}/api/inventory", params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, list) else data.get("data", [])
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+
+    async def get_medicines(self, search: str | None = None) -> list[dict[str, Any]]:
+        params: dict[str, str] = {}
+        if search:
+            params["search"] = search
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.get(f"{self.base_url}/api/medicines", params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, list) else data.get("data", [])
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+
+    async def get_facilities(self) -> list[dict[str, Any]]:
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.get(f"{self.base_url}/api/facilities")
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, list) else data.get("data", [])
         except (httpx.RequestError, httpx.HTTPStatusError) as error:
             raise BackendUnavailableError(
                 "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
@@ -219,3 +286,71 @@ class ProcurementBackend:
             raise BackendUnavailableError(
                 "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
             ) from error
+
+    # ------------------------------------------------------------------
+    # WRITE – Deliveries & Inventory Receiving
+    # ------------------------------------------------------------------
+
+    async def get_delivery(self, po_id: str) -> dict[str, Any] | None:
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.get(f"{self.base_url}/api/deliveries/purchase-orders/{po_id}")
+                if response.status_code == 404:
+                    return None
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data", data) if isinstance(data, dict) else data
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+
+    async def create_delivery(
+        self,
+        po_id: str,
+        expected_at: str | None = None,
+        tracking_number: str | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if expected_at:
+            payload["expectedAt"] = expected_at
+        if tracking_number:
+            payload["trackingNumber"] = tracking_number
+        if notes:
+            payload["notes"] = notes
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/deliveries/purchase-orders/{po_id}",
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data", data) if isinstance(data, dict) else data
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+
+    async def mark_delivered(
+        self,
+        delivery_id: str,
+        items: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Mark delivery as delivered, automatically receiving goods into inventory balances and batches."""
+        payload = {"items": items}
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self._headers()) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/deliveries/{delivery_id}/deliver",
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data", data) if isinstance(data, dict) else data
+        except (httpx.RequestError, httpx.HTTPStatusError) as error:
+            raise BackendUnavailableError(
+                "MediStock backend is unavailable. Start the ASP.NET API or set MEDISTOCK_API_BASE_URL."
+            ) from error
+

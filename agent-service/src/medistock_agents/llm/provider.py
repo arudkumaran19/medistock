@@ -1,9 +1,10 @@
 """LLM Provider Abstraction for MediStock Agents.
 
 Provides a unified interface supporting both:
-1. Google Gemini API (Cloud, free tier)
-2. Ollama (Local, self-hosted LLMs)
-3. MockLLMProvider (Deterministic offline testing)
+1. Google Gemini API (Cloud) - primary if LLM_PROVIDER=gemini
+2. Ollama (Local, self-hosted LLMs) - primary if LLM_PROVIDER=ollama
+3. Auto-fallback: if the primary provider is unavailable or fails, the other is tried automatically
+4. MockLLMProvider (Deterministic offline testing)
 """
 
 from __future__ import annotations
@@ -50,13 +51,20 @@ class LLMProvider(ABC):
 # ---------------------------------------------------------------------------
 
 class GeminiProvider(LLMProvider):
-    """Google Gemini API provider using langchain-google-genai / HTTP API."""
+    """Google Gemini API provider using langchain-google-genai with auto-fallback."""
 
-    def __init__(self, api_key: str | None = None, model: str | None = None, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout: float = 30.0,
+        fallback_provider: LLMProvider | None = None,
+    ) -> None:
         settings = get_settings()
         self._api_key = api_key if api_key is not None else settings.gemini_api_key
-        self._model = model or settings.gemini_model
+        self._model = (model or settings.gemini_model or "gemini-3.8-flash").strip()
         self._timeout = timeout
+        self._fallback_provider = fallback_provider
         self._client: Any = None
 
     @property
@@ -73,37 +81,41 @@ class GeminiProvider(LLMProvider):
     def _get_client(self) -> Any:
         if self._client is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
-
-            active_model = self._model
-            if active_model == "gemini-1.5-flash":
-                active_model = "gemini-3.8-flash"
-
+            logger.info("Initialising Gemini client with model=%s", self._model)
             self._client = ChatGoogleGenerativeAI(
-                model=active_model,
+                model=self._model,
                 google_api_key=self._api_key,
                 temperature=0.1,
                 timeout=self._timeout,
             )
         return self._client
 
-
     async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         if not await self.is_available():
-            raise RuntimeError("Gemini API key is not configured.")
+            if self._fallback_provider and await self._fallback_provider.is_available():
+                logger.warning("Gemini API key unconfigured; auto-falling back to %s", self._fallback_provider.provider_name)
+                return await self._fallback_provider.generate(prompt, system_prompt)
+            raise RuntimeError("Gemini API key is not configured and no fallback is available.")
 
-        from langchain_core.messages import HumanMessage, SystemMessage
+        try:
+            from langchain_core.messages import HumanMessage, SystemMessage
 
-        messages = []
-        if system_prompt:
-            messages.append(SystemMessage(content=system_prompt))
-        messages.append(HumanMessage(content=prompt))
+            messages = []
+            if system_prompt:
+                messages.append(SystemMessage(content=system_prompt))
+            messages.append(HumanMessage(content=prompt))
 
-        client = self._get_client()
-        response = await client.ainvoke(messages)
-        content = response.content
-        if isinstance(content, list):
-            return "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
-        return str(content)
+            client = self._get_client()
+            response = await client.ainvoke(messages)
+            content = response.content
+            if isinstance(content, list):
+                return "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
+            return str(content)
+        except Exception as ex:
+            if self._fallback_provider and await self._fallback_provider.is_available():
+                logger.warning("Gemini generation failed (%s); auto-falling back to %s", ex, self._fallback_provider.provider_name)
+                return await self._fallback_provider.generate(prompt, system_prompt)
+            raise
 
 
 # ---------------------------------------------------------------------------
@@ -111,13 +123,20 @@ class GeminiProvider(LLMProvider):
 # ---------------------------------------------------------------------------
 
 class OllamaProvider(LLMProvider):
-    """Local Ollama provider using Ollama's HTTP API."""
+    """Local Ollama provider using Ollama's HTTP API with auto-fallback."""
 
-    def __init__(self, base_url: str | None = None, model: str | None = None, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: float = 30.0,
+        fallback_provider: LLMProvider | None = None,
+    ) -> None:
         settings = get_settings()
-        self._base_url = (base_url or settings.ollama_base_url).rstrip("/")
-        self._model = model or settings.ollama_model
+        self._base_url = (base_url or settings.ollama_base_url or "http://localhost:11434").rstrip("/")
+        self._model = model or settings.ollama_model or "llama3.2"
         self._timeout = timeout
+        self._fallback_provider = fallback_provider
 
     @property
     def provider_name(self) -> str:
@@ -128,26 +147,21 @@ class OllamaProvider(LLMProvider):
         return self._model
 
     async def is_available(self) -> bool:
-        """Verify if local Ollama daemon is reachable, responding, and has models installed."""
+        """Verify if local Ollama daemon is reachable."""
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
                 res = await client.get(f"{self._base_url}/api/tags")
-                if res.status_code != 200:
-                    return False
-                models = res.json().get("models", [])
-                if not models:
-                    return False
-                installed_names = [m.get("name", "").casefold() for m in models]
-                target = self._model.casefold()
-                target_base = target.split(":")[0]
-                return any(
-                    name == target or name.split(":")[0] == target_base
-                    for name in installed_names
-                )
+                return res.status_code == 200
         except Exception:
             return False
 
     async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+        if not await self.is_available():
+            if self._fallback_provider and await self._fallback_provider.is_available():
+                logger.warning("Ollama daemon unavailable; auto-falling back to %s", self._fallback_provider.provider_name)
+                return await self._fallback_provider.generate(prompt, system_prompt)
+            raise RuntimeError(f"Ollama local LLM is unreachable at {self._base_url}")
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -167,12 +181,69 @@ class OllamaProvider(LLMProvider):
                 data = res.json()
                 return str(data.get("message", {}).get("content", ""))
         except Exception as ex:
+            if self._fallback_provider and await self._fallback_provider.is_available():
+                logger.warning("Ollama call failed (%s); auto-falling back to %s", ex, self._fallback_provider.provider_name)
+                return await self._fallback_provider.generate(prompt, system_prompt)
             logger.warning("Ollama call failed: %s", ex)
             raise RuntimeError(f"Ollama local LLM invocation failed: {ex}") from ex
 
 
 # ---------------------------------------------------------------------------
-# Mock Provider (Offline testing)
+# Auto-Fallback Provider
+# ---------------------------------------------------------------------------
+
+class AutoFallbackProvider(LLMProvider):
+    """Explicit composite provider: tries primary, falls back to secondary."""
+
+    def __init__(self, primary: LLMProvider, secondary: LLMProvider) -> None:
+        self._primary = primary
+        self._secondary = secondary
+        self._active: LLMProvider | None = None
+
+    @property
+    def provider_name(self) -> str:
+        if self._active:
+            return self._active.provider_name
+        return self._primary.provider_name
+
+    @property
+    def model_name(self) -> str:
+        if self._active:
+            return self._active.model_name
+        return self._primary.model_name
+
+    async def is_available(self) -> bool:
+        return await self._primary.is_available() or await self._secondary.is_available()
+
+    async def _resolve_active(self) -> LLMProvider:
+        if await self._primary.is_available():
+            self._active = self._primary
+            return self._primary
+        logger.warning(
+            "LLM: Primary provider '%s' unavailable -- falling back to '%s'.",
+            self._primary.provider_name,
+            self._secondary.provider_name,
+        )
+        self._active = self._secondary
+        return self._secondary
+
+    async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+        provider = await self._resolve_active()
+        try:
+            return await provider.generate(prompt, system_prompt)
+        except Exception as primary_ex:
+            if provider is self._primary:
+                logger.warning(
+                    "LLM: Primary '%s' failed during generation (%s). Switching to secondary '%s'.",
+                    self._primary.provider_name, primary_ex, self._secondary.provider_name,
+                )
+                self._active = self._secondary
+                return await self._secondary.generate(prompt, system_prompt)
+            raise
+
+
+# ---------------------------------------------------------------------------
+# Mock Provider (Offline / CI testing)
 # ---------------------------------------------------------------------------
 
 class MockLLMProvider(LLMProvider):
@@ -206,22 +277,32 @@ class MockLLMProvider(LLMProvider):
 # ---------------------------------------------------------------------------
 
 def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
-    """Instantiate the active LLM provider based on settings."""
+    """Instantiate the active LLM provider with automatic Gemini <-> Ollama fallback.
+
+    - LLM_PROVIDER=gemini  -> GeminiProvider primary (with Ollama fallback)
+    - LLM_PROVIDER=ollama  -> OllamaProvider primary (with Gemini fallback)
+    - LLM_PROVIDER=mock    -> MockLLMProvider (tests only)
+    """
     cfg = settings or get_settings()
-    provider_type = cfg.llm_provider.lower().strip()
+    provider_type = (cfg.llm_provider or "gemini").lower().strip()
+
+    if provider_type == "mock":
+        return MockLLMProvider()
+
+    gemini = GeminiProvider(
+        api_key=cfg.gemini_api_key,
+        model=cfg.gemini_model,
+        timeout=cfg.llm_timeout_seconds,
+    )
+    ollama = OllamaProvider(
+        base_url=cfg.ollama_base_url,
+        model=cfg.ollama_model,
+        timeout=cfg.llm_timeout_seconds,
+    )
 
     if provider_type == "ollama":
-        return OllamaProvider(
-            base_url=cfg.ollama_base_url,
-            model=cfg.ollama_model,
-            timeout=cfg.llm_timeout_seconds,
-        )
-    elif provider_type == "mock":
-        return MockLLMProvider()
+        ollama._fallback_provider = gemini
+        return ollama
     else:
-        # Default to Gemini
-        return GeminiProvider(
-            api_key=cfg.gemini_api_key,
-            model=cfg.gemini_model,
-            timeout=cfg.llm_timeout_seconds,
-        )
+        gemini._fallback_provider = ollama
+        return gemini

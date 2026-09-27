@@ -43,7 +43,7 @@ class Settings:
 
     # ASP.NET Core Authoritative Backend API
     medistock_api_base_url: str = os.getenv(
-        "MEDISTOCK_API_BASE_URL", "http://localhost:5000"
+        "MEDISTOCK_API_BASE_URL", "http://localhost:5182"
     ).rstrip("/")
 
     # Timeouts
@@ -74,7 +74,7 @@ def get_settings(reload: bool = False) -> Settings:
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3"),
             medistock_api_base_url=os.getenv(
-                "MEDISTOCK_API_BASE_URL", "http://localhost:5000"
+                "MEDISTOCK_API_BASE_URL", "http://localhost:5182"
             ).rstrip("/"),
             agent_timeout_seconds=float(os.getenv("AGENT_TIMEOUT_SECONDS", "30")),
             llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "30")),

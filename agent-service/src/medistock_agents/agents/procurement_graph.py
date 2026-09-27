@@ -57,18 +57,24 @@ class ProcurementGraphState(TypedDict):
 
 CONTROLLED_TOOLS_PROMPT = """
 You have access ONLY to the following controlled tools via the MediStock backend:
-1. "get_suppliers": Get list of all suppliers, active status, lead times. Args: {}
-2. "get_purchase_orders": Get list of purchase orders. Args: {"status": str|null, "facilityId": str|null, "supplierId": str|null}
-3. "get_pending_approvals": Get all purchase orders currently pending approval. Args: {}
-4. "get_purchase_order": Get a single PO by ID. Args: {"purchaseOrderId": str}
-5. "get_authorization_rules": Get policy rules and approval thresholds. Args: {}
-6. "validate_procurement": Run policy validation for draft purchase order. Args: {"payload": dict}
-7. "approve_purchase_order": Approve a purchase order. Args: {"purchaseOrderId": str} (MUTATION)
-8. "reject_purchase_order": Reject a purchase order. Args: {"purchaseOrderId": str, "reason": str} (MUTATION)
-9. "request_revision": Request revision for a purchase order. Args: {"purchaseOrderId": str, "reason": str} (MUTATION)
+1. "get_inventory": Inspect current inventory balances, on-hand quantities, and stock status across facilities. Args: {"facilityId": str|null, "medicineId": str|null}
+2. "get_medicines": Search medicine catalog for medicine ID, name, unit price, category. Args: {"search": str|null}
+3. "get_suppliers": Get list of all suppliers, active status, contact details. Args: {"search": str|null, "is_active": bool|null}
+4. "get_facilities": Get list of registered hospital/clinical facilities. Args: {}
+5. "get_authorization_rules": Get policy rules, approval thresholds (e.g. $10,000 high-value threshold, 1,000 unit bulk threshold), and requirements. Args: {}
+6. "get_purchase_orders": Get list of purchase orders. Args: {"status": str|null, "facilityId": str|null, "supplierId": str|null}
+7. "get_pending_approvals": Get all purchase orders currently pending approval. Args: {}
+8. "get_purchase_order": Get a single PO by ID. Args: {"purchaseOrderId": str}
+9. "validate_procurement": Run policy validation for draft purchase order. Args: {"payload": dict}
+10. "approve_purchase_order": Approve a purchase order. Args: {"purchaseOrderId": str} (MUTATION)
+11. "reject_purchase_order": Reject a purchase order. Args: {"purchaseOrderId": str, "reason": str} (MUTATION)
+12. "request_revision": Request revision for a purchase order. Args: {"purchaseOrderId": str, "reason": str} (MUTATION)
 
-IMPORTANT: You must NEVER invent database queries. All interactions must use these tools.
-Respond in valid JSON only.
+IMPORTANT RULES:
+- When asked about stock levels, replenishment, or low inventory, invoke "get_inventory" (without filtering by a single medicine ID so all records are available), "get_suppliers", and "get_authorization_rules".
+- CRITICAL: When the user asks about multiple medicines (e.g., "Azithromycin and Omeprazole", or "Paracetamol and Amoxicillin"), you MUST inspect stock levels and active suppliers for ALL requested medicines. Do NOT stop after the first medicine.
+- You must NEVER invent database queries. All interactions must use these controlled tools.
+- Respond in valid JSON only.
 """
 
 
@@ -139,8 +145,26 @@ Return ONLY a JSON object formatted as:
             args = call.get("args", {})
 
             try:
-                if tool_name == "get_suppliers":
-                    res = await backend.get_suppliers()
+                if tool_name == "get_inventory":
+                    res = await backend.get_inventory(
+                        facility_id=args.get("facilityId"),
+                        medicine_id=args.get("medicineId"),
+                    )
+                    results.append({"tool": tool_name, "output": res})
+
+                elif tool_name == "get_medicines":
+                    res = await backend.get_medicines(search=args.get("search"))
+                    results.append({"tool": tool_name, "output": res})
+
+                elif tool_name == "get_facilities":
+                    res = await backend.get_facilities()
+                    results.append({"tool": tool_name, "output": res})
+
+                elif tool_name == "get_suppliers":
+                    res = await backend.get_suppliers(
+                        search=args.get("search"),
+                        is_active=args.get("is_active") or args.get("isActive"),
+                    )
                     results.append({"tool": tool_name, "output": res})
 
                 elif tool_name == "get_purchase_orders":
@@ -217,15 +241,19 @@ Validation Results: {json.dumps(state['validation_results'])}
 Approval Required: {state['approval_required']}
 Approved by User: {state['approved']}
 
-Synthesize these results.
-Provide a clear, human-readable recommendation or answer, identify any policy insights or violations,
-and clearly state if human approval is required before execution.
+Synthesize these results accurately based on the backend data returned.
+Address all parts of the user request:
+- CRITICAL: If the user mentions or asks about multiple medicines (e.g. 2 or more medicines), you MUST evaluate and report on EACH requested medicine individually in your recommendation and provide structured insights for each medicine. Never omit any requested medicine or provide answers for only the first one.
+- Current inventory on-hand and stock status (from get_inventory / get_medicines results) for each medicine.
+- Recommended replenishment quantity (calculating a safe reorder amount based on current stock) for each medicine.
+- Suitable active supplier (identifying active verified suppliers from get_suppliers results).
+- Approval requirement determination (evaluating against authorization rules: e.g. orders > $10,000 or > 1,000 units require approval; state whether approval is needed for the recommended order).
 
 Return ONLY a JSON object:
 {{
-  "recommendation": "<detailed summary and actionable advice>",
+  "recommendation": "<clear, comprehensive, and actionable answer addressing inventory status, recommended quantity, chosen active supplier, and whether approval is required>",
   "insights": [
-    {{"kind": "policy_violation"|"recommendation"|"info", "message": "<insight message>", "severity": "info"|"warning"|"critical"}}
+    {{"kind": "recommendation"|"policy_violation"|"info", "message": "<insight message>", "severity": "info"|"warning"|"critical"}}
   ],
   "execution_status": "<success|pending_approval|failed>"
 }}

@@ -84,6 +84,44 @@ class FakeProcurementBackend:
             }
         return {"isValid": True, "violations": []}
 
+    async def get_inventory(
+        self,
+        facility_id: str | None = None,
+        medicine_id: str | None = None,
+    ) -> list[dict]:
+        return [
+            {
+                "medicineId": "med-para-001",
+                "medicineName": "Paracetamol 500 mg",
+                "quantityOnHand": 420,
+                "facilityId": facility_id or "fac-001",
+                "status": "Low",
+            },
+            {
+                "medicineId": "med-amox-002",
+                "medicineName": "Amoxicillin 250 mg",
+                "quantityOnHand": 850,
+                "facilityId": facility_id or "fac-001",
+                "status": "OK",
+            },
+        ]
+
+    async def get_medicines(self, search: str | None = None) -> list[dict]:
+        medicines = [
+            {"id": "med-para-001", "name": "Paracetamol 500 mg", "unitPrice": 0.5, "category": "Analgesic"},
+            {"id": "med-amox-002", "name": "Amoxicillin 250 mg", "unitPrice": 1.2, "category": "Antibiotic"},
+        ]
+        if search:
+            query = search.casefold()
+            medicines = [m for m in medicines if query in m["name"].casefold()]
+        return medicines
+
+    async def get_facilities(self) -> list[dict]:
+        return [
+            {"id": "fac-001", "name": "City General Hospital"},
+            {"id": "fac-002", "name": "North District Clinic"},
+        ]
+
     async def approve_purchase_order(self, po_id: str):
         self.approve_calls.append(po_id)
         return {"id": po_id, "status": "Approved"}
@@ -114,6 +152,15 @@ class UnavailableProcurementBackend:
         raise BackendUnavailableError("Backend offline")
 
     async def validate_procurement(self, payload: dict):
+        raise BackendUnavailableError("Backend offline")
+
+    async def get_inventory(self, facility_id=None, medicine_id=None):
+        raise BackendUnavailableError("Backend offline")
+
+    async def get_medicines(self, search=None):
+        raise BackendUnavailableError("Backend offline")
+
+    async def get_facilities(self):
         raise BackendUnavailableError("Backend offline")
 
     async def approve_purchase_order(self, po_id: str):
