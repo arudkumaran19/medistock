@@ -18,7 +18,6 @@ import {
   AlertCircle,
   FileText,
   Plus,
-  ArrowRight,
   X,
   Building2,
   Pill,

@@ -11,15 +11,10 @@ import styles from "./ProcurementPages.module.css";
 import {
   CheckCircle2,
   Clock,
-  AlertTriangle,
-  CircleX,
   Truck,
   PackageCheck,
   FileText,
-  Activity,
-  ArrowRight,
   ShieldCheck,
-  Calendar,
   AlertCircle,
 } from "lucide-react";
 

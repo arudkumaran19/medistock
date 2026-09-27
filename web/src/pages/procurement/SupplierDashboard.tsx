@@ -13,9 +13,6 @@ import {
   Search,
   Eye,
   X,
-  Clock,
-  Phone,
-  Mail,
   AlertCircle,
 } from "lucide-react";
 

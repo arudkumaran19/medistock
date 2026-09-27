@@ -24,10 +24,6 @@ import {
   Eye,
   X,
   AlertCircle,
-  Truck,
-  ArrowRight,
-  ShieldCheck,
-  AlertTriangle,
 } from "lucide-react";
 
 interface MedicineOption {

@@ -2,21 +2,14 @@ import React, { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import { DashboardLayout } from "../../layouts/DashboardLayout";
 import { procurementApi, type SupplierItem, type PurchaseOrder, type SupplierRequest } from "../../services/procurementApi";
-import { PageHeader, StatusBadge } from "../../components/ui";
+import { PageHeader } from "../../components/ui";
 import styles from "./ProcurementPages.module.css";
 import {
   ArrowLeft,
-  Building2,
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
   Edit3,
   X,
-  FileText,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
 } from "lucide-react";
 
 export function SupplierDetail() {
