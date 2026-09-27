@@ -1,0 +1,160 @@
+/* ============================================================
+   MediStock Design System — Single Source of Truth
+   Healthcare Enterprise SaaS
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* ─── Color Palette ────────────────────────────────────────── */
+:root {
+  /* Primary — Clinical Teal */
+  --color-primary-50:  #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-300: #5eead4;
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #14b8a6;
+  --color-primary-600: #0d9488;
+  --color-primary-700: #0f766e;
+  --color-primary-800: #115e59;
+  --color-primary-900: #134e4a;
+
+  /* Neutral — Slate */
+  --color-slate-50:  #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  /* Semantic — Success */
+  --color-success-50:  #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+
+  /* Semantic — Warning */
+  --color-warning-50:  #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+
+  /* Semantic — Danger */
+  --color-danger-50:  #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+
+  /* Semantic — Info */
+  --color-info-50:  #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  /* AI Accent */
+  --color-ai-50:  #eef2ff;
+  --color-ai-100: #e0e7ff;
+  --color-ai-500: #6366f1;
+  --color-ai-600: #4f46e5;
+  --color-ai-700: #4338ca;
+
+  /* Purple — Admin */
+  --color-purple-50:  #faf5ff;
+  --color-purple-100: #f3e8ff;
+  --color-purple-600: #9333ea;
+  --color-purple-700: #7e22ce;
+
+  /* ─── Semantic Aliases ────────────────────────────────── */
+  --brand:          var(--color-primary-700);
+  --brand-light:    var(--color-primary-600);
+  --brand-dark:     var(--color-primary-800);
+  --brand-muted:    var(--color-primary-50);
+
+  --bg-page:        var(--color-slate-50);
+  --bg-surface:     #ffffff;
+  --bg-subtle:      var(--color-slate-100);
+  --bg-overlay:     rgba(15, 23, 42, 0.55);
+
+  --border-default: var(--color-slate-200);
+  --border-strong:  var(--color-slate-300);
+  --border-focus:   var(--color-primary-500);
+
+  --text-primary:   var(--color-slate-900);
+  --text-secondary: var(--color-slate-600);
+  --text-tertiary:  var(--color-slate-400);
+  --text-inverse:   #ffffff;
+  --text-brand:     var(--color-primary-700);
+
+  /* ─── Spacing Scale ───────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ─── Typography ──────────────────────────────────────── */
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs:   0.75rem;    /* 12px */
+  --text-sm:   0.8125rem;  /* 13px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-md:   1rem;       /* 16px */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.25rem;    /* 20px */
+  --text-2xl:  1.5rem;     /* 24px */
+  --text-3xl:  1.875rem;   /* 30px */
+
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ─── Border Radius ───────────────────────────────────── */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ─── Shadows ─────────────────────────────────────────── */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+  --shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.10), 0 10px 10px -5px rgba(0,0,0,0.04);
+
+  /* ─── Z-Index ─────────────────────────────────────────── */
+  --z-dropdown: 200;
+  --z-sticky:   300;
+  --z-modal:    400;
+  --z-toast:    500;
+
+  /* ─── Transitions ─────────────────────────────────────── */
+  --transition-fast:   150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow:   300ms ease;
+
+  /* ─── Sidebar ─────────────────────────────────────────── */
+  --sidebar-width:        240px;
+  --sidebar-collapsed:    64px;
+  --topbar-height:        56px;
+}

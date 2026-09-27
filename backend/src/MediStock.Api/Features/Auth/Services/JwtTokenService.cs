@@ -38,7 +38,10 @@ public sealed class JwtTokenService
         claims.AddRange(
             roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
-        var expiresAt = DateTime.UtcNow.AddHours(1);
+        var expirationMinutes = _configuration.AccessTokenExpirationMinutes > 0
+            ? _configuration.AccessTokenExpirationMinutes
+            : 60;
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
 
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_configuration.SigningKey));

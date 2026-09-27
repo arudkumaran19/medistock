@@ -28,6 +28,26 @@ public sealed class AuthService
         RegisterRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            throw new ArgumentException("Email address is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new ArgumentException("Password is required.");
+        }
+
+        if (request.Password != request.ConfirmPassword)
+        {
+            throw new InvalidOperationException("Password and confirmation password do not match.");
+        }
+
+        if (request.Role is Domain.Enums.UserRole.Administrator or Domain.Enums.UserRole.FacilityManager)
+        {
+            throw new InvalidOperationException("Privileged roles (Administrator, FacilityManager) cannot be requested via public registration.");
+        }
+
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
 
         if (existingUser is not null)
@@ -57,7 +77,8 @@ public sealed class AuthService
             throw new InvalidOperationException(errors);
         }
 
-        var role = request.Role.ToString();
+        var targetRole = request.Role == 0 ? Domain.Enums.UserRole.OperationalStaff : request.Role;
+        var role = targetRole.ToString();
 
         var roleResult = await _userManager.AddToRoleAsync(
             user,

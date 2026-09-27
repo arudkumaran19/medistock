@@ -16,6 +16,48 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+// ============================================================
+// Load backend/.env for local development.
+// Environment variables set here are visible to IConfiguration
+// via the standard ASP.NET Core environment-variable provider.
+// The double-underscore (__) separator maps to the config
+// hierarchy: Jwt__SigningKey  →  Jwt:SigningKey.
+// In production/CI supply env vars directly; .env is optional.
+// ============================================================
+static void LoadDotEnv()
+{
+    // Walk up from the assembly location to find the repo root
+    // that contains .env (or backend/.env fallback).
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    while (dir is not null)
+    {
+        var rootCandidate = Path.Combine(dir.FullName, ".env");
+        var backendCandidate = Path.Combine(dir.FullName, "backend", ".env");
+        var candidate = File.Exists(rootCandidate) ? rootCandidate : (File.Exists(backendCandidate) ? backendCandidate : null);
+        if (candidate is not null)
+        {
+            foreach (var line in File.ReadAllLines(candidate))
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
+                    continue;
+                var idx = trimmed.IndexOf('=');
+                if (idx < 1)
+                    continue;
+                var key   = trimmed[..idx].Trim();
+                var value = trimmed[(idx + 1)..].Trim();
+                // Only set if not already supplied by the real environment.
+                if (Environment.GetEnvironmentVariable(key) is null)
+                    Environment.SetEnvironmentVariable(key, value);
+            }
+            break;
+        }
+        dir = dir.Parent;
+    }
+}
+
+LoadDotEnv();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
@@ -89,23 +131,56 @@ builder.Services
 var jwtConfiguration =
     builder.Configuration
         .GetSection(JwtConfiguration.SectionName)
-        .Get<JwtConfiguration>()
-    ?? throw new InvalidOperationException(
-        "JWT configuration is missing.");
+        .Get<JwtConfiguration>() ?? new JwtConfiguration();
+
+// Support flat environment variable overrides (e.g. from container or .env)
+if (builder.Configuration["JWT_ISSUER"] is { Length: > 0 } envIssuer)
+{
+    jwtConfiguration.Issuer = envIssuer;
+}
+
+if (builder.Configuration["JWT_AUDIENCE"] is { Length: > 0 } envAudience)
+{
+    jwtConfiguration.Audience = envAudience;
+}
+
+if (builder.Configuration["JWT_SIGNING_KEY"] is { Length: > 0 } envSigningKey)
+{
+    jwtConfiguration.SigningKey = envSigningKey;
+}
+
+if (builder.Configuration["JWT_ACCESS_TOKEN_EXPIRATION_MINUTES"] is { Length: > 0 } envAccess &&
+    int.TryParse(envAccess, out var parsedAccessMins) && parsedAccessMins > 0)
+{
+    jwtConfiguration.AccessTokenExpirationMinutes = parsedAccessMins;
+}
+
+if (builder.Configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] is { Length: > 0 } envRefresh &&
+    int.TryParse(envRefresh, out var parsedRefreshDays) && parsedRefreshDays > 0)
+{
+    jwtConfiguration.RefreshTokenExpirationDays = parsedRefreshDays;
+}
 
 if (string.IsNullOrWhiteSpace(jwtConfiguration.Issuer))
 {
-    throw new InvalidOperationException("JWT issuer is missing.");
+    throw new InvalidOperationException("JWT issuer is missing. Set JWT_ISSUER or Jwt__Issuer in your environment or backend/.env.");
 }
 
 if (string.IsNullOrWhiteSpace(jwtConfiguration.Audience))
 {
-    throw new InvalidOperationException("JWT audience is missing.");
+    throw new InvalidOperationException("JWT audience is missing. Set JWT_AUDIENCE or Jwt__Audience in your environment or backend/.env.");
 }
 
 if (string.IsNullOrWhiteSpace(jwtConfiguration.SigningKey))
 {
-    throw new InvalidOperationException("JWT signing key is missing.");
+    throw new InvalidOperationException(
+        "JWT signing key is missing. Set JWT_SIGNING_KEY or Jwt__SigningKey in your environment or backend/.env.");
+}
+
+if (jwtConfiguration.SigningKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT signing key is too short. Use at least 32 characters for HMAC-SHA256.");
 }
 
 builder.Services.AddSingleton(jwtConfiguration);

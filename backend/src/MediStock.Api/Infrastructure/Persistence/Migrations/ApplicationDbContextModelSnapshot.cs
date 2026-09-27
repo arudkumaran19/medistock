@@ -266,14 +266,25 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ApprovedById")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("FacilityId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ReceivedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevisionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

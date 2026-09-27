@@ -497,4 +497,167 @@ public sealed class DeliveryServiceTests
             "DELIVERY_ALREADY_COMPLETED",
             error.Code);
     }
+
+    [Fact]
+    public async Task Delivering_purchase_order_reflects_in_inventory_balances_batches_and_transactions()
+    {
+        var (
+            db,
+            deliveryService,
+            purchaseOrderId,
+            medicineId,
+            facilityId) = Create();
+
+        var request = ValidDeliveryRequest(
+            medicineId,
+            20);
+
+        var delivery = await deliveryService.CreateAsync(
+            purchaseOrderId,
+            request,
+            default);
+
+        var deliveredResult = await deliveryService.UpdateStatusAsync(
+            delivery.Id,
+            DeliveryStatus.Delivered,
+            request,
+            default);
+
+        Assert.Equal("Delivered", deliveredResult.Status);
+        Assert.NotNull(deliveredResult.DeliveredAt);
+
+        // Verify purchase order updated to Received
+        var po = await db.PurchaseOrders.FindAsync(purchaseOrderId);
+        Assert.NotNull(po);
+        Assert.Equal(PurchaseOrderStatus.Received, po.Status);
+        Assert.NotNull(po.ReceivedAt);
+
+        // Verify Inventory balance created and reflects quantity
+        var balance = await db.InventoryBalances.FirstOrDefaultAsync(
+            x => x.MedicineId == medicineId && x.FacilityId == facilityId);
+        Assert.NotNull(balance);
+        Assert.Equal(20, balance.QuantityOnHand);
+        Assert.Equal(20, balance.AvailableQuantity);
+        Assert.Equal(0, balance.QuantityReserved);
+
+        // Verify MedicineBatch created and reflects quantity
+        var batch = await db.MedicineBatches.FirstOrDefaultAsync(
+            x => x.MedicineId == medicineId && x.FacilityId == facilityId && x.BatchNumber == "BATCH-001");
+        Assert.NotNull(batch);
+        Assert.Equal(20, batch.QuantityOnHand);
+
+        // Verify StockTransaction logged
+        var tx = await db.StockTransactions.FirstOrDefaultAsync(
+            x => x.MedicineId == medicineId && x.FacilityId == facilityId);
+        Assert.NotNull(tx);
+        Assert.Equal(StockTransactionType.Receipt, tx.Type);
+        Assert.Equal(20, tx.Quantity);
+        Assert.Equal(20, tx.BalanceAfter);
+    }
+
+    [Fact]
+    public async Task Delivering_purchase_order_increments_existing_inventory_balance()
+    {
+        var (
+            db,
+            deliveryService,
+            purchaseOrderId,
+            medicineId,
+            facilityId) = Create();
+
+        // Seed existing balance
+        db.InventoryBalances.Add(new InventoryBalance
+        {
+            Id = Guid.NewGuid(),
+            MedicineId = medicineId,
+            FacilityId = facilityId,
+            QuantityOnHand = 30,
+            QuantityReserved = 5,
+            UpdatedAtUtc = DateTime.UtcNow.AddDays(-1)
+        });
+        await db.SaveChangesAsync();
+
+        var request = ValidDeliveryRequest(
+            medicineId,
+            20);
+
+        var delivery = await deliveryService.CreateAsync(
+            purchaseOrderId,
+            request,
+            default);
+
+        await deliveryService.UpdateStatusAsync(
+            delivery.Id,
+            DeliveryStatus.Delivered,
+            request,
+            default);
+
+        var balance = await db.InventoryBalances.SingleAsync(
+            x => x.MedicineId == medicineId && x.FacilityId == facilityId);
+        Assert.Equal(50, balance.QuantityOnHand); // 30 existing + 20 delivered
+        Assert.Equal(45, balance.AvailableQuantity); // 50 on hand - 5 reserved
+    }
+
+    [Fact]
+    public async Task Delivering_purchase_order_with_multiple_items_updates_all_inventory_balances()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        var db = new ApplicationDbContext(options);
+
+        var supplierId = Guid.NewGuid();
+        var facilityId = Guid.NewGuid();
+        var med1 = Guid.NewGuid();
+        var med2 = Guid.NewGuid();
+        var poId = Guid.NewGuid();
+
+        db.Suppliers.Add(new Supplier { Id = supplierId, Name = "S", ContactPerson = "C", Email = "s@t.com", Phone = "0770000000", Address = "A", LeadTimeDays = 5, IsActive = true });
+        db.Facilities.Add(new Facility { Id = facilityId, Code = "F1", Name = "Facility 1" });
+        db.Medicines.Add(new Medicine { Id = med1, Code = "M1-001", Name = "Med 1", Unit = "tab", MinimumStockLevel = 10, IsActive = true });
+        db.Medicines.Add(new Medicine { Id = med2, Code = "M2-002", Name = "Med 2", Unit = "tab", MinimumStockLevel = 10, IsActive = true });
+
+        db.PurchaseOrders.Add(new PurchaseOrder
+        {
+            Id = poId,
+            SupplierId = supplierId,
+            FacilityId = facilityId,
+            Status = PurchaseOrderStatus.Approved,
+            RequestedAt = DateTime.UtcNow.AddDays(-2),
+            ApprovedAt = DateTime.UtcNow.AddDays(-1),
+            Items = new List<PurchaseOrderItem>
+            {
+                new() { Id = Guid.NewGuid(), PurchaseOrderId = poId, MedicineId = med1, RequestedQuantity = 25, UnitPrice = 10 },
+                new() { Id = Guid.NewGuid(), PurchaseOrderId = poId, MedicineId = med2, RequestedQuantity = 40, UnitPrice = 15 }
+            }
+        });
+        await db.SaveChangesAsync();
+
+        var inventoryService = new InventoryService(db);
+        var deliveryService = new DeliveryService(db, inventoryService);
+
+        var multiRequest = new DeliveryRequest(
+            ExpectedAt: DateTime.UtcNow.AddDays(1),
+            TrackingNumber: "TRK-MULTI",
+            Notes: "Multi-item delivery",
+            Items: new List<DeliveryItemRequest>
+            {
+                new(med1, 25, "BATCH-001", DateTime.UtcNow.AddYears(1), DateTime.UtcNow.AddMonths(-1)),
+                new(med2, 40, "BATCH-002", DateTime.UtcNow.AddYears(2), DateTime.UtcNow.AddMonths(-2))
+            });
+
+        var delivery = await deliveryService.CreateAsync(poId, multiRequest, default);
+        var result = await deliveryService.UpdateStatusAsync(delivery.Id, DeliveryStatus.Delivered, multiRequest, default);
+
+        Assert.Equal("Delivered", result.Status);
+
+        var bal1 = await db.InventoryBalances.SingleAsync(x => x.MedicineId == med1 && x.FacilityId == facilityId);
+        Assert.Equal(25, bal1.QuantityOnHand);
+
+        var bal2 = await db.InventoryBalances.SingleAsync(x => x.MedicineId == med2 && x.FacilityId == facilityId);
+        Assert.Equal(40, bal2.QuantityOnHand);
+
+        Assert.Equal(2, await db.StockTransactions.CountAsync());
+    }
 }

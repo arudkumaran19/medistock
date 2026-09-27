@@ -30,9 +30,22 @@ public sealed class PurchaseOrderConfiguration
         builder.Property(x => x.ApprovedAt)
             .IsRequired(false);
 
+        // Approval workflow columns (from procurement branch)
+        builder.Property(x => x.ApprovedById)
+            .IsRequired(false);
+
         builder.Property(x => x.ReceivedAt)
             .IsRequired(false);
 
+        builder.Property(x => x.RejectionReason)
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        builder.Property(x => x.RevisionReason)
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        // Foreign key relationships (from develop)
         builder.HasOne<Supplier>()
             .WithMany()
             .HasForeignKey(x => x.SupplierId)

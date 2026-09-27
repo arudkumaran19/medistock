@@ -16,8 +16,17 @@ public sealed class PurchaseOrder
 
     public DateTime? ApprovedAt { get; set; }
 
+    public Guid? ApprovedById { get; set; }
+
     public DateTime? ReceivedAt { get; set; }
 
+    // Approval workflow metadata (from procurement branch)
+    public string? RejectionReason { get; set; }
+
+    public string? RevisionReason { get; set; }
+
+    // Navigation properties (from develop)
     public ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
-	public ICollection<Delivery> Deliveries { get; set; } = new List<Delivery>();
+
+    public ICollection<Delivery> Deliveries { get; set; } = new List<Delivery>();
 }

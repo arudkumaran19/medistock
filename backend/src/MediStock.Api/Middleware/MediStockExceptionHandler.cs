@@ -22,6 +22,20 @@ public sealed class MediStockExceptionHandler(
             ProcurementException procurementException =>
                 MapProcurementException(procurementException),
 
+            ArgumentException argumentException =>
+                (
+                    StatusCodes.Status400BadRequest,
+                    "VALIDATION_ERROR",
+                    argumentException.Message
+                ),
+
+            InvalidOperationException invalidOpException =>
+                (
+                    StatusCodes.Status400BadRequest,
+                    "OPERATION_FAILED",
+                    invalidOpException.Message
+                ),
+
             _ =>
                 (
                     StatusCodes.Status500InternalServerError,
