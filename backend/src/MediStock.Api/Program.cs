@@ -376,6 +376,10 @@ using (var scope = app.Services.CreateScope())
     }
 
     SeedData.Apply(db);
+
+    // Demand & Shortage seed data (Sathurstiga S., IT24103156). Applied after the
+    // shared reference data so facilities and medicines already exist.
+    DemandSeedData.Apply(db);
 }
 
 await SeedUsers.SeedAsync(app.Services);
