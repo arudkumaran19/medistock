@@ -234,7 +234,12 @@ class ConsumptionEntryValidator {
       return 'Select the date the medicine was used.';
     }
 
-    final DateTime today = DateTime.now().toUtc();
+    // Compare calendar dates in the SAME frame of reference. The date picker hands
+    // back a local DateTime, so "today" must be the local calendar date too.
+    // Taking today from UTC while the picked date is local made every date ahead of
+    // UTC read as the future: east of Greenwich, between local midnight and the UTC
+    // offset, a store officer could not record today's consumption at all.
+    final DateTime today = DateTime.now();
     final DateTime justDate = DateTime.utc(date.year, date.month, date.day);
     final DateTime justToday = DateTime.utc(today.year, today.month, today.day);
 
