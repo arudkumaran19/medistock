@@ -56,7 +56,7 @@ public class AgentGateway : IAgentGateway
             };
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(5)); // Fast timeout before deterministic simulation
+            cts.CancelAfter(TimeSpan.FromSeconds(15)); // Adequate timeout for agent execution
 
             var response = await _httpClient.SendAsync(httpRequest, cts.Token);
             if (response.IsSuccessStatusCode)
@@ -65,7 +65,23 @@ public class AgentGateway : IAgentGateway
                 var doc = JsonDocument.Parse(content);
                 var root = doc.RootElement;
 
+                var toolCalls = new List<AgentToolCallRecord>();
+                if (root.TryGetProperty("toolCalls", out var tcProp) && tcProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var elem in tcProp.EnumerateArray())
+                    {
+                        var toolName = elem.TryGetProperty("toolName", out var tn) ? tn.GetString() ?? "" : "";
+                        var inputJson = elem.TryGetProperty("arguments", out var args) ? args.GetString() ?? "" : "";
+                        var outputJson = elem.TryGetProperty("result", out var res) ? res.GetString() ?? "" : "";
+                        var durationMs = elem.TryGetProperty("durationMs", out var dur) ? dur.GetInt64() : 0;
+                        var success = !elem.TryGetProperty("success", out var s) || s.GetBoolean();
+                        toolCalls.Add(new AgentToolCallRecord(toolName, inputJson, outputJson, durationMs, success));
+                    }
+                }
+
                 stopwatch.Stop();
+                _logger.LogInformation("Real Python LangGraph Agent executed successfully at {Endpoint} in {Elapsed}ms with {ToolCount} tool calls.", endpoint, stopwatch.ElapsedMilliseconds, toolCalls.Count);
+
                 return new AgentPlanningResult(
                     Success: true,
                     SelectedFacilityId: root.GetProperty("selectedFacilityId").GetGuid(),
@@ -78,7 +94,7 @@ public class AgentGateway : IAgentGateway
                     PromptTokens: root.TryGetProperty("promptTokens", out var pt) ? pt.GetInt32() : 250,
                     CompletionTokens: root.TryGetProperty("completionTokens", out var ctProp) ? ctProp.GetInt32() : 120,
                     ExecutionTimeMs: stopwatch.ElapsedMilliseconds,
-                    ToolCalls: new List<AgentToolCallRecord>()
+                    ToolCalls: toolCalls
                 );
             }
 

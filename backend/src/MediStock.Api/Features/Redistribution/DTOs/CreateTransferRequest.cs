@@ -12,6 +12,12 @@ public class CreateTransferRequest
     public string? Notes { get; set; }
     public Guid? RequestedByUserId { get; set; }
 
+    // Direct single-item convenience fields (for mobile & web clients)
+    public Guid? MedicineId { get; set; }
+    public string? MedicineName { get; set; }
+    public int? RequestedQuantity { get; set; }
+    public string? UnitOfMeasure { get; set; }
+
     public List<CreateTransferItemDto> Items { get; set; } = new();
 }
 

@@ -31,6 +31,7 @@ export interface WorkflowRunDto {
 }
 
 export interface StartWorkflowRequest {
+  transferRequestId?: string;
   destinationFacilityId: string;
   medicineId: string;
   shortageQuantity: number;

@@ -15,8 +15,39 @@ from medistock_agents.models.tool_models import (
     ToolExecutionRecord,
 )
 from medistock_agents.tools.routing_tools import compute_route_distance
+import os
+from pathlib import Path
 
-# In-memory registry of facility locations and inventories for standalone operation
+# Load environment variables from agent-service/.env if present
+try:
+    from dotenv import load_dotenv
+    _agent_dir = Path(__file__).resolve().parents[3]
+    _env_file = _agent_dir / ".env"
+    if _env_file.exists():
+        load_dotenv(_env_file)
+    else:
+        load_dotenv()
+except Exception:
+    pass
+
+def _get_db_connection():
+    try:
+        import psycopg
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            return psycopg.connect(db_url, connect_timeout=3)
+        host = os.getenv("POSTGRES_HOST")
+        port = os.getenv("POSTGRES_PORT", "5432")
+        dbname = os.getenv("POSTGRES_DB")
+        user = os.getenv("POSTGRES_USER")
+        password = os.getenv("POSTGRES_PASSWORD")
+        if not (host and dbname and user and password):
+            return None
+        return psycopg.connect(f"host={host} port={port} dbname={dbname} user={user} password={password}", connect_timeout=3)
+    except Exception:
+        return None
+
+# In-memory registry of facility locations and inventories for standalone operation / testing
 _SAMPLE_LOCATIONS: Dict[str, FacilityLocation] = {
     # Colombo General Hospital (Central / Western)
     "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d": FacilityLocation(
@@ -78,6 +109,30 @@ def getFacilityLocation(facility_id: UUID) -> FacilityLocation:
     if fid_str in _SAMPLE_LOCATIONS:
         return _SAMPLE_LOCATIONS[fid_str]
 
+    # Query real PostgreSQL database
+    conn = _get_db_connection()
+    if conn:
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'SELECT "Id", "Name", "City", "Latitude", "Longitude" FROM facilities WHERE "Id" = %s LIMIT 1;',
+                        (facility_id,)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        loc = FacilityLocation(
+                            facility_id=row[0],
+                            facility_name=row[1],
+                            city=row[2] or "Unknown",
+                            latitude=float(row[3]),
+                            longitude=float(row[4]),
+                        )
+                        _SAMPLE_LOCATIONS[str(loc.facility_id)] = loc
+                        return loc
+        except Exception:
+            pass
+
     # Deterministic default fallback facility for unseeded IDs
     return FacilityLocation(
         facility_id=facility_id,
@@ -94,6 +149,33 @@ def getFacilityInventory(facility_id: UUID, medicine_id: UUID) -> FacilityInvent
     key = (str(facility_id), str(medicine_id))
     if key in _SAMPLE_INVENTORIES:
         return _SAMPLE_INVENTORIES[key]
+
+    # Query real PostgreSQL database
+    conn = _get_db_connection()
+    if conn:
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'SELECT "StockOnHand", "SafetyStockThreshold", "ReservedStock" FROM facility_inventories WHERE "FacilityId" = %s AND "MedicineId" = %s LIMIT 1;',
+                        (facility_id, medicine_id)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        stock_on_hand = int(row[0])
+                        safety_stock = int(row[1])
+                        reserved_stock = int(row[2])
+                        available_surplus = FacilityInventory.calculate_surplus(stock_on_hand, safety_stock, reserved_stock)
+                        return FacilityInventory(
+                            facility_id=facility_id,
+                            medicine_id=medicine_id,
+                            stock_on_hand=stock_on_hand,
+                            safety_stock=safety_stock,
+                            reserved_stock=reserved_stock,
+                            available_surplus=available_surplus,
+                        )
+        except Exception:
+            pass
 
     # Deterministic fallback stock generation based on facility and medicine IDs
     seed = abs(hash(f"{facility_id}_{medicine_id}"))
@@ -168,6 +250,65 @@ def getCandidateFacilities(
     road distance and scores each candidate:
     Score = (Surplus / MaxSurplus) * 0.6 + (1 - Distance / MaxDistance) * 0.4
     """
+    # 1. Query real database if available and known_facilities is not explicitly overriding
+    if not known_facilities:
+        conn = _get_db_connection()
+        if conn:
+            try:
+                with conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            '''
+                            SELECT f."Id", f."Name", f."City", f."Latitude", f."Longitude",
+                                   fi."StockOnHand", fi."SafetyStockThreshold", fi."ReservedStock"
+                            FROM facilities f
+                            JOIN facility_inventories fi ON f."Id" = fi."FacilityId"
+                            WHERE f."IsActive" = TRUE
+                              AND fi."MedicineId" = %s
+                              AND f."Id" != %s
+                              AND (fi."StockOnHand" - fi."SafetyStockThreshold" - fi."ReservedStock") > 0;
+                            ''',
+                            (medicine_id, destination_facility_id)
+                        )
+                        rows = cur.fetchall()
+                        if rows:
+                            candidates: List[CandidateFacility] = []
+                            for row in rows:
+                                fid = row[0]
+                                fac_name = row[1]
+                                city = row[2] or "Unknown"
+                                lat = float(row[3])
+                                lng = float(row[4])
+                                stock_on_hand = int(row[5])
+                                safety_stock = int(row[6])
+                                reserved_stock = int(row[7])
+                                available_surplus = FacilityInventory.calculate_surplus(stock_on_hand, safety_stock, reserved_stock)
+
+                                dist_res = calculateDistance(fid, destination_facility_id)
+                                score = float(available_surplus) / (dist_res.distance_km + 1.0)
+
+                                candidate = CandidateFacility(
+                                    facility_id=fid,
+                                    facility_name=fac_name,
+                                    city=city,
+                                    latitude=lat,
+                                    longitude=lng,
+                                    stock_on_hand=stock_on_hand,
+                                    safety_stock=safety_stock,
+                                    reserved_stock=reserved_stock,
+                                    available_surplus=available_surplus,
+                                    distance_km=dist_res.distance_km,
+                                    estimated_duration_minutes=dist_res.duration_minutes,
+                                    routing_provider=dist_res.provider,
+                                    score=round(score, 4),
+                                )
+                                candidates.append(candidate)
+
+                            candidates.sort(key=lambda c: c.score, reverse=True)
+                            return candidates
+            except Exception:
+                pass
+
     facility_pool: List[UUID] = []
     if known_facilities:
         facility_pool = [fid for fid in known_facilities if fid != destination_facility_id]

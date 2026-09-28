@@ -19,8 +19,12 @@ node_modules/
 .npm
 dist/
 build/
+.env
+.env.*
 .env.local
 .env.*.local
+agent-service/.env
+agent-service/.env.*
 
 ## Python (for agent service step)
 __pycache__/

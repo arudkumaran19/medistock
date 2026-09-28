@@ -103,8 +103,28 @@ class ApiClient {
       try {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-          errorMessage = decoded['message'] ?? decoded['error'] ?? errorMessage;
-          errorDetails = decoded['errors'] ?? decoded;
+          if (decoded['message'] != null && decoded['message'].toString().isNotEmpty) {
+            errorMessage = decoded['message'].toString();
+          } else if (decoded['title'] != null && decoded['title'].toString().isNotEmpty) {
+            errorMessage = decoded['title'].toString();
+          } else if (decoded['error'] != null && decoded['error'].toString().isNotEmpty) {
+            errorMessage = decoded['error'].toString();
+          }
+
+          if (decoded['errors'] != null) {
+            errorDetails = decoded['errors'];
+            if (errorDetails is Map) {
+              final msgs = errorDetails.values
+                  .expand((v) => v is Iterable ? v : [v])
+                  .map((e) => e.toString())
+                  .join('; ');
+              if (msgs.isNotEmpty) {
+                errorMessage = '$errorMessage: $msgs';
+              }
+            } else if (errorDetails is List && errorDetails.isNotEmpty) {
+              errorMessage = '$errorMessage: ${errorDetails.join(', ')}';
+            }
+          }
         }
       } catch (_) {
         errorMessage = response.body.isNotEmpty ? response.body : errorMessage;

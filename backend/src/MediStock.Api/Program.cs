@@ -11,8 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Database Context
 builder.Services.AddDbContext<MediStockDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    options.UseNpgsql(connectionString);
+    var useInMemory = builder.Configuration.GetValue<bool>("UseInMemoryDatabase");
+    if (useInMemory)
+    {
+        options.UseInMemoryDatabase("medistock_db");
+    }
+    else
+    {
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        options.UseNpgsql(connectionString);
+    }
 });
 
 // Controllers with JSON formatting

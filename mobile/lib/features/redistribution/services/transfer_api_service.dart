@@ -65,6 +65,12 @@ class TransferApiService {
       if (sourceFacilityId != null && sourceFacilityId.isNotEmpty)
         'sourceFacilityId': sourceFacilityId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'items': [
+        {
+          'medicineId': medicineId,
+          'requestedQuantity': requestedQuantity,
+        }
+      ],
     };
 
     final response = await _apiClient.post('/api/transfers', body: payload);
@@ -89,6 +95,23 @@ class TransferApiService {
     throw ApiException(
       statusCode: 500,
       message: 'Failed to submit transfer request.',
+    );
+  }
+
+  // 4b. POST /api/transfers/{id}/dispatch (Dispatch Transfer)
+  Future<Transfer> dispatchTransfer(String id, {String? notes, String? carrierName, String? trackingNumber}) async {
+    final payload = {
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (carrierName != null && carrierName.isNotEmpty) 'carrierName': carrierName,
+      if (trackingNumber != null && trackingNumber.isNotEmpty) 'trackingNumber': trackingNumber,
+    };
+    final response = await _apiClient.post('/api/transfers/$id/dispatch', body: payload);
+    if (response is Map<String, dynamic>) {
+      return Transfer.fromJson(response);
+    }
+    throw ApiException(
+      statusCode: 500,
+      message: 'Failed to dispatch transfer.',
     );
   }
 

@@ -13,8 +13,8 @@ public class TransferValidator
     private static readonly Dictionary<TransferStatus, List<TransferStatus>> AllowedTransitions = new()
     {
         [TransferStatus.Draft] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Cancelled },
-        [TransferStatus.Proposed] = new() { TransferStatus.Requested, TransferStatus.Cancelled },
-        [TransferStatus.Requested] = new() { TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
+        [TransferStatus.Proposed] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
+        [TransferStatus.Requested] = new() { TransferStatus.Proposed, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
         [TransferStatus.Approved] = new() { TransferStatus.Reserved, TransferStatus.Cancelled },
         [TransferStatus.Reserved] = new() { TransferStatus.Dispatched, TransferStatus.Cancelled },
         [TransferStatus.Dispatched] = new() { TransferStatus.Received },
@@ -32,13 +32,20 @@ public class TransferValidator
             errors.Add("Destination facility ID is required.");
         }
 
-        if (request.Items == null || !request.Items.Any())
+        var hasItems = request.Items != null && request.Items.Any();
+        var hasDirectMedicine = request.MedicineId.HasValue && request.MedicineId.Value != Guid.Empty;
+
+        if (!hasItems && !hasDirectMedicine)
         {
             errors.Add("Transfer request must contain at least one item.");
         }
-        else
+        else if (hasDirectMedicine && (!request.RequestedQuantity.HasValue || request.RequestedQuantity <= 0) && !hasItems)
         {
-            for (var i = 0; i < request.Items.Count; i++)
+            errors.Add("Requested quantity must be greater than zero.");
+        }
+        else if (hasItems)
+        {
+            for (var i = 0; i < request.Items!.Count; i++)
             {
                 var item = request.Items[i];
                 if (item.MedicineId == Guid.Empty)
@@ -79,16 +86,37 @@ public class TransferValidator
             errors.Add($"Transfer must be in 'Approved' status to reserve inventory. Current status is '{transfer.Status}'.");
         }
 
-        if (transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty)
+        var sourceFacilityId = transfer.SourceFacilityId ?? request.SourceFacilityId;
+        if (sourceFacilityId == null || sourceFacilityId == Guid.Empty)
         {
             errors.Add("Cannot reserve stock without an assigned source facility.");
         }
 
         if (request.ItemAllocations == null || !request.ItemAllocations.Any())
         {
-            errors.Add("Reservation request must contain item allocations.");
+            if (request.QuantityToReserve.HasValue && transfer.Items.Any())
+            {
+                var targetItem = (request.MedicineId.HasValue && request.MedicineId.Value != Guid.Empty)
+                    ? (transfer.Items.FirstOrDefault(i => i.MedicineId == request.MedicineId.Value) ?? transfer.Items.First())
+                    : transfer.Items.First();
+
+                request.ItemAllocations = new List<ReserveItemAllocationDto>
+                {
+                    new ReserveItemAllocationDto
+                    {
+                        TransferItemId = targetItem.Id,
+                        AllocatedQuantity = request.QuantityToReserve.Value,
+                        BatchNumber = request.BatchNumber
+                    }
+                };
+            }
+            else
+            {
+                errors.Add("Reservation request must contain item allocations.");
+            }
         }
-        else
+
+        if (request.ItemAllocations != null && request.ItemAllocations.Any())
         {
             foreach (var alloc in request.ItemAllocations)
             {
@@ -119,9 +147,26 @@ public class TransferValidator
 
         if (request.VerifiedItems == null || !request.VerifiedItems.Any())
         {
-            errors.Add("Receipt must contain verification for transfer items.");
+            if (request.ReceivedQuantity.HasValue && transfer.Items.Any())
+            {
+                request.VerifiedItems = new List<ReceiveItemVerificationDto>
+                {
+                    new ReceiveItemVerificationDto
+                    {
+                        TransferItemId = transfer.Items.First().Id,
+                        ReceivedQuantity = request.ReceivedQuantity.Value,
+                        BatchNumber = request.BatchNumber,
+                        DiscrepancyReason = request.DiscrepancyReason
+                    }
+                };
+            }
+            else
+            {
+                errors.Add("Receipt must contain verification for transfer items.");
+            }
         }
-        else
+        
+        if (request.VerifiedItems != null && request.VerifiedItems.Any())
         {
             foreach (var item in request.VerifiedItems)
             {

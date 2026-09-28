@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../models/transfer_models.dart';
@@ -7,12 +8,14 @@ class TransferTrackingScreen extends StatefulWidget {
   final Transfer transfer;
   final TransferApiService? apiService;
   final RouteDetails? initialRoute;
+  final bool enablePolling;
 
   const TransferTrackingScreen({
     super.key,
     required this.transfer,
     this.apiService,
     this.initialRoute,
+    this.enablePolling = true,
   });
 
   @override
@@ -21,13 +24,16 @@ class TransferTrackingScreen extends StatefulWidget {
 
 class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
   late final TransferApiService _apiService;
+  late Transfer _transfer;
   RouteDetails? _route;
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
+    _transfer = widget.transfer;
     _apiService = widget.apiService ?? TransferApiService();
     if (widget.initialRoute != null) {
       _route = widget.initialRoute;
@@ -35,6 +41,34 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
     } else {
       _fetchRoute();
     }
+    if (widget.enablePolling) {
+      _startPolling();
+    }
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _pollUpdates();
+      }
+    });
+  }
+
+  Future<void> _pollUpdates() async {
+    try {
+      final updatedTransfer = await _apiService.getTransferById(_transfer.id);
+      if (mounted) {
+        setState(() {
+          _transfer = updatedTransfer;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchRoute() async {
@@ -44,7 +78,7 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
     });
 
     try {
-      final routeData = await _apiService.getRoute(widget.transfer.id);
+      final routeData = await _apiService.getRoute(_transfer.id);
       if (mounted) {
         setState(() {
           _route = routeData;
@@ -63,16 +97,16 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final distance = _route?.distanceKm ?? widget.transfer.estimatedDistanceKm;
-    final duration = _route?.durationMinutes ?? widget.transfer.estimatedDurationMinutes;
-    final provider = _route?.provider ?? widget.transfer.routingProvider ?? 'OpenRouteService';
+    final distance = _route?.distanceKm ?? _transfer.estimatedDistanceKm;
+    final duration = _route?.durationMinutes ?? _transfer.estimatedDurationMinutes;
+    final provider = _route?.provider ?? _transfer.routingProvider ?? 'OpenRouteService';
     final isFallback = _route?.isFallback ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'Tracking ${widget.transfer.transferNumber}',
+          'Tracking ${_transfer.transferNumber}',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
         backgroundColor: AppColors.surface,
@@ -148,7 +182,7 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  widget.transfer.status.toUpperCase(),
+                                  _transfer.status.toUpperCase(),
                                   style: const TextStyle(
                                     color: AppColors.secondary,
                                     fontWeight: FontWeight.bold,
@@ -232,7 +266,7 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                           isLast: false,
                           isPassed: true,
                           title: 'Origin / Dispatch Facility',
-                          subtitle: widget.transfer.sourceFacilityName ?? 'Central Warehouse',
+                          subtitle: _transfer.sourceFacilityName ?? 'Central Warehouse',
                           timeText: 'Dispatched',
                           icon: Icons.storefront_rounded,
                           iconColor: AppColors.primary,
@@ -270,10 +304,10 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                         _buildWaypointTile(
                           isFirst: false,
                           isLast: true,
-                          isPassed: widget.transfer.status.toLowerCase() == 'delivered',
+                          isPassed: _transfer.status.toLowerCase() == 'delivered',
                           title: 'Destination Pharmacy Bay',
-                          subtitle: widget.transfer.destinationFacilityName,
-                          timeText: widget.transfer.status.toLowerCase() == 'delivered'
+                          subtitle: _transfer.destinationFacilityName,
+                          timeText: _transfer.status.toLowerCase() == 'delivered'
                               ? 'Delivered'
                               : 'Expected Delivery',
                           icon: Icons.local_hospital_rounded,
@@ -309,14 +343,14 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              widget.transfer.primaryMedicineName,
+                              _transfer.primaryMedicineName,
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
-                              '${widget.transfer.totalAllocatedQuantity > 0 ? widget.transfer.totalAllocatedQuantity : widget.transfer.totalRequestedQuantity} units',
+                              '${_transfer.totalAllocatedQuantity > 0 ? _transfer.totalAllocatedQuantity : _transfer.totalRequestedQuantity} units',
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
@@ -324,10 +358,10 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                             ),
                           ],
                         ),
-                        if (widget.transfer.primaryBatchNumber != null) ...[
+                        if (_transfer.primaryBatchNumber != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Batch Lot: ${widget.transfer.primaryBatchNumber}',
+                            'Batch Lot: ${_transfer.primaryBatchNumber}',
                             style: const TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 12,

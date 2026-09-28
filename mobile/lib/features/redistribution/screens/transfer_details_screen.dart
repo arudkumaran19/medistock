@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
@@ -10,12 +11,14 @@ class TransferDetailsScreen extends StatefulWidget {
   final String transferId;
   final TransferApiService? apiService;
   final Transfer? initialTransfer;
+  final bool enablePolling;
 
   const TransferDetailsScreen({
     super.key,
     required this.transferId,
     this.apiService,
     this.initialTransfer,
+    this.enablePolling = true,
   });
 
   @override
@@ -27,6 +30,7 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
   Transfer? _transfer;
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _pollingTimer;
 
   static const List<String> _pipelineSteps = [
     'Draft',
@@ -47,13 +51,32 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
     } else {
       _loadTransfer();
     }
+    if (widget.enablePolling) {
+      _startPolling();
+    }
   }
 
-  Future<void> _loadTransfer() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _loadTransfer(silent: true);
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadTransfer({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final data = await _apiService.getTransferById(widget.transferId);
@@ -66,8 +89,9 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
+          if (!silent) {
+            _errorMessage = e.toString();
+          }
         });
       }
     }
@@ -448,7 +472,6 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
 
                           const SizedBox(height: 24),
 
-                          // Operational Actions
                           if (_transfer!.status.toLowerCase() == 'draft')
                             ElevatedButton.icon(
                               onPressed: () async {
@@ -462,6 +485,22 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                               ),
                             ),
+
+                          if (_transfer!.status.toLowerCase() == 'reserved') ...[
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                await _apiService.dispatchTransfer(_transfer!.id, notes: 'Consignment dispatched from facility.');
+                                _loadTransfer();
+                              },
+                              icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                              label: const Text('Dispatch Consignment'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
 
                           if (_transfer!.status.toLowerCase() == 'intransit') ...[
                             ElevatedButton.icon(

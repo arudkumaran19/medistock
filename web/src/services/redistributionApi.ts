@@ -30,7 +30,7 @@ function normalizeTransfer(t: any): TransferDto {
     medicineBatchNumber: t.medicineBatchNumber || (firstItem ? firstItem.batchNumber : '') || '',
     requestedQuantity: t.requestedQuantity ?? (firstItem ? firstItem.requestedQuantity : 0),
     allocatedQuantity: t.allocatedQuantity ?? (firstItem ? firstItem.allocatedQuantity : 0),
-    status: t.status,
+    status: t.status === 'Dispatched' ? 'InTransit' : t.status === 'Received' ? 'Delivered' : t.status,
     priority: t.priority || 'Routine',
     distanceKm: t.distanceKm ?? t.estimatedDistanceKm ?? 0,
     estimatedDurationMinutes: t.estimatedDurationMinutes ?? 0,
@@ -90,7 +90,12 @@ export const redistributionApi = {
   // 1. GET /api/transfers
   getTransfers: async (params?: TransferFilterParams): Promise<TransferDto[]> => {
     const query = new URLSearchParams();
-    if (params?.status) query.append('status', params.status);
+    if (params?.status) {
+      let st = params.status;
+      if (st === 'InTransit') st = 'Dispatched';
+      if (st === 'Delivered') st = 'Received';
+      query.append('status', st);
+    }
     if (params?.sourceFacilityId) query.append('sourceFacilityId', params.sourceFacilityId);
     if (params?.destinationFacilityId) query.append('destinationFacilityId', params.destinationFacilityId);
     if (params?.medicineId) query.append('medicineId', params.medicineId);
@@ -133,6 +138,20 @@ export const redistributionApi = {
   // 5. POST /api/transfers/{id}/reserve
   reserveStock: async (id: string, payload: ReserveStockRequest): Promise<TransferDto> => {
     const res = await apiClient.post<any>(`/api/transfers/${id}/reserve`, payload);
+    const raw = res?.data || res;
+    return normalizeTransfer(raw);
+  },
+
+  // 5b. POST /api/transfers/{id}/dispatch
+  dispatchTransfer: async (id: string, notes?: string, carrierName?: string, trackingNumber?: string): Promise<TransferDto> => {
+    const res = await apiClient.post<any>(`/api/transfers/${id}/dispatch`, { notes, carrierName, trackingNumber });
+    const raw = res?.data || res;
+    return normalizeTransfer(raw);
+  },
+
+  // 5c. POST /api/transfers/{id}/propose
+  proposeCandidate: async (id: string, sourceFacilityId: string, notes?: string): Promise<TransferDto> => {
+    const res = await apiClient.post<any>(`/api/transfers/${id}/propose`, { sourceFacilityId, notes });
     const raw = res?.data || res;
     return normalizeTransfer(raw);
   },

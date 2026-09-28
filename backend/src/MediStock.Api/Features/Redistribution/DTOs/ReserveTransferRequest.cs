@@ -8,6 +8,13 @@ public class ReserveTransferRequest
     public Guid UserId { get; set; }
     public string? Notes { get; set; }
     public List<ReserveItemAllocationDto> ItemAllocations { get; set; } = new();
+
+    // Flat compatibility fields for React & mobile clients
+    public Guid? TransferId { get; set; }
+    public Guid? SourceFacilityId { get; set; }
+    public Guid? MedicineId { get; set; }
+    public int? QuantityToReserve { get; set; }
+    public string? BatchNumber { get; set; }
 }
 
 public class ReserveItemAllocationDto

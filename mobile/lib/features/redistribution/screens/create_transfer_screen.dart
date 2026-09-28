@@ -26,15 +26,15 @@ class _CreateTransferScreenState extends State<CreateTransferScreen> {
   String? _errorMessage;
 
   final Map<String, String> _facilities = {
-    '33333333-3333-3333-3333-333333333333': 'Teaching Hospital Kandy (Central)',
-    '11111111-1111-1111-1111-111111111111': 'National Hospital Colombo (Western)',
-    '22222222-2222-2222-2222-222222222222': 'Karapitiya Teaching Hospital (Southern)',
+    'a0000000-0000-0000-0000-000000000003': 'Teaching Hospital Kandy (Central)',
+    'a0000000-0000-0000-0000-000000000001': 'National Hospital Colombo (Western)',
+    'a0000000-0000-0000-0000-000000000002': 'Karapitiya Teaching Hospital (Southern)',
   };
 
   final Map<String, String> _medicines = {
-    '55555555-5555-5555-5555-555555555555': 'Amoxicillin 500mg Capsules',
-    '66666666-6666-6666-6666-666666666666': 'Paracetamol 500mg Tablets',
-    '77777777-7777-7777-7777-777777777777': 'Ceftriaxone 1g Injection Vials',
+    'b0000000-0000-0000-0000-000000000005': 'Ceftriaxone 1g Injection Vials',
+    'b0000000-0000-0000-0000-000000000001': 'Amoxicillin 500mg Capsules',
+    'b0000000-0000-0000-0000-000000000002': 'Paracetamol 500mg Tablets',
   };
 
   @override

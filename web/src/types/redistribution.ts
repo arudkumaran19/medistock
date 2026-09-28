@@ -1,5 +1,6 @@
 export type TransferStatus =
   | 'Draft'
+  | 'Proposed'
   | 'Requested'
   | 'Approved'
   | 'Reserved'

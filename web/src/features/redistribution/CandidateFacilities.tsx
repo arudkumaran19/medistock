@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -27,6 +28,7 @@ export const CandidateFacilities: React.FC = () => {
   const [candidates, setCandidates] = useState<CandidateFacilityDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     if (!id) return;
@@ -43,6 +45,19 @@ export const CandidateFacilities: React.FC = () => {
       setError(err.message || 'Failed to load candidate source facilities.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectCandidate = async (cand: CandidateFacilityDto) => {
+    if (!transfer) return;
+    try {
+      setSelectingId(cand.facilityId);
+      await redistributionApi.proposeCandidate(transfer.id, cand.facilityId, `Selected ${cand.facilityName} as supplying facility.`);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to select candidate facility.');
+    } finally {
+      setSelectingId(null);
     }
   };
 
@@ -236,15 +251,66 @@ export const CandidateFacilities: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Inspect Route Button */}
-                <button
-                  onClick={() => navigate(`/transfers/${transfer.id}/route`)}
-                  className="btn btn-secondary"
-                  style={{ marginTop: 'auto', width: '100%' }}
-                >
-                  <Compass size={16} />
-                  Inspect Road Route
-                </button>
+                {/* Action Buttons */}
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {transfer.sourceFacilityId === cand.facilityId ? (
+                    <button
+                      className="btn btn-primary"
+                      disabled
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        color: 'var(--color-emerald)',
+                        borderColor: 'var(--color-emerald)',
+                        cursor: 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Check size={16} />
+                      Selected Source Facility
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleSelectCandidate(cand)}
+                      className="btn btn-primary"
+                      disabled={selectingId !== null}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {selectingId === cand.facilityId ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Check size={16} />
+                      )}
+                      Select Source Facility
+                    </button>
+                  )}
+
+                  {/* Inspect Route Button */}
+                  <button
+                    onClick={() => navigate(`/transfers/${transfer.id}/route`)}
+                    className="btn btn-secondary"
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                    }}
+                    title={!transfer.sourceFacilityId ? 'Select a source facility first, or inspect this candidate route' : 'Inspect route'}
+                  >
+                    <Compass size={16} />
+                    Inspect Road Route
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -36,12 +36,15 @@ export const RouteComparison: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [transferData, routeData] = await Promise.all([
-        redistributionApi.getTransferById(id),
-        redistributionApi.getRoute(id),
-      ]);
+      const transferData = await redistributionApi.getTransferById(id);
       setTransfer(transferData);
-      setRoute(routeData);
+
+      if (transferData.sourceFacilityId) {
+        const routeData = await redistributionApi.getRoute(id);
+        setRoute(routeData);
+      } else {
+        setRoute(null);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to compute route details.');
     } finally {
@@ -55,6 +58,45 @@ export const RouteComparison: React.FC = () => {
 
   if (loading) return <LoadingState message="Calculating road transit distance & geo-routes..." />;
   if (error || !transfer) return <ErrorState message={error || 'Route not found.'} onRetry={fetchData} />;
+
+  if (!transfer.sourceFacilityId) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            onClick={() => navigate(`/transfers/${transfer.id}`)}
+            className="btn btn-secondary"
+            style={{ padding: '8px' }}
+            title="Back to Transfer"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Route Comparison</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              Transfer {transfer.transferNumber}
+            </p>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '40px', textAlign: 'center' }}>
+          <Compass size={48} style={{ color: 'var(--color-amber)', margin: '0 auto 16px auto', display: 'block' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>No Source Facility Selected</h2>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 24px auto' }}>
+            A supplying source facility has not been selected yet for this transfer. Please evaluate and choose an optimal source candidate to calculate live road routing.
+          </p>
+          <button
+            onClick={() => navigate(`/transfers/${transfer.id}/candidates`)}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Compass size={16} />
+            Explore Candidate Facilities
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate synthetic alternative route comparison
   const baseDistance = route?.distanceKm || transfer.distanceKm || 45.0;

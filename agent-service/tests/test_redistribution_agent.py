@@ -291,3 +291,35 @@ def test_internal_cors_origin_boundary():
     )
     assert untrusted_resp.headers.get("access-control-allow-origin") is None
 
+
+def test_database_query_tools():
+    """Verify redistribution tools can query real PostgreSQL facilities and inventory."""
+    from medistock_agents.tools.redistribution_tools import _get_db_connection, getCandidateFacilities, getFacilityLocation, getFacilityInventory
+
+    conn = _get_db_connection()
+    if not conn:
+        pytest.skip("PostgreSQL database connection is not configured in environment or reachable.")
+
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT "Id", "Name" FROM facilities LIMIT 2;')
+            facs = cur.fetchall()
+            cur.execute('SELECT "Id" FROM medicines LIMIT 1;')
+            med = cur.fetchone()
+
+            if len(facs) < 2 or not med:
+                pytest.skip("Insufficient seeded data in database for facility test.")
+
+            dest_id = facs[0][0]
+            med_id = med[0]
+
+            # Test getFacilityLocation from DB
+            loc = getFacilityLocation(dest_id)
+            assert loc.facility_id == dest_id
+            assert loc.facility_name == facs[0][1]
+
+            # Test getCandidateFacilities from DB
+            candidates = getCandidateFacilities(dest_id, med_id, 20)
+            assert isinstance(candidates, list)
+
+

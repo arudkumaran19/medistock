@@ -130,6 +130,58 @@ public class TransferController : ControllerBase
     }
 
     /// <summary>
+    /// 5b. POST /api/transfers/{id}/dispatch - Dispatch transfer to transition from Reserved to Dispatched
+    /// </summary>
+    [HttpPost("{id:guid}/dispatch")]
+    [Consumes(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DispatchTransfer(
+        [FromRoute] Guid id,
+        [FromBody] DispatchTransferRequest? request,
+        CancellationToken ct = default)
+    {
+        request ??= new DispatchTransferRequest();
+        if (request.UserId == Guid.Empty)
+        {
+            request.UserId = GetCurrentUserId();
+        }
+
+        var result = await _transferService.DispatchTransferAsync(id, request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "DISPATCH_FAILED", result.Errors));
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// 5c. POST /api/transfers/{id}/propose - Set candidate source facility for transfer
+    /// </summary>
+    [HttpPost("{id:guid}/propose")]
+    [Consumes(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ProposeCandidate(
+        [FromRoute] Guid id,
+        [FromBody] ProposeCandidateRequest request,
+        CancellationToken ct = default)
+    {
+        var userId = (request.UserId.HasValue && request.UserId.Value != Guid.Empty)
+            ? request.UserId.Value
+            : GetCurrentUserId();
+
+        var result = await _transferService.ProposeCandidateInternalAsync(id, request.SourceFacilityId, userId, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "PROPOSAL_FAILED", result.Errors));
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// 6. POST /api/transfers/{id}/receive - Receive transfer and adjust inventory at destination
     /// </summary>
     [HttpPost("{id:guid}/receive")]

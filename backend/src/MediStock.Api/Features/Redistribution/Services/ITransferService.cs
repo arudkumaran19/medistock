@@ -29,6 +29,8 @@ public interface ITransferService
 
     Task<ApiResponse<TransferResponse>> ReserveTransferAsync(Guid transferId, ReserveTransferRequest request, CancellationToken ct = default);
 
+    Task<ApiResponse<TransferResponse>> DispatchTransferAsync(Guid transferId, DispatchTransferRequest request, CancellationToken ct = default);
+
     Task<ApiResponse<TransferResponse>> ReceiveTransferAsync(Guid transferId, ReceiveTransferRequest request, CancellationToken ct = default);
 
     Task<ApiResponse<List<CandidateFacilityResponse>>> GetCandidatesForTransferAsync(Guid transferId, CancellationToken ct = default);

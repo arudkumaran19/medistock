@@ -127,7 +127,7 @@
 
 .btn-danger {
   background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .btn-danger:hover:not(:disabled) {

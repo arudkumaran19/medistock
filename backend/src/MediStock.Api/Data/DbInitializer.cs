@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MediStock.Api.Domain.Entities;
 using MediStock.Api.Domain.Enums;
 using MediStock.Api.Features.Redistribution.Models;
+using MediStock.Api.Features.Workflow.Models;
 
 namespace MediStock.Api.Data;
 
@@ -82,7 +83,52 @@ public static class DbInitializer
                     IsActive = true
                 };
 
-                await context.Facilities.AddRangeAsync(facColombo, facGalle, facKandy, facNegombo);
+                var facKandyAlt = new Facility
+                {
+                    Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    Name = "Teaching Hospital Kandy",
+                    FacilityCode = "FAC-KAN-ALT",
+                    FacilityType = "Hospital",
+                    Latitude = 7.2882,
+                    Longitude = 80.6278,
+                    Address = "William Gopallawa Mawatha, Kandy",
+                    City = "Kandy",
+                    ContactPhone = "+94 81 222 2261",
+                    ContactPerson = "Dr. Fernando",
+                    IsActive = true
+                };
+
+                var facColomboAlt = new Facility
+                {
+                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    Name = "National Hospital of Sri Lanka",
+                    FacilityCode = "FAC-COL-ALT",
+                    FacilityType = "Central Depot",
+                    Latitude = 6.9175,
+                    Longitude = 79.8653,
+                    Address = "Regent Street, Colombo 10",
+                    City = "Colombo",
+                    ContactPhone = "+94 11 269 1111",
+                    ContactPerson = "Dr. Perera",
+                    IsActive = true
+                };
+
+                var facGalleAlt = new Facility
+                {
+                    Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    Name = "Teaching Hospital Karapitiya",
+                    FacilityCode = "FAC-GAL-ALT",
+                    FacilityType = "Hospital",
+                    Latitude = 6.0682,
+                    Longitude = 80.2217,
+                    Address = "Karapitiya, Galle",
+                    City = "Galle",
+                    ContactPhone = "+94 91 223 2250",
+                    ContactPerson = "Dr. Jayasinghe",
+                    IsActive = true
+                };
+
+                await context.Facilities.AddRangeAsync(facColombo, facGalle, facKandy, facNegombo, facColomboAlt, facGalleAlt, facKandyAlt);
 
                 var medAmox = new Medicine
                 {
@@ -132,7 +178,31 @@ public static class DbInitializer
                     IsActive = true
                 };
 
-                await context.Medicines.AddRangeAsync(medAmox, medPara, medInsulin, medMetformin);
+                var medCeftriaxone = new Medicine
+                {
+                    Id = Guid.Parse("b0000000-0000-0000-0000-000000000005"),
+                    Name = "Ceftriaxone 1g Injection Vials",
+                    GenericName = "Ceftriaxone",
+                    Sku = "MED-CEF-1G",
+                    UnitOfMeasure = "vials",
+                    Category = "Antibiotics",
+                    RequiresRefrigeration = false,
+                    IsActive = true
+                };
+
+                var medCeftriaxoneAlt = new Medicine
+                {
+                    Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                    Name = "Ceftriaxone 1g Injection Vials",
+                    GenericName = "Ceftriaxone",
+                    Sku = "MED-CEF-ALT",
+                    UnitOfMeasure = "vials",
+                    Category = "Antibiotics",
+                    RequiresRefrigeration = false,
+                    IsActive = true
+                };
+
+                await context.Medicines.AddRangeAsync(medAmox, medPara, medInsulin, medMetformin, medCeftriaxone, medCeftriaxoneAlt);
 
                 // Inventories:
                 // Colombo: Surplus 700 Amoxicillin (1200 - 500 safety stock)
@@ -227,10 +297,71 @@ public static class DbInitializer
                     Reason = "Agent proposed Colombo as optimal source facility"
                 });
 
+                var sampleWorkflowRun = new WorkflowRun
+                {
+                    Id = Guid.Parse("e0000000-0000-0000-0000-000000000001"),
+                    WorkflowType = "RedistributionPlanning",
+                    Status = WorkflowStatus.WaitingForApproval,
+                    InitiatorUserId = sampleTransfer.RequestedByUserId,
+                    StartedAt = DateTime.UtcNow,
+                    ContextJson = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        transferRequestId = sampleTransfer.Id,
+                        transferNumber = sampleTransfer.TransferNumber,
+                        destinationFacilityId = sampleTransfer.DestinationFacilityId,
+                        sourceFacilityId = sampleTransfer.SourceFacilityId,
+                        priority = sampleTransfer.Priority.ToString(),
+                        notes = sampleTransfer.Notes
+                    })
+                };
+
+                sampleWorkflowRun.Steps.Add(new WorkflowPlanStep
+                {
+                    Id = Guid.NewGuid(),
+                    WorkflowRunId = sampleWorkflowRun.Id,
+                    StepNumber = 1,
+                    StepName = "Detect Shortage & Initialize Context",
+                    Status = WorkflowStatus.Completed,
+                    ExecutedAt = DateTime.UtcNow
+                });
+
+                sampleWorkflowRun.Steps.Add(new WorkflowPlanStep
+                {
+                    Id = Guid.NewGuid(),
+                    WorkflowRunId = sampleWorkflowRun.Id,
+                    StepNumber = 2,
+                    StepName = "Agentic Candidate & Route Analysis",
+                    Status = WorkflowStatus.Completed,
+                    ExecutedAt = DateTime.UtcNow
+                });
+
+                sampleWorkflowRun.Steps.Add(new WorkflowPlanStep
+                {
+                    Id = Guid.NewGuid(),
+                    WorkflowRunId = sampleWorkflowRun.Id,
+                    StepNumber = 3,
+                    StepName = "Deterministic Business Rule Validation",
+                    Status = WorkflowStatus.Completed,
+                    ExecutedAt = DateTime.UtcNow
+                });
+
+                sampleWorkflowRun.Steps.Add(new WorkflowPlanStep
+                {
+                    Id = Guid.NewGuid(),
+                    WorkflowRunId = sampleWorkflowRun.Id,
+                    StepNumber = 4,
+                    StepName = "Awaiting Human-in-the-Loop Management Approval",
+                    Status = WorkflowStatus.WaitingForApproval,
+                    ExecutedAt = DateTime.UtcNow
+                });
+
+                sampleTransfer.WorkflowRunId = sampleWorkflowRun.Id;
+
+                await context.WorkflowRuns.AddAsync(sampleWorkflowRun);
                 await context.TransferRequests.AddAsync(sampleTransfer);
 
                 await context.SaveChangesAsync();
-                logger.LogInformation("Database seeded successfully with initial facilities, medicines, and sample transfer.");
+                logger.LogInformation("Database seeded successfully with initial facilities, medicines, sample transfer, and workflow run.");
             }
         }
         catch (Exception ex)

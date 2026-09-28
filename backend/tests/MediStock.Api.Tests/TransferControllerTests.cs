@@ -26,7 +26,7 @@ public class TransferControllerTests
     }
 
     [Fact]
-    public void TransferController_StrictlyExposesOnlyThe8SpecifiedEndpoints()
+    public void TransferController_StrictlyExposesOnlyTheSpecifiedEndpoints()
     {
         // Get all public action methods on TransferController
         var actionMethods = typeof(TransferController)
@@ -34,8 +34,8 @@ public class TransferControllerTests
             .Where(m => !m.IsSpecialName)
             .ToList();
 
-        // Must have exactly 8 action methods
-        actionMethods.Should().HaveCount(8, "TransferController must strictly expose only the 8 blueprint endpoints");
+        // Must have expected action methods
+        actionMethods.Should().HaveCount(10, "TransferController exposes the blueprint endpoints including dispatch and propose");
 
         var methodNames = actionMethods.Select(m => m.Name).ToList();
         methodNames.Should().Contain(nameof(TransferController.GetTransfers));
@@ -43,6 +43,8 @@ public class TransferControllerTests
         methodNames.Should().Contain(nameof(TransferController.CreateTransfer));
         methodNames.Should().Contain(nameof(TransferController.SubmitRequest));
         methodNames.Should().Contain(nameof(TransferController.ReserveTransfer));
+        methodNames.Should().Contain(nameof(TransferController.DispatchTransfer));
+        methodNames.Should().Contain(nameof(TransferController.ProposeCandidate));
         methodNames.Should().Contain(nameof(TransferController.ReceiveTransfer));
         methodNames.Should().Contain(nameof(TransferController.GetCandidates));
         methodNames.Should().Contain(nameof(TransferController.GetRoute));
@@ -50,6 +52,37 @@ public class TransferControllerTests
         // Must NOT contain Approve or Reject
         methodNames.Should().NotContain("ApproveTransfer");
         methodNames.Should().NotContain("RejectTransfer");
+    }
+
+    [Fact]
+    public async Task DispatchTransfer_WhenValid_Returns200Ok()
+    {
+        // Arrange
+        var transferId = Guid.NewGuid();
+        var request = new DispatchTransferRequest
+        {
+            CarrierName = "Express Med Logistics",
+            TrackingNumber = "TRACK-12345"
+        };
+
+        var transferResponse = new TransferResponse
+        {
+            Id = transferId,
+            TransferNumber = "TR-2026-DISP",
+            Status = TransferStatus.Dispatched
+        };
+
+        _transferServiceMock
+            .Setup(s => s.DispatchTransferAsync(transferId, It.IsAny<DispatchTransferRequest>(), default))
+            .ReturnsAsync(ApiResponse<TransferResponse>.Ok(transferResponse));
+
+        // Act
+        var result = await _controller.DispatchTransfer(transferId, request);
+
+        // Assert
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<ApiResponse<TransferResponse>>().Subject;
+        response.Data!.Status.Should().Be(TransferStatus.Dispatched);
     }
 
     [Fact]

@@ -315,5 +315,116 @@ void main() {
       await tester.tap(submitButtonFinder);
       await tester.pumpAndSettle();
     });
+
+    testWidgets('TransferDetailsScreen periodic 5s polling reflects status updates without pull-to-refresh',
+        (tester) async {
+      final initialTransfer = Transfer(
+        id: 'poll-test-1',
+        transferNumber: 'TR-POLL-001',
+        sourceFacilityName: 'National Hospital Colombo',
+        destinationFacilityId: 'f-kandy',
+        destinationFacilityName: 'Teaching Hospital Kandy',
+        status: 'Requested',
+        priority: 'Urgent',
+        createdAt: DateTime.now(),
+        items: [],
+      );
+
+      final updatedTransfer = Transfer(
+        id: 'poll-test-1',
+        transferNumber: 'TR-POLL-001',
+        sourceFacilityName: 'National Hospital Colombo',
+        destinationFacilityId: 'f-kandy',
+        destinationFacilityName: 'Teaching Hospital Kandy',
+        status: 'Approved',
+        priority: 'Urgent',
+        createdAt: DateTime.now(),
+        items: [],
+      );
+
+      final pollApi = FakeTransferApiService(
+        transfersList: [initialTransfer],
+        mockRoute: mockRoute,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TransferDetailsScreen(
+            transferId: 'poll-test-1',
+            apiService: pollApi,
+            initialTransfer: initialTransfer,
+            enablePolling: true,
+          ),
+        ),
+      );
+
+      expect(find.text('REQUESTED'), findsOneWidget);
+
+      // Simulate status change in backend database (e.g. manager approval)
+      pollApi.transfersList[0] = updatedTransfer;
+
+      // Advance time by 5 seconds to trigger polling timer
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      // Verify status badge automatically updated to APPROVED without manual refresh
+      expect(find.text('APPROVED'), findsOneWidget);
+    });
+
+    testWidgets('TransferTrackingScreen periodic 5s polling reflects status updates without pull-to-refresh',
+        (tester) async {
+      final initialTransfer = Transfer(
+        id: 'poll-track-1',
+        transferNumber: 'TR-TRACK-001',
+        sourceFacilityName: 'National Hospital Colombo',
+        destinationFacilityId: 'f-kandy',
+        destinationFacilityName: 'Teaching Hospital Kandy',
+        status: 'InTransit',
+        priority: 'Urgent',
+        createdAt: DateTime.now(),
+        items: [],
+      );
+
+      final deliveredTransfer = Transfer(
+        id: 'poll-track-1',
+        transferNumber: 'TR-TRACK-001',
+        sourceFacilityName: 'National Hospital Colombo',
+        destinationFacilityId: 'f-kandy',
+        destinationFacilityName: 'Teaching Hospital Kandy',
+        status: 'Delivered',
+        priority: 'Urgent',
+        createdAt: DateTime.now(),
+        items: [],
+      );
+
+      final pollApi = FakeTransferApiService(
+        transfersList: [initialTransfer],
+        mockRoute: mockRoute,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TransferTrackingScreen(
+            transfer: initialTransfer,
+            apiService: pollApi,
+            initialRoute: mockRoute,
+            enablePolling: true,
+          ),
+        ),
+      );
+
+      expect(find.text('INTRANSIT'), findsOneWidget);
+
+      // Simulate status change to Delivered in backend database
+      pollApi.transfersList[0] = deliveredTransfer;
+
+      // Advance time by 5 seconds to trigger polling timer
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      // Verify status badge automatically updated to DELIVERED without manual refresh
+      expect(find.text('DELIVERED'), findsOneWidget);
+    });
   });
 }
+

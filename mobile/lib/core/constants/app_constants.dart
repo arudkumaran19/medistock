@@ -11,9 +11,9 @@ class AppConstants {
   static const String defaultFieldUserId = '00000000-0000-0000-0000-000000000002';
 
   // Seed Facility IDs (Matching DbInitializer in Backend)
-  static const String defaultDestinationFacilityId = '33333333-3333-3333-3333-333333333333'; // Teaching Hospital Kandy
-  static const String defaultSourceFacilityId = '11111111-1111-1111-1111-111111111111'; // National Hospital Colombo
-  static const String defaultMedicineId = '55555555-5555-5555-5555-555555555555'; // Amoxicillin 500mg
+  static const String defaultDestinationFacilityId = 'a0000000-0000-0000-0000-000000000003'; // Teaching Hospital Kandy
+  static const String defaultSourceFacilityId = 'a0000000-0000-0000-0000-000000000001'; // National Hospital Colombo
+  static const String defaultMedicineId = 'b0000000-0000-0000-0000-000000000005'; // Ceftriaxone 1g
 }
 
 class AppColors {

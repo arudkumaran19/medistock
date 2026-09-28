@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   isDanger?: boolean;
   isLoading?: boolean;
+  children?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,6 +22,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   cancelLabel = 'Cancel',
   isDanger = false,
   isLoading = false,
+  children,
   onConfirm,
   onCancel,
 }) => {
@@ -84,6 +86,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
               {message}
             </p>
+            {children && <div style={{ marginTop: '16px' }}>{children}</div>}
           </div>
         </div>
 

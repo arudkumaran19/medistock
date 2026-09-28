@@ -20,6 +20,7 @@ import {
 import { redistributionApi } from '../../services/redistributionApi';
 import { workflowApi } from '../../services/workflowApi';
 import { TransferDto, TransferStatus } from '../../types/redistribution';
+import { WorkflowRunDto } from '../../types/workflow';
 import { PriorityBadge, StatusBadge } from '../../components/StatusBadge';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorState } from '../../components/ErrorState';
@@ -27,6 +28,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 const STATUS_PIPELINE: TransferStatus[] = [
   'Draft',
+  'Proposed',
   'Requested',
   'Approved',
   'Reserved',
@@ -39,6 +41,8 @@ export const TransferDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [transfer, setTransfer] = useState<TransferDto | null>(null);
+  const [workflowRun, setWorkflowRun] = useState<WorkflowRunDto | null>(null);
+  const [decisionNotes, setDecisionNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -65,6 +69,16 @@ export const TransferDetail: React.FC = () => {
       setError(null);
       const data = await redistributionApi.getTransferById(id);
       setTransfer(data);
+      if (data.workflowRunId) {
+        try {
+          const run = await workflowApi.getWorkflowRun(data.workflowRunId);
+          setWorkflowRun(run);
+        } catch (e) {
+          console.warn('Could not fetch linked workflow run:', e);
+        }
+      } else {
+        setWorkflowRun(null);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch transfer details.');
     } finally {
@@ -75,26 +89,6 @@ export const TransferDetail: React.FC = () => {
   useEffect(() => {
     fetchTransfer();
   }, [id]);
-
-  const handleRequestTransfer = () => {
-    if (!transfer) return;
-    setConfirmModal({
-      isOpen: true,
-      title: 'Submit Transfer Request',
-      message: `Are you sure you want to request transfer ${transfer.transferNumber}? This moves the transfer to Requested status.`,
-      confirmLabel: 'Submit Request',
-      action: async () => {
-        setActionLoading(true);
-        try {
-          await redistributionApi.requestTransfer(transfer.id);
-          await fetchTransfer();
-        } finally {
-          setActionLoading(false);
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        }
-      },
-    });
-  };
 
   const handleReserveStock = () => {
     if (!transfer) return;
@@ -114,6 +108,28 @@ export const TransferDetail: React.FC = () => {
             notes: 'Managerial stock reservation locked via portal.',
           });
           await fetchTransfer();
+        } finally {
+          setActionLoading(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
+  const handleDispatchTransfer = () => {
+    if (!transfer) return;
+    setConfirmModal({
+      isOpen: true,
+      title: 'Dispatch Transfer to In-Transit',
+      message: `Confirm that the shipment of ${transfer.allocatedQuantity || transfer.requestedQuantity} units of ${transfer.medicineName} has departed from ${transfer.sourceFacilityName} to ${transfer.destinationFacilityName}?`,
+      confirmLabel: 'Dispatch Transfer',
+      action: async () => {
+        setActionLoading(true);
+        try {
+          await redistributionApi.dispatchTransfer(transfer.id, 'Shipment dispatched by facility dispatch officer.');
+          await fetchTransfer();
+        } catch (err: any) {
+          setError(err.message || 'Failed to dispatch transfer.');
         } finally {
           setActionLoading(false);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
@@ -150,21 +166,36 @@ export const TransferDetail: React.FC = () => {
 
   const handleApproveWorkflow = () => {
     if (!transfer) return;
+    setDecisionNotes('Transfer plan approved by Central Supply Director.');
     setConfirmModal({
       isOpen: true,
-      title: 'Approve Transfer Plan',
-      message: `Formally approve redistribution plan for ${transfer.medicineName} (${transfer.allocatedQuantity || transfer.requestedQuantity} units) to ${transfer.destinationFacilityName}?`,
+      title: 'Approve Transfer Plan via Workflow',
+      message: `Formally approve redistribution plan for ${transfer.medicineName} (${transfer.allocatedQuantity || transfer.requestedQuantity} units) to ${transfer.destinationFacilityName}? This calls POST /api/workflow/runs/{id}/approve on WorkflowController.`,
       confirmLabel: 'Approve Plan',
       action: async () => {
         setActionLoading(true);
         try {
-          if (transfer.workflowRunId) {
-            await workflowApi.approveWorkflow(transfer.workflowRunId, {
+          let runId = transfer.workflowRunId;
+          // Ensure a workflow run exists if not already attached
+          if (!runId) {
+            const startRes = await workflowApi.startWorkflow({
+              transferRequestId: transfer.id,
+              destinationFacilityId: transfer.destinationFacilityId,
+              medicineId: transfer.medicineId,
+              shortageQuantity: transfer.requestedQuantity,
+              additionalContext: `Auto-linked for transfer ${transfer.transferNumber}`,
+            });
+            runId = startRes.id;
+          }
+          if (runId) {
+            await workflowApi.approveWorkflow(runId, {
               approverUserId: '00000000-0000-0000-0000-000000000001',
-              decisionNotes: 'Transfer plan approved by Central Supply Director.',
+              decisionNotes: decisionNotes || 'Transfer plan approved by Central Supply Director.',
             });
           }
           await fetchTransfer();
+        } catch (err: any) {
+          setError(err.message || 'Failed to approve workflow run.');
         } finally {
           setActionLoading(false);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
@@ -175,22 +206,36 @@ export const TransferDetail: React.FC = () => {
 
   const handleRejectWorkflow = () => {
     if (!transfer) return;
+    setDecisionNotes('Transfer plan rejected by Central Supply Director.');
     setConfirmModal({
       isOpen: true,
-      title: 'Reject Transfer Plan',
-      message: `Formally reject redistribution plan for transfer ${transfer.transferNumber}?`,
+      title: 'Reject Transfer Plan via Workflow',
+      message: `Formally reject redistribution plan for transfer ${transfer.transferNumber}? This calls POST /api/workflow/runs/{id}/reject on WorkflowController.`,
       confirmLabel: 'Reject Plan',
       isDanger: true,
       action: async () => {
         setActionLoading(true);
         try {
-          if (transfer.workflowRunId) {
-            await workflowApi.rejectWorkflow(transfer.workflowRunId, {
+          let runId = transfer.workflowRunId;
+          if (!runId) {
+            const startRes = await workflowApi.startWorkflow({
+              transferRequestId: transfer.id,
+              destinationFacilityId: transfer.destinationFacilityId,
+              medicineId: transfer.medicineId,
+              shortageQuantity: transfer.requestedQuantity,
+              additionalContext: `Auto-linked for transfer ${transfer.transferNumber}`,
+            });
+            runId = startRes.id;
+          }
+          if (runId) {
+            await workflowApi.rejectWorkflow(runId, {
               approverUserId: '00000000-0000-0000-0000-000000000001',
-              decisionNotes: 'Transfer plan rejected by Central Supply Director.',
+              decisionNotes: decisionNotes || 'Transfer plan rejected by Central Supply Director.',
             });
           }
           await fetchTransfer();
+        } catch (err: any) {
+          setError(err.message || 'Failed to reject workflow run.');
         } finally {
           setActionLoading(false);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
@@ -203,6 +248,16 @@ export const TransferDetail: React.FC = () => {
   if (error || !transfer) return <ErrorState message={error || 'Transfer not found.'} onRetry={fetchTransfer} />;
 
   const currentStepIndex = STATUS_PIPELINE.indexOf(transfer.status);
+  const isAwaitingApproval =
+    (transfer.status === 'Requested' || workflowRun?.status === 'WaitingForApproval') &&
+    transfer.status !== 'Draft' &&
+    transfer.status !== 'Proposed' &&
+    transfer.status !== 'Approved' &&
+    transfer.status !== 'Reserved' &&
+    transfer.status !== 'InTransit' &&
+    transfer.status !== 'Delivered' &&
+    transfer.status !== 'Rejected' &&
+    transfer.status !== 'Cancelled';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -249,28 +304,43 @@ export const TransferDetail: React.FC = () => {
             Road Route
           </button>
 
-          {transfer.status === 'Draft' && (
-            <button onClick={handleRequestTransfer} className="btn btn-primary" disabled={actionLoading}>
-              Submit Request
-            </button>
+          {/* Draft or Proposed: read-only note (field officer submits via Flutter mobile app per ADR-008) */}
+          {(transfer.status === 'Draft' || transfer.status === 'Proposed') && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: 'var(--color-amber)',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+              }}
+            >
+              <Clock size={15} />
+              <span>Waiting for field officer to submit the request</span>
+            </div>
           )}
 
-          {transfer.status === 'Requested' && (
+          {/* Approvable states: ONLY when status is Requested (or linked workflow run is WaitingForApproval), never Draft or Proposed */}
+          {isAwaitingApproval && (
             <>
               <button
                 onClick={handleRejectWorkflow}
                 className="btn btn-danger"
                 disabled={actionLoading}
                 style={{
-                  backgroundColor: 'rgba(244, 63, 94, 0.15)',
-                  color: 'var(--color-rose)',
-                  border: '1px solid rgba(244, 63, 94, 0.3)',
+                  color: '#ffffff',
+                  fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                 }}
               >
-                <XCircle size={16} />
+                <XCircle size={16} color="#ffffff" />
                 Reject Plan
               </button>
               <button
@@ -292,6 +362,18 @@ export const TransferDetail: React.FC = () => {
           {transfer.status === 'Approved' && (
             <button onClick={handleReserveStock} className="btn btn-primary" disabled={actionLoading}>
               Reserve Inventory
+            </button>
+          )}
+
+          {transfer.status === 'Reserved' && (
+            <button
+              onClick={handleDispatchTransfer}
+              className="btn btn-primary"
+              disabled={actionLoading}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Truck size={16} />
+              Dispatch Transfer
             </button>
           )}
 
@@ -438,12 +520,238 @@ export const TransferDetail: React.FC = () => {
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Clinical Request Notes:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Request Notes:</span>
               <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
-                {transfer.notes || 'No supplementary clinical notes recorded.'}
+                {transfer.notes || 'No supplementary request notes recorded.'}
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Workflow Plan & Management Decision Section */}
+      <div className="glass-panel" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ShieldCheck size={20} color="var(--color-primary)" />
+            <h3 style={{ fontSize: '1.1rem' }}>Redistribution Workflow Plan & Management Decision</h3>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Workflow Endpoint:</span>
+            <span
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                color: 'var(--color-primary)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+              }}
+            >
+              POST /api/workflow/runs/{'{id}'}/approve
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Workflow Run ID: </span>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600 }}>
+                {transfer.workflowRunId || workflowRun?.id || 'Pending Auto-Link'}
+              </span>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: '8px' }}>
+                Workflow State:
+              </span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  backgroundColor:
+                    transfer.status === 'Approved' || workflowRun?.status === 'Approved'
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : transfer.status === 'Rejected' || workflowRun?.status === 'Rejected'
+                      ? 'rgba(244, 63, 94, 0.15)'
+                      : 'rgba(245, 158, 11, 0.15)',
+                  color:
+                    transfer.status === 'Approved' || workflowRun?.status === 'Approved'
+                      ? 'var(--color-emerald)'
+                      : transfer.status === 'Rejected' || workflowRun?.status === 'Rejected'
+                      ? 'var(--color-rose)'
+                      : 'var(--color-amber)',
+                  border:
+                    transfer.status === 'Approved' || workflowRun?.status === 'Approved'
+                      ? '1px solid rgba(16, 185, 129, 0.3)'
+                      : transfer.status === 'Rejected' || workflowRun?.status === 'Rejected'
+                      ? '1px solid rgba(244, 63, 94, 0.3)'
+                      : '1px solid rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                {transfer.status === 'Approved' || workflowRun?.status === 'Approved'
+                  ? 'Approved'
+                  : transfer.status === 'Rejected' || workflowRun?.status === 'Rejected'
+                  ? 'Rejected'
+                  : 'WaitingForApproval'}
+              </span>
+            </div>
+          </div>
+
+          {/* Workflow Steps */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+            {[
+              { num: 1, title: 'Shortage & Context', desc: 'Destination deficit identified', done: true },
+              { num: 2, title: 'Agent Route & Surplus', desc: 'LangGraph multi-agent proposal', done: true },
+              { num: 3, title: 'Deterministic Rules', desc: 'Proximity & safety threshold checks', done: true },
+              {
+                num: 4,
+                title: 'Human Manager Approval',
+                desc: 'WorkflowController sign-off',
+                done: transfer.status === 'Approved' || workflowRun?.status === 'Approved',
+                current: transfer.status === 'Requested',
+              },
+            ].map((step) => (
+              <div
+                key={step.num}
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: step.current
+                    ? 'rgba(245, 158, 11, 0.08)'
+                    : step.done
+                    ? 'rgba(16, 185, 129, 0.06)'
+                    : 'var(--bg-tertiary)',
+                  border: step.current
+                    ? '1px solid rgba(245, 158, 11, 0.3)'
+                    : step.done
+                    ? '1px solid rgba(16, 185, 129, 0.2)'
+                    : '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <span
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      backgroundColor: step.done ? 'var(--color-emerald)' : 'var(--color-amber)',
+                      color: '#ffffff',
+                    }}
+                  >
+                    {step.done ? '✓' : step.num}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{step.title}</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{step.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Manager Action Banner if awaiting approval */}
+          {isAwaitingApproval && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px',
+                padding: '16px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertTriangle size={16} />
+                  Managerial Approval Required
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  The candidate source hospital and transit route are locked. Formally approve or reject this redistribution run to authorize inventory reservation.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleRejectWorkflow}
+                  className="btn btn-danger"
+                  disabled={actionLoading}
+                  style={{
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <XCircle size={16} color="#ffffff" />
+                  Reject Plan
+                </button>
+                <button
+                  onClick={handleApproveWorkflow}
+                  className="btn btn-primary"
+                  disabled={actionLoading}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <CheckCircle size={16} />
+                  Approve Plan
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Read-only note for Draft/Proposed awaiting field officer submission */}
+          {(transfer.status === 'Draft' || transfer.status === 'Proposed') && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 18px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+              }}
+            >
+              <Clock size={20} color="var(--color-amber)" />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-amber)' }}>
+                  Awaiting Field Officer Submission
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Waiting for field officer to submit the request
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -510,7 +818,29 @@ export const TransferDetail: React.FC = () => {
         isLoading={actionLoading}
         onConfirm={confirmModal.action}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-      />
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Decision Notes / Audit Justification:
+          </label>
+          <textarea
+            value={decisionNotes}
+            onChange={(e) => setDecisionNotes(e.target.value)}
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              resize: 'vertical',
+            }}
+            placeholder="Enter reason or comments for this workflow decision..."
+          />
+        </div>
+      </ConfirmDialog>
     </div>
   );
 };
