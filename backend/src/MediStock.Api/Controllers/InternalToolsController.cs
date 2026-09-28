@@ -107,8 +107,7 @@ public class InternalToolsController : ControllerBase
                     windowDays,
                     cancellationToken);
 
-                return Ok(ApiResponse<ConsumptionHistoryToolResult>.Ok(
-                    new ConsumptionHistoryToolResult(
+                return Ok(new ApiResponse<ConsumptionHistoryToolResult>(new ConsumptionHistoryToolResult(
                         facilityId,
                         medicineId,
                         windowDays,
@@ -137,8 +136,7 @@ public class InternalToolsController : ControllerBase
                     windowDays,
                     cancellationToken);
 
-                return Ok(ApiResponse<DailyConsumptionToolResult>.Ok(
-                    new DailyConsumptionToolResult(facilityId, medicineId, windowDays, average)));
+                return Ok(new ApiResponse<DailyConsumptionToolResult>(new DailyConsumptionToolResult(facilityId, medicineId, windowDays, average)));
             }
 
             default:
@@ -189,18 +187,22 @@ public class InternalToolsController : ControllerBase
 
                 if (!validation.IsValid)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        validation.Code!,
-                        validation.Message!,
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = validation.Code!,
+                                              Message = validation.Message!,
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
                 var forecast = await _forecastService.CreateForecastAsync(
                     forecastRequest,
                     cancellationToken);
 
-                return Ok(ApiResponse<ForecastToolResult>.Ok(
-                    new ForecastToolResult(
+                return Ok(new ApiResponse<ForecastToolResult>(new ForecastToolResult(
                         forecast.Id,
                         forecast.FacilityId,
                         forecast.MedicineId,
@@ -219,18 +221,28 @@ public class InternalToolsController : ControllerBase
 
                 if (currentStock is null)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        DemandValidator.ValidationErrorCode,
-                        "currentStock is required.",
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = DemandValidator.ValidationErrorCode,
+                                              Message = "currentStock is required.",
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
                 if (currentStock < 0)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        DemandValidator.ValidationErrorCode,
-                        "currentStock cannot be negative.",
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = DemandValidator.ValidationErrorCode,
+                                              Message = "currentStock cannot be negative.",
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
                 var windowDays = ReadWindowDays(arguments);
@@ -250,10 +262,15 @@ public class InternalToolsController : ControllerBase
 
                 if (averageDaily < 0)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        DemandValidator.ValidationErrorCode,
-                        "averageDailyConsumption cannot be negative.",
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = DemandValidator.ValidationErrorCode,
+                                              Message = "averageDailyConsumption cannot be negative.",
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
                 var leadTimeDays = ReadInt(arguments, "leadTimeDays")
@@ -264,10 +281,15 @@ public class InternalToolsController : ControllerBase
 
                 if (leadTimeDays < 0)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        DemandValidator.ValidationErrorCode,
-                        "leadTimeDays cannot be negative.",
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = DemandValidator.ValidationErrorCode,
+                                              Message = "leadTimeDays cannot be negative.",
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
                 // Read-only projection. A tool call must not create a shortage alert:
@@ -279,8 +301,7 @@ public class InternalToolsController : ControllerBase
                     leadTimeDays,
                     DateTime.UtcNow.Date);
 
-                return Ok(ApiResponse<ProjectedStockoutToolResult>.Ok(
-                    new ProjectedStockoutToolResult(
+                return Ok(new ApiResponse<ProjectedStockoutToolResult>(new ProjectedStockoutToolResult(
                         facilityId,
                         medicineId,
                         calculation.CurrentStock,
@@ -301,14 +322,18 @@ public class InternalToolsController : ControllerBase
 
                 if (rule is null)
                 {
-                    return BadRequest(ErrorResponse.Create(
-                        DemandValidator.ThresholdNotFoundCode,
-                        $"No reorder rule is configured for medicine {medicineId} at facility {facilityId}.",
-                        HttpContext.TraceIdentifier));
+                    return BadRequest(new ErrorResponse
+                                      {
+                                          Error = new ErrorDetail
+                                          {
+                                              Code = DemandValidator.ThresholdNotFoundCode,
+                                              Message = $"No reorder rule is configured for medicine {medicineId} at facility {facilityId}.",
+                                              TraceId = HttpContext.TraceIdentifier,
+                                          },
+                                      });
                 }
 
-                return Ok(ApiResponse<ShortageThresholdToolResult>.Ok(
-                    new ShortageThresholdToolResult(
+                return Ok(new ApiResponse<ShortageThresholdToolResult>(new ShortageThresholdToolResult(
                         rule.FacilityId,
                         rule.MedicineId,
                         rule.MinimumStock,
@@ -362,18 +387,28 @@ public class InternalToolsController : ControllerBase
 
         return StatusCode(
             StatusCodes.Status401Unauthorized,
-            ErrorResponse.Create(
-                UnauthorizedCode,
-                "A valid internal service token is required.",
-                HttpContext.TraceIdentifier));
+            new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = UnauthorizedCode,
+                    Message = "A valid internal service token is required.",
+                    TraceId = HttpContext.TraceIdentifier,
+                },
+            });
     }
 
     private IActionResult UnknownOperation(string operation)
     {
-        return BadRequest(ErrorResponse.Create(
-            UnknownOperationCode,
-            $"Unknown tool operation '{operation}'.",
-            HttpContext.TraceIdentifier));
+        return BadRequest(new ErrorResponse
+                          {
+                              Error = new ErrorDetail
+                              {
+                                  Code = UnknownOperationCode,
+                                  Message = $"Unknown tool operation '{operation}'.",
+                                  TraceId = HttpContext.TraceIdentifier,
+                              },
+                          });
     }
 
     // ------------------------------------------------------------------
@@ -391,10 +426,15 @@ public class InternalToolsController : ControllerBase
 
         if (facilityId == Guid.Empty || medicineId == Guid.Empty)
         {
-            failure = BadRequest(ErrorResponse.Create(
-                DemandValidator.ValidationErrorCode,
-                "facilityId and medicineId are required.",
-                HttpContext.TraceIdentifier));
+            failure = BadRequest(new ErrorResponse
+                                 {
+                                     Error = new ErrorDetail
+                                     {
+                                         Code = DemandValidator.ValidationErrorCode,
+                                         Message = "facilityId and medicineId are required.",
+                                         TraceId = HttpContext.TraceIdentifier,
+                                     },
+                                 });
 
             return false;
         }
@@ -407,10 +447,15 @@ public class InternalToolsController : ControllerBase
     {
         if (windowDays is <= 0 or > DemandValidator.MaxWindowDays)
         {
-            failure = BadRequest(ErrorResponse.Create(
-                DemandValidator.ValidationErrorCode,
-                $"windowDays must be between 1 and {DemandValidator.MaxWindowDays}.",
-                HttpContext.TraceIdentifier));
+            failure = BadRequest(new ErrorResponse
+                                 {
+                                     Error = new ErrorDetail
+                                     {
+                                         Code = DemandValidator.ValidationErrorCode,
+                                         Message = $"windowDays must be between 1 and {DemandValidator.MaxWindowDays}.",
+                                         TraceId = HttpContext.TraceIdentifier,
+                                     },
+                                 });
 
             return false;
         }

@@ -94,7 +94,7 @@ public class ForecastService
             .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
 
-        return PagedResponse<ForecastResponse>.Create(items, page, pageSize, totalCount);
+        return new PagedResponse<ForecastResponse>(items, totalCount, page, pageSize);
     }
 
     /// <summary>

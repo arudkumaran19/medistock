@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medistock/features/demand/application/demand_providers.dart';
-import 'package:medistock/features/demand/domain/demand_models.dart';
-import 'package:medistock/features/demand/presentation/shortage_alerts_screen.dart';
-import 'package:medistock/shared/shared.dart';
+import 'package:medistock_mobile/features/demand/application/demand_providers.dart';
+import 'package:medistock_mobile/features/demand/domain/demand_models.dart';
+import 'package:medistock_mobile/features/demand/presentation/shortage_alerts_screen.dart';
+import 'package:medistock_mobile/shared/shared.dart';
 
 import 'fakes.dart';
 

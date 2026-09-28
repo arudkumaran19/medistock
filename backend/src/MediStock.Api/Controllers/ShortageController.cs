@@ -45,7 +45,7 @@ public class ShortageController : ControllerBase
     {
         var result = await _shortageService.GetShortagesAsync(query, cancellationToken);
 
-        return Ok(ApiResponse<PagedResponse<ShortageResponse>>.Ok(result));
+        return Ok(new ApiResponse<PagedResponse<ShortageResponse>>(result));
     }
 
     /// <summary>
@@ -61,13 +61,18 @@ public class ShortageController : ControllerBase
 
         if (shortage is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Shortage alert {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Shortage alert {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ShortageResponse>.Ok(shortage));
+        return Ok(new ApiResponse<ShortageResponse>(shortage));
     }
 
     /// <summary>
@@ -89,10 +94,15 @@ public class ShortageController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var alert = await _shortageService.CreateShortageAsync(request, cancellationToken);
@@ -100,7 +110,7 @@ public class ShortageController : ControllerBase
         return CreatedAtAction(
             nameof(GetShortageById),
             new { id = alert.Id },
-            ApiResponse<ShortageResponse>.Ok(alert));
+            new ApiResponse<ShortageResponse>(alert));
     }
 
     /// <summary>
@@ -121,23 +131,33 @@ public class ShortageController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var alert = await _shortageService.UpdateShortageAsync(id, request, cancellationToken);
 
         if (alert is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Shortage alert {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Shortage alert {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ShortageResponse>.Ok(alert));
+        return Ok(new ApiResponse<ShortageResponse>(alert));
     }
 
     /// <summary>
@@ -153,13 +173,18 @@ public class ShortageController : ControllerBase
 
         if (alert is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Shortage alert {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Shortage alert {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ShortageResponse>.Ok(alert));
+        return Ok(new ApiResponse<ShortageResponse>(alert));
     }
 
     /// <summary>
@@ -175,10 +200,15 @@ public class ShortageController : ControllerBase
 
         if (!deleted)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Shortage alert {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Shortage alert {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
         return NoContent();
@@ -199,16 +229,21 @@ public class ShortageController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var alert = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
 
         return StatusCode(
             StatusCodes.Status201Created,
-            ApiResponse<ShortageResponse>.Ok(alert));
+            new ApiResponse<ShortageResponse>(alert));
     }
 }

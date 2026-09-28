@@ -1,55 +1,103 @@
-namespace MediStock.Api.Infrastructure.Persistence;
-
+using MediStock.Api.Domain.Entities;
 using MediStock.Api.Features.Demand.Models;
+using MediStock.Api.Features.Inventory.Models;
+using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Infrastructure.Persistence.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-/// <summary>
-/// The single MediStock PostgreSQL persistence boundary.
-/// Primary owner of this directory: Sathurstiga S. (IT24103156).
-///
-/// Every vertical registers its entities here. Each vertical owner supplies their entity
-/// requirements and configuration through this boundary; the Demand vertical does not
-/// define other verticals' models.
-/// </summary>
-public class ApplicationDbContext : DbContext
+namespace MediStock.Api.Infrastructure.Persistence;
+
+public sealed class ApplicationDbContext
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
 
-    // ---------------------------------------------------------------------
-    // Demand & Shortage vertical - Sathurstiga S. (IT24103156)
-    // ---------------------------------------------------------------------
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<UserFacility> UserFacilities => Set<UserFacility>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
 
+    public DbSet<Medicine> Medicines => Set<Medicine>();
+    public DbSet<Facility> Facilities => Set<Facility>();
+    public DbSet<MedicineBatch> MedicineBatches => Set<MedicineBatch>();
+    public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
+    public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
+
+    // Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+    // Blueprint section 33 (Demand tables). The entity configurations live in
+    // Infrastructure/Persistence/Configurations/ and are picked up automatically by
+    // ApplyConfigurationsFromAssembly below, so nothing else here needs to change.
     public DbSet<ConsumptionRecord> ConsumptionRecords => Set<ConsumptionRecord>();
-
     public DbSet<DemandForecast> DemandForecasts => Set<DemandForecast>();
-
+    public DbSet<ReorderRule> ReorderRules => Set<ReorderRule>();
     public DbSet<ShortageAlert> ShortageAlerts => Set<ShortageAlert>();
 
-    public DbSet<ReorderRule> ReorderRules => Set<ReorderRule>();
-
-    // ---------------------------------------------------------------------
-    // Inventory, Redistribution, Procurement, Workflow and Auth entity sets are
-    // added here by their owners through this same shared boundary.
-    // ---------------------------------------------------------------------
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
-        // Picks up every IEntityTypeConfiguration in this assembly, so each vertical
-        // owner can add their configuration file without editing this method.
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-    }
+        builder.Entity<Medicine>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        });
 
-    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-    {
-        base.ConfigureConventions(configurationBuilder);
+        builder.Entity<MedicineBatch>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MedicineId, x.FacilityId, x.BatchNumber }).IsUnique();
+            entity.Property(x => x.BatchNumber).HasMaxLength(100).IsRequired();
 
-        // Quantities are stored as exact numerics rather than floating point, so stock
-        // and consumption arithmetic stays reproducible.
-        configurationBuilder.Properties<decimal>().HavePrecision(18, 2);
+            entity.HasOne(x => x.Medicine)
+                .WithMany(x => x.Batches)
+                .HasForeignKey(x => x.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Facility)
+                .WithMany()
+                .HasForeignKey(x => x.FacilityId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<InventoryBalance>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MedicineId, x.FacilityId }).IsUnique();
+
+            entity.HasOne(x => x.Medicine)
+                .WithMany(x => x.InventoryBalances)
+                .HasForeignKey(x => x.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Facility)
+                .WithMany()
+                .HasForeignKey(x => x.FacilityId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<StockTransaction>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Reason)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.HasOne(x => x.MedicineBatch)
+                .WithMany(x => x.StockTransactions)
+                .HasForeignKey(x => x.MedicineBatchId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+
     }
 }

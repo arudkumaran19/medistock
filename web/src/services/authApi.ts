@@ -1,31 +1,101 @@
-/**
- * TEMPORARY DEVELOPMENT SIGN-IN CLIENT. DELETE ON INTEGRATION.
- *
- * Authentication is owned by Vaisnavi L. (IT24102469). This calls the development-only
- * /api/dev/token endpoint so the Demand pages are usable before her real sign-in lands,
- * and is replaced wholesale by it.
- */
-import { apiClient } from './apiClient';
-import type { ApiResponse } from '@/types/demand';
+import { apiRequest, setStoredToken, clearStoredAuth } from "./apiClient";
 
-export type UserRole = 'STORE_OFFICER' | 'FACILITY_MANAGER' | 'SUPPLIER_OFFICER' | 'ADMIN';
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
 
-export interface Session {
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  confirmPassword?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string | number;
+}
+
+export interface AuthUser {
+  userId: string;
+  email: string;
+  roles: string[];
+}
+
+export interface LoginResponse {
   accessToken: string;
-  role: UserRole;
-  displayName: string;
+  refreshToken: string;
   expiresAt: string;
+  userId: string;
+  email: string;
+  roles: string[];
 }
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  STORE_OFFICER: 'Store Officer',
-  FACILITY_MANAGER: 'Facility Manager',
-  SUPPLIER_OFFICER: 'Supplier Officer',
-  ADMIN: 'Administrator',
+export const authApi = {
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
+    const data = await apiRequest<LoginResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+    setStoredToken(data.accessToken, data.refreshToken);
+    localStorage.setItem(
+      "medistock_user",
+      JSON.stringify({
+        userId: data.userId,
+        email: data.email,
+        roles: data.roles,
+      })
+    );
+    return data;
+  },
+
+  async register(request: RegisterRequest): Promise<LoginResponse> {
+    const payload = {
+      email: request.email,
+      password: request.password,
+      confirmPassword: request.confirmPassword ?? request.password,
+      firstName: request.firstName ?? "Staff",
+      lastName: request.lastName ?? "Member",
+      role: request.role ?? "OperationalStaff",
+    };
+    const data = await apiRequest<LoginResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setStoredToken(data.accessToken, data.refreshToken);
+    localStorage.setItem(
+      "medistock_user",
+      JSON.stringify({
+        userId: data.userId,
+        email: data.email,
+        roles: data.roles,
+      })
+    );
+    return data;
+  },
+
+  async refresh(refreshToken: string): Promise<LoginResponse> {
+    const data = await apiRequest<LoginResponse>("/api/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+    });
+    setStoredToken(data.accessToken, data.refreshToken);
+    return data;
+  },
+
+  async logout(): Promise<void> {
+    const refreshToken = localStorage.getItem("medistock_refresh_token");
+    try {
+      if (refreshToken) {
+        await apiRequest("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } finally {
+      clearStoredAuth();
+    }
+  },
+
+  async getCurrentUser(): Promise<AuthUser> {
+    return apiRequest<AuthUser>("/api/auth/me");
+  },
 };
-
-export async function requestDevToken(role: UserRole): Promise<Session> {
-  const response = await apiClient.post<ApiResponse<Session>>('/api/dev/token', { role });
-
-  return response.data.data;
-}

@@ -112,14 +112,17 @@ public class DemandApiTests : IClassFixture<DemandApiFactory>
         using var document = JsonDocument.Parse(payload);
         var root = document.RootElement;
 
-        root.GetProperty("success").GetBoolean().Should().BeTrue();
+        // develop's envelope is `record ApiResponse<T>(T Data)` - a bare `data` object
+        // with no `success` flag - and `record PagedResponse<T>(Items, Total, Page,
+        // PageSize)` with no derived totalPages. Asserting the shape that ships.
+        root.TryGetProperty("success", out _).Should().BeFalse(
+            "develop's ApiResponse carries no success flag");
 
         var data = root.GetProperty("data");
         data.TryGetProperty("items", out _).Should().BeTrue();
         data.GetProperty("page").GetInt32().Should().Be(1);
         data.GetProperty("pageSize").GetInt32().Should().Be(5);
-        data.TryGetProperty("totalCount", out _).Should().BeTrue();
-        data.TryGetProperty("totalPages", out _).Should().BeTrue();
+        data.TryGetProperty("total", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -246,7 +249,7 @@ public class DemandApiTests : IClassFixture<DemandApiFactory>
         using var listDocument = JsonDocument.Parse(listed);
         listDocument.RootElement
             .GetProperty("data")
-            .GetProperty("totalCount")
+            .GetProperty("total")
             .GetInt32()
             .Should().BeGreaterThan(0);
     }

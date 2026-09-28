@@ -1,73 +1,58 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medistock/core/network/api_client.dart';
-import 'package:medistock/features/demand/data/demand_repository.dart';
-import 'package:medistock/features/demand/domain/demand_models.dart';
-import 'package:medistock/shared/models/paged_response.dart';
+import 'package:medistock_mobile/features/demand/data/demand_repository.dart';
+import 'package:medistock_mobile/features/demand/domain/demand_models.dart';
+import 'package:medistock_mobile/shared/models/paged_response.dart';
 
-/// Repository tests: the frozen contract paths, the envelope, and error mapping.
+/// Repository tests: the frozen contract paths, query building and error mapping.
 /// Sathurstiga S. (IT24103156).
+///
+/// The shared core ApiClient calls the package-level `http` functions directly, so it
+/// cannot be faked. The repository therefore depends on [DemandTransport], and these
+/// tests drive that seam. Envelope unwrapping is the shared client's job now, so the
+/// fake returns payloads already unwrapped from `data`.
 void main() {
-  late _RecordingAdapter adapter;
+  late _FakeTransport transport;
   late DemandRepository repository;
 
   setUp(() {
-    adapter = _RecordingAdapter();
-
-    final Dio dio = Dio(BaseOptions(baseUrl: 'http://backend.test'));
-    dio.httpClientAdapter = adapter;
-
-    repository = DemandRepository(ApiClient(dio: dio));
+    transport = _FakeTransport();
+    repository = DemandRepository(transport);
   });
 
-  test('gets shortages from the contract path and unwraps the envelope', () async {
-    adapter.respondWith(<String, dynamic>{
-      'success': true,
-      'data': <String, dynamic>{
-        'items': <dynamic>[_alertJson()],
-        'page': 1,
-        'pageSize': 20,
-        'totalCount': 1,
-        'totalPages': 1,
-        'hasNextPage': false,
-        'hasPreviousPage': false,
-      },
+  test('gets shortages from the contract path and maps the payload', () async {
+    transport.respondWith(<String, dynamic>{
+      'items': <dynamic>[_alertJson()],
+      'page': 1,
+      'pageSize': 20,
+      'total': 1,
     });
 
     final PagedResponse<ShortageAlert> page =
         await repository.getShortages(facilityId: 'f1', riskLevel: 'HIGH');
 
-    expect(adapter.lastPath, '/api/shortages');
-    expect(adapter.lastQuery?['riskLevel'], 'HIGH');
+    expect(transport.lastPath, startsWith('/api/shortages?'));
+    expect(transport.lastPath, contains('riskLevel=HIGH'));
+    expect(transport.lastPath, contains('facilityId=f1'));
     expect(page.items.single.daysRemaining, 6);
   });
 
   test('omits an empty risk filter from the query string', () async {
-    adapter.respondWith(<String, dynamic>{
-      'success': true,
-      'data': <String, dynamic>{'items': <dynamic>[]},
-    });
+    transport.respondWith(<String, dynamic>{'items': <dynamic>[]});
 
     await repository.getShortages(facilityId: 'f1', riskLevel: '');
 
-    expect(adapter.lastQuery?.containsKey('riskLevel'), isFalse);
+    expect(transport.lastPath, isNot(contains('riskLevel')));
   });
 
   test('posts a consumption entry to the contract path', () async {
-    adapter.respondWith(<String, dynamic>{
-      'success': true,
-      'data': <String, dynamic>{
-        'id': 'created-1',
-        'facilityId': 'f1',
-        'medicineId': 'm1',
-        'quantityUsed': 20,
-        'consumptionDate': '2026-09-20T00:00:00Z',
-        'source': 'FLUTTER_CONSUMPTION_ENTRY',
-        'notes': null,
-      },
+    transport.respondWith(<String, dynamic>{
+      'id': 'created-1',
+      'facilityId': 'f1',
+      'medicineId': 'm1',
+      'quantityUsed': 20,
+      'consumptionDate': '2026-09-20T00:00:00Z',
+      'source': 'FLUTTER_CONSUMPTION_ENTRY',
+      'notes': null,
     });
 
     final ConsumptionRecord record = await repository.recordConsumption(
@@ -80,41 +65,43 @@ void main() {
       ),
     );
 
-    expect(adapter.lastPath, '/api/consumption');
-    expect(adapter.lastMethod, 'POST');
+    expect(transport.lastPath, '/api/consumption');
+    expect(transport.lastMethod, 'POST');
+    expect(transport.lastBody?['medicineId'], 'm1');
     expect(record.id, 'created-1');
   });
 
   test('gets forecasts from the contract path', () async {
-    adapter.respondWith(<String, dynamic>{
-      'success': true,
-      'data': <String, dynamic>{'items': <dynamic>[]},
-    });
+    transport.respondWith(<String, dynamic>{'items': <dynamic>[]});
 
     await repository.getForecasts(facilityId: 'f1');
 
-    expect(adapter.lastPath, '/api/demand/forecasts');
+    expect(transport.lastPath, startsWith('/api/demand/forecasts?'));
   });
 
   test('gets one shortage alert by id', () async {
-    adapter.respondWith(<String, dynamic>{'success': true, 'data': _alertJson()});
+    transport.respondWith(_alertJson());
 
     await repository.getShortageById('alert-42');
 
-    expect(adapter.lastPath, '/api/shortages/alert-42');
+    expect(transport.lastPath, '/api/shortages/alert-42');
   });
 
-  test('maps the agreed error contract onto ApiFailure', () async {
-    adapter.respondWith(
-      <String, dynamic>{
-        'success': false,
-        'error': <String, dynamic>{
-          'code': 'DEMAND_VALIDATION_ERROR',
-          'message': 'quantityUsed must be greater than zero.',
-          'traceId': 'trace-1',
-        },
-      },
-      statusCode: 400,
+  test('deletes a consumption record at the contract path', () async {
+    transport.respondWith(<String, dynamic>{});
+
+    await repository.deleteConsumption('c-9');
+
+    expect(transport.lastPath, '/api/consumption/c-9');
+    expect(transport.lastMethod, 'DELETE');
+  });
+
+  test('translates a backend rejection into ApiFailure', () async {
+    // The shared client raises a bare Exception carrying the backend's message; the
+    // structured code and traceId of the error contract do not survive it. The
+    // repository still guarantees the demand UI only ever sees an ApiFailure.
+    transport.failWith(
+      Exception('quantityUsed must be greater than zero.'),
     );
 
     await expectLater(
@@ -129,19 +116,40 @@ void main() {
       ),
       throwsA(
         isA<ApiFailure>()
-            .having((ApiFailure f) => f.code, 'code', 'DEMAND_VALIDATION_ERROR')
-            .having((ApiFailure f) => f.traceId, 'traceId', 'trace-1'),
+            .having((ApiFailure f) => f.code, 'code', 'DEMAND_REQUEST_FAILED')
+            .having(
+              (ApiFailure f) => f.message,
+              'message',
+              'quantityUsed must be greater than zero.',
+            ),
       ),
     );
   });
 
-  test('maps a connection failure onto a readable message', () async {
-    adapter.failWith(DioExceptionType.connectionError);
+  test('translates a connection failure into a readable ApiFailure', () async {
+    transport.failWith(Exception('Connection refused'));
 
     await expectLater(
       repository.getShortages(facilityId: 'f1'),
       throwsA(
-        isA<ApiFailure>().having((ApiFailure f) => f.code, 'code', 'NETWORK_UNAVAILABLE'),
+        isA<ApiFailure>().having(
+          (ApiFailure f) => f.message,
+          'message',
+          contains('Connection refused'),
+        ),
+      ),
+    );
+  });
+
+  test('an ApiFailure raised underneath is passed through unchanged', () async {
+    transport.failWith(
+      const ApiFailure(code: 'ALREADY_MAPPED', message: 'kept as is'),
+    );
+
+    await expectLater(
+      repository.getShortageById('a1'),
+      throwsA(
+        isA<ApiFailure>().having((ApiFailure f) => f.code, 'code', 'ALREADY_MAPPED'),
       ),
     );
   });
@@ -163,49 +171,38 @@ Map<String, dynamic> _alertJson() => <String, dynamic>{
       'status': 'OPEN',
     };
 
-/// Captures the outgoing request and returns a canned response.
-class _RecordingAdapter implements HttpClientAdapter {
-  Map<String, dynamic>? _body;
-  int _statusCode = 200;
-  DioExceptionType? _failureType;
+/// Captures the outgoing request and returns a canned payload.
+class _FakeTransport implements DemandTransport {
+  dynamic _payload;
+  Object? _failure;
 
   String? lastPath;
   String? lastMethod;
-  Map<String, dynamic>? lastQuery;
+  Map<String, dynamic>? lastBody;
 
-  void respondWith(Map<String, dynamic> body, {int statusCode = 200}) {
-    _body = body;
-    _statusCode = statusCode;
-    _failureType = null;
+  void respondWith(dynamic payload) {
+    _payload = payload;
+    _failure = null;
   }
 
-  void failWith(DioExceptionType type) {
-    _failureType = type;
+  void failWith(Object error) {
+    _failure = error;
   }
 
   @override
-  void close({bool force = false}) {}
+  Future<dynamic> send(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+  }) async {
+    lastPath = path;
+    lastMethod = method;
+    lastBody = body;
 
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    lastPath = options.path;
-    lastMethod = options.method;
-    lastQuery = Map<String, dynamic>.from(options.queryParameters);
-
-    if (_failureType != null) {
-      throw DioException(requestOptions: options, type: _failureType!);
+    if (_failure != null) {
+      throw _failure!;
     }
 
-    return ResponseBody.fromString(
-      jsonEncode(_body ?? <String, dynamic>{}),
-      _statusCode,
-      headers: <String, List<String>>{
-        Headers.contentTypeHeader: <String>['application/json'],
-      },
-    );
+    return _payload ?? <String, dynamic>{};
   }
 }

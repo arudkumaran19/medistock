@@ -5,7 +5,6 @@ import '../../../shared/models/paged_response.dart';
 import '../data/demand_repository.dart';
 import '../domain/demand_models.dart';
 
-// ApiClient is imported for apiClientProvider, which core/network owns.
 
 /// Riverpod wiring for the Demand & Shortage feature.
 /// Sathurstiga S. (IT24103156).
@@ -20,11 +19,18 @@ final Provider<String> currentFacilityIdProvider = Provider<String>(
   (Ref ref) => 'b1000000-0000-0000-0000-000000000002',
 );
 
-// apiClientProvider now lives in core/network/api_client.dart, where it can attach the
-// auth interceptor. It is imported rather than redefined here.
+/// Shared HTTP client for this vertical.
+///
+/// develop's core/network/ApiClient exposes no Riverpod provider - the rest of the
+/// app constructs it directly - so this vertical declares its own. The client reads
+/// the bearer token from ApiClient.globalAuthToken, which the shared auth service
+/// sets on sign-in, so no interceptor wiring is needed here.
+final Provider<ApiClient> apiClientProvider = Provider<ApiClient>(
+  (Ref ref) => ApiClient(),
+);
 
 final Provider<DemandRepository> demandRepositoryProvider = Provider<DemandRepository>(
-  (Ref ref) => DemandRepository(ref.watch(apiClientProvider)),
+  (Ref ref) => DemandRepository.fromApiClient(ref.watch(apiClientProvider)),
 );
 
 /// Shortage alerts for the current facility, optionally filtered by risk level.

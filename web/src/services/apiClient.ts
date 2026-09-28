@@ -1,77 +1,61 @@
-/**
- * SHARED - Axios instance for the ASP.NET Core API.
- *
- * Placeholder created by the Demand vertical (Sathurstiga S., IT24103156) so the
- * demand feature can call the API. The web owners replace this on integration.
- *
- * React never calls the internal agent service. Every request goes to the
- * authoritative ASP.NET Core API.
- */
-import axios from 'axios';
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5050";
 
-export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000',
-  headers: { 'Content-Type': 'application/json' },
-});
+export function getStoredToken(): string | null {
+  return localStorage.getItem("medistock_access_token");
+}
 
-apiClient.interceptors.request.use((config) => {
-  try {
-    const token = localStorage.getItem('medistock.accessToken');
+export function setStoredToken(token: string | null, refreshToken?: string | null) {
+  if (token) {
+    localStorage.setItem("medistock_access_token", token);
+  } else {
+    localStorage.removeItem("medistock_access_token");
+  }
+  if (refreshToken) {
+    localStorage.setItem("medistock_refresh_token", refreshToken);
+  } else if (refreshToken === null) {
+    localStorage.removeItem("medistock_refresh_token");
+  }
+}
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  } catch {
-    // Storage unavailable: the request goes out unauthenticated and the API decides.
+export function clearStoredAuth() {
+  localStorage.removeItem("medistock_access_token");
+  localStorage.removeItem("medistock_refresh_token");
+  localStorage.removeItem("medistock_user");
+}
+
+export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options?.headers as Record<string, string>) ?? {}),
+  };
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 204) {
+    return {} as T;
   }
 
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // An expired or rejected token should drop the session rather than leave every
-    // page showing an unexplained error. The sign-in redirect is handled by
-    // ProtectedRoute once the session is gone.
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      try {
-        localStorage.removeItem('medistock.session');
-        localStorage.removeItem('medistock.accessToken');
-      } catch {
-        // Nothing to clear.
-      }
-
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/sign-in')) {
-        window.location.assign('/sign-in');
-      }
-    }
-
-    return Promise.reject(error);
-  },
-);
-
-/** Pulls the agreed error contract out of a failed response. */
-export function toErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const contract = error.response?.data as
-      | { error?: { message?: string; code?: string } }
-      | undefined;
-
-    if (contract?.error?.message) {
-      return contract.error.message;
-    }
-
-    if (error.response?.status === 401) {
-      return 'Your session has expired. Please sign in again.';
-    }
-
-    if (error.code === 'ERR_NETWORK') {
-      return 'The API could not be reached. Check that the backend is running on port 5000.';
-    }
-
-    return error.message;
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({
+      message: `Request failed with status ${response.status}`,
+    }));
+    const message =
+      errorBody.error?.message ??
+      errorBody.Error?.Message ??
+      errorBody.message ??
+      (typeof errorBody === "string" ? errorBody : `HTTP ${response.status}`);
+    const code = errorBody.error?.code ?? errorBody.Error?.Code ?? errorBody.code ?? `HTTP_${response.status}`;
+    const err = new Error(message);
+    (err as unknown as { code: string; status: number }).code = code;
+    (err as unknown as { code: string; status: number }).status = response.status;
+    throw err;
   }
 
-  return error instanceof Error ? error.message : 'An unexpected error occurred.';
+  const body = await response.json();
+  return body.data ?? body;
 }

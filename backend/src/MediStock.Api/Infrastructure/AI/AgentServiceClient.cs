@@ -68,7 +68,7 @@ public sealed class AgentServiceClient
         try
         {
             using var message = new HttpRequestMessage(
-                HttpMethod.Post, "/internal/agent/run")
+                HttpMethod.Post, "/api/demand-agent/run")
             {
                 Content = JsonContent.Create(request, options: JsonOptions),
             };
@@ -108,7 +108,7 @@ public sealed class AgentServiceClient
         try
         {
             using var response = await _http.GetAsync(
-                "/internal/agent/health", cancellationToken);
+                "/api/demand-agent/health", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

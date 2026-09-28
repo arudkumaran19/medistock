@@ -41,7 +41,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from medistock_agents.models.agent_models import (
+from medistock_agents.models.demand_models import (
     AgentResult,
     Evidence,
     Finding,

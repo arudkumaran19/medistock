@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ErrorState } from '@/components/ErrorState';
-import { toErrorMessage } from '@/services/apiClient';
+import { toErrorMessage } from './errors';
 import { AgentPanel } from './AgentPanel';
 import { DemandChain } from './DemandChain';
 import { ForecastTimeline } from './components/ForecastTimeline';

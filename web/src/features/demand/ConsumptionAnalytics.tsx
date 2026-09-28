@@ -17,7 +17,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
 import { SearchBar } from '@/components/SearchBar';
-import { toErrorMessage } from '@/services/apiClient';
+import { toErrorMessage } from './errors';
 import type { ConsumptionRecord } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';

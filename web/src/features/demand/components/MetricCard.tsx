@@ -33,7 +33,8 @@ function easeOut(t: number): number {
 
 function useCountUp(target: number, enabled: boolean): number {
   const [value, setValue] = useState(enabled ? 0 : target);
-  const frame = useRef<number>();
+  // React 19 requires an explicit initial value for useRef.
+  const frame = useRef<number | undefined>(undefined);
   const from = useRef(0);
 
   useEffect(() => {

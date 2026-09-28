@@ -1,112 +1,82 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
-import '../../shared/models/paged_response.dart';
-import '../storage/secure_storage.dart';
-import 'auth_interceptor.dart';
-import 'session_events.dart';
-
-/// SHARED CORE - not owned by the Demand vertical.
-///
-/// Placeholder created by Sathurstiga S. (IT24103156) so the demand feature can call
-/// the ASP.NET Core API. The mobile core owners replace this on integration.
-///
-/// Flutter never calls the internal agent service. Every request goes to the
-/// authoritative ASP.NET Core API.
 class ApiClient {
-  ApiClient({Dio? dio, String? baseUrl})
-      : dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: baseUrl ?? defaultBaseUrl,
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 10),
-                contentType: 'application/json',
-              ),
-            );
+  ApiClient({String? baseUrl, String? authToken})
+      : baseUrl = baseUrl ?? _resolveDefaultBaseUrl(),
+        _instanceAuthToken = authToken;
 
-  /// 10.0.2.2 is the Android emulator's alias for the host machine's localhost.
-  /// A physical device needs the development machine's LAN address instead, and the
-  /// API must then listen on all interfaces rather than loopback only.
-  static const String defaultBaseUrl = 'http://10.0.2.2:5000';
+  final String baseUrl;
+  static String? globalAuthToken;
+  final String? _instanceAuthToken;
 
-  final Dio dio;
-
-  /// Unwraps the frozen success envelope: { success, data }.
-  static Map<String, dynamic> unwrap(Response<dynamic> response) {
-    final dynamic body = response.data;
-
-    if (body is Map<String, dynamic>) {
-      final dynamic data = body['data'];
-
-      if (data is Map<String, dynamic>) {
-        return data;
-      }
-
-      return body;
-    }
-
-    throw const ApiFailure(
-      code: 'UNEXPECTED_RESPONSE',
-      message: 'The API returned an unexpected response.',
-    );
+  String? get authToken => _instanceAuthToken ?? globalAuthToken;
+  set authToken(String? token) {
+    globalAuthToken = token;
   }
 
-  /// Converts a Dio error into the agreed API error contract.
-  static ApiFailure toFailure(Object error) {
-    if (error is ApiFailure) {
-      return error;
+  static String _resolveDefaultBaseUrl() {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5050';
+    }
+    return 'http://localhost:5050';
+  }
+
+  Future<dynamic> request(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+    Map<String, String>? extraHeaders,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (authToken != null && authToken!.isNotEmpty)
+        'Authorization': 'Bearer $authToken',
+      if (extraHeaders != null) ...extraHeaders,
+    };
+
+    http.Response response;
+    switch (method.toUpperCase()) {
+      case 'POST':
+        response = await http.post(uri, headers: headers, body: jsonEncode(body));
+        break;
+      case 'PUT':
+        response = await http.put(uri, headers: headers, body: jsonEncode(body));
+        break;
+      case 'DELETE':
+        response = await http.delete(uri, headers: headers);
+        break;
+      case 'GET':
+      default:
+        response = await http.get(uri, headers: headers);
+        break;
     }
 
-    if (error is DioException) {
-      final dynamic body = error.response?.data;
-
-      if (body is Map<String, dynamic> && body['error'] != null) {
-        return ApiFailure.fromJson(body);
-      }
-
-      if (error.response?.statusCode == 401) {
-        return const ApiFailure(
-          code: 'UNAUTHORIZED',
-          message: 'Your session has expired. Please sign in again.',
-        );
-      }
-
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.receiveTimeout ||
-          error.type == DioExceptionType.connectionError) {
-        return const ApiFailure(
-          code: 'NETWORK_UNAVAILABLE',
-          message:
-              'The server could not be reached. Check that the API is running and that '
-              'the emulator can see it on 10.0.2.2:5000.',
-        );
-      }
+    if (response.statusCode == 204) {
+      return {};
     }
 
-    return const ApiFailure(
-      code: 'UNKNOWN_ERROR',
-      message: 'An unexpected error occurred.',
-    );
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (_) {
+      decoded = {'message': response.body};
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final msg = decoded is Map
+          ? (decoded['error']?['message'] ?? decoded['message'] ?? 'Request failed (${response.statusCode})')
+          : 'Request failed (${response.statusCode})';
+      throw Exception(msg);
+    }
+
+    if (decoded is Map && decoded.containsKey('data')) {
+      return decoded['data'];
+    }
+    return decoded;
   }
 }
-
-/// The application's API client, with the bearer token attached automatically.
-final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {
-  final SecureStorage storage = ref.watch(secureStorageProvider);
-  final ApiClient client = ApiClient();
-
-  client.dio.interceptors.add(
-    AuthInterceptor(
-      readToken: () async {
-        final Map<String, dynamic>? session = await storage.readSession();
-        return session?['accessToken'] as String?;
-      },
-      onUnauthorized: () async {
-        await SessionEvents.onUnauthorized?.call();
-      },
-    ),
-  );
-
-  return client;
-});

@@ -78,7 +78,7 @@ public class ConsumptionService
             .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
 
-        return PagedResponse<ConsumptionResponse>.Create(items, page, pageSize, totalCount);
+        return new PagedResponse<ConsumptionResponse>(items, totalCount, page, pageSize);
     }
 
     /// <summary>

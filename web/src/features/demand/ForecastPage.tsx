@@ -27,7 +27,7 @@ import { DataTable, type Column } from '@/components/DataTable';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
-import { toErrorMessage } from '@/services/apiClient';
+import { toErrorMessage } from './errors';
 import { FORECAST_METHODS, type DemandForecast, type ForecastMethod } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';

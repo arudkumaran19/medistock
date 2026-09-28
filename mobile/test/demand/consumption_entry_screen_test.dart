@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medistock/features/demand/application/demand_providers.dart';
-import 'package:medistock/features/demand/presentation/consumption_entry_screen.dart';
-import 'package:medistock/shared/models/paged_response.dart';
+import 'package:medistock_mobile/features/demand/application/demand_providers.dart';
+import 'package:medistock_mobile/features/demand/presentation/consumption_entry_screen.dart';
+import 'package:medistock_mobile/shared/models/paged_response.dart';
 
 import 'fakes.dart';
 

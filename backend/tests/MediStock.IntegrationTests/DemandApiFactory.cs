@@ -41,7 +41,11 @@ public class DemandApiFactory : WebApplicationFactory<Program>
         // settings before builder.Build(), and under minimal hosting the
         // ConfigureAppConfiguration callbacks have not run by that point. Host settings
         // are in place from the start.
-        builder.UseSetting("Jwt:Key", SigningKey);
+        // develop's Program.cs reads Jwt:SigningKey (with a JWT_SIGNING_KEY flat
+        // override) and requires at least 32 characters. Jwt:Key was this vertical's
+        // own placeholder name and no longer exists.
+        builder.UseSetting("Jwt:SigningKey", SigningKey);
+        builder.UseSetting("JWT_SIGNING_KEY", SigningKey);
         builder.UseSetting("Jwt:Issuer", Issuer);
         builder.UseSetting("Jwt:Audience", Audience);
         builder.UseSetting("AgentService:ServiceToken", ServiceToken);

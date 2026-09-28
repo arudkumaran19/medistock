@@ -83,7 +83,7 @@ public class DemandServiceTests : IDisposable
             MedicineId = MedicineId
         });
 
-        result.TotalCount.Should().Be(3);
+        result.Total.Should().Be(3);
         result.Items.Should().OnlyContain(x => x.MedicineId == MedicineId);
     }
 
@@ -99,12 +99,16 @@ public class DemandServiceTests : IDisposable
             PageSize = 10
         });
 
-        page2.TotalCount.Should().Be(25);
+        page2.Total.Should().Be(25);
         page2.Items.Should().HaveCount(10);
         page2.Page.Should().Be(2);
-        page2.TotalPages.Should().Be(3);
-        page2.HasNextPage.Should().BeTrue();
-        page2.HasPreviousPage.Should().BeTrue();
+
+        // develop's PagedResponse is a plain record (Items, Total, Page, PageSize) with
+        // no derived paging flags, so the same guarantees are asserted from its fields.
+        var totalPages = (int)Math.Ceiling(page2.Total / (double)page2.PageSize);
+        totalPages.Should().Be(3);
+        (page2.Page < totalPages).Should().BeTrue("there is a next page");
+        (page2.Page > 1).Should().BeTrue("there is a previous page");
     }
 
     [Fact]
@@ -133,7 +137,7 @@ public class DemandServiceTests : IDisposable
             Search = "ward_a"
         });
 
-        result.TotalCount.Should().Be(1);
+        result.Total.Should().Be(1);
         result.Items[0].Source.Should().Be("WARD_A");
     }
 
@@ -252,7 +256,7 @@ public class DemandServiceTests : IDisposable
             Method = ForecastMethods.SimpleTrend
         });
 
-        result.TotalCount.Should().Be(1);
+        result.Total.Should().Be(1);
         result.Items[0].Method.Should().Be(ForecastMethods.SimpleTrend);
     }
 
@@ -304,7 +308,7 @@ public class DemandServiceTests : IDisposable
             RiskLevel = ShortageRiskLevels.High
         });
 
-        highRisk.TotalCount.Should().Be(1);
+        highRisk.Total.Should().Be(1);
         highRisk.Items[0].RequiresTransfer.Should().BeTrue();
     }
 
@@ -320,7 +324,7 @@ public class DemandServiceTests : IDisposable
             RequiresTransfer = false
         });
 
-        result.TotalCount.Should().Be(1);
+        result.Total.Should().Be(1);
         result.Items[0].RiskLevel.Should().Be(ShortageRiskLevels.Medium);
     }
 

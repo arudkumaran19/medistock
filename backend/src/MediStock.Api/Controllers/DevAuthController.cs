@@ -75,10 +75,15 @@ public class DevAuthController : ControllerBase
 
         if (!AllowedRoles.Contains(role))
         {
-            return BadRequest(ErrorResponse.Create(
-                "DEV_UNKNOWN_ROLE",
-                $"Role must be one of: {string.Join(", ", AllowedRoles)}.",
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = "DEV_UNKNOWN_ROLE",
+                    Message = $"Role must be one of: {string.Join(", ", AllowedRoles)}.",
+                    TraceId = HttpContext.TraceIdentifier,
+                },
+            });
         }
 
         var signingKey = _configuration["Jwt:Key"];
@@ -87,10 +92,15 @@ public class DevAuthController : ControllerBase
         {
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                ErrorResponse.Create(
-                    "DEV_JWT_NOT_CONFIGURED",
-                    "Jwt:Key is not configured.",
-                    HttpContext.TraceIdentifier));
+                new ErrorResponse
+                {
+                    Error = new ErrorDetail
+                    {
+                        Code = "DEV_JWT_NOT_CONFIGURED",
+                        Message = "Jwt:Key is not configured.",
+                        TraceId = HttpContext.TraceIdentifier,
+                    },
+                });
         }
 
         var issuer = _configuration["Jwt:Issuer"];
@@ -119,7 +129,7 @@ public class DevAuthController : ControllerBase
             "Development token issued for role {Role}. This endpoint must never be deployed.",
             role);
 
-        return Ok(ApiResponse<DevTokenResponse>.Ok(new DevTokenResponse(
+        return Ok(new ApiResponse<DevTokenResponse>(new DevTokenResponse(
             new JwtSecurityTokenHandler().WriteToken(token),
             role,
             $"dev-{role.ToLowerInvariant()}",

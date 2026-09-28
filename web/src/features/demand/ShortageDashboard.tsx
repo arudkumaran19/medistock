@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
 import { SearchBar } from '@/components/SearchBar';
-import { toErrorMessage } from '@/services/apiClient';
+import { toErrorMessage } from './errors';
 import type { ShortageAlert, ShortageRiskLevel } from '@/types/demand';
 import { DemandChain } from './DemandChain';
 import { Icon } from './components/Icon';

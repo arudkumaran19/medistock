@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medistock/features/demand/application/demand_providers.dart';
+import 'package:medistock_mobile/features/demand/application/demand_providers.dart';
 
 /// Consumption entry form validation tests.
 /// Sathurstiga S. (IT24103156).

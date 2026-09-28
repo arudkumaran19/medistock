@@ -1,18 +1,19 @@
-# SHARED SCAFFOLDING - NOT owned by the Demand vertical.
-# Created by Sathurstiga S. (IT24103156) so the demand feature and the shared design
-# system build and test. The mobile owners replace this on integration.
-
-name: medistock
-description: MediStock operational field application.
-publish_to: "none"
+name: medistock_mobile
+description: MediStock inventory mobile client
+publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  # From develop
+  http: ^1.2.2
+  mobile_scanner: ^6.0.2
+  shared_preferences: ^2.5.5
+  # Demand & Shortage vertical
   flutter_riverpod: ^2.5.1
   dio: ^5.7.0
   flutter_secure_storage: ^9.2.2
@@ -21,7 +22,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true

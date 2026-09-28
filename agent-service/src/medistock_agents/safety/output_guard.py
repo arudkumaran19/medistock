@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from medistock_agents.models.agent_models import AgentResult
+from medistock_agents.models.demand_models import AgentResult
 
 
 class OutputRejectedError(ValueError):

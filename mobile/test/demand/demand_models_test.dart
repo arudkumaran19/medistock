@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medistock/features/demand/domain/demand_models.dart';
-import 'package:medistock/shared/models/paged_response.dart';
+import 'package:medistock_mobile/features/demand/domain/demand_models.dart';
+import 'package:medistock_mobile/shared/models/paged_response.dart';
 
 /// Domain model tests for the Demand & Shortage vertical.
 /// Sathurstiga S. (IT24103156).

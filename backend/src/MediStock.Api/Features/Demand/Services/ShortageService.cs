@@ -117,7 +117,7 @@ public class ShortageService
             .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
 
-        return PagedResponse<ShortageResponse>.Create(items, page, pageSize, totalCount);
+        return new PagedResponse<ShortageResponse>(items, totalCount, page, pageSize);
     }
 
     public async Task<ShortageResponse?> GetShortageByIdAsync(

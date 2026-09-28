@@ -1,6 +1,6 @@
-import 'package:medistock/features/demand/data/demand_repository.dart';
-import 'package:medistock/features/demand/domain/demand_models.dart';
-import 'package:medistock/shared/models/paged_response.dart';
+import 'package:medistock_mobile/features/demand/data/demand_repository.dart';
+import 'package:medistock_mobile/features/demand/domain/demand_models.dart';
+import 'package:medistock_mobile/shared/models/paged_response.dart';
 
 /// Test doubles for the Demand & Shortage widget tests.
 /// Sathurstiga S. (IT24103156).

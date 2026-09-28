@@ -65,7 +65,7 @@ public class DemandController : ControllerBase
     {
         var result = await _consumptionService.GetConsumptionAsync(query, cancellationToken);
 
-        return Ok(ApiResponse<PagedResponse<ConsumptionResponse>>.Ok(result));
+        return Ok(new ApiResponse<PagedResponse<ConsumptionResponse>>(result));
     }
 
     /// <summary>
@@ -83,17 +83,22 @@ public class DemandController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var record = await _consumptionService.CreateConsumptionAsync(request, cancellationToken);
 
         return StatusCode(
             StatusCodes.Status201Created,
-            ApiResponse<ConsumptionResponse>.Ok(record));
+            new ApiResponse<ConsumptionResponse>(record));
     }
 
     /// <summary>
@@ -114,13 +119,18 @@ public class DemandController : ControllerBase
 
         if (record is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Consumption record {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Consumption record {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ConsumptionResponse>.Ok(record));
+        return Ok(new ApiResponse<ConsumptionResponse>(record));
     }
 
     /// <summary>
@@ -141,23 +151,33 @@ public class DemandController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var record = await _consumptionService.UpdateConsumptionAsync(id, request, cancellationToken);
 
         if (record is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Consumption record {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Consumption record {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ConsumptionResponse>.Ok(record));
+        return Ok(new ApiResponse<ConsumptionResponse>(record));
     }
 
     /// <summary>
@@ -173,10 +193,15 @@ public class DemandController : ControllerBase
 
         if (!deleted)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Consumption record {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Consumption record {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
         return NoContent();
@@ -198,7 +223,7 @@ public class DemandController : ControllerBase
     {
         var result = await _forecastService.GetForecastsAsync(query, cancellationToken);
 
-        return Ok(ApiResponse<PagedResponse<ForecastResponse>>.Ok(result));
+        return Ok(new ApiResponse<PagedResponse<ForecastResponse>>(result));
     }
 
     /// <summary>
@@ -216,17 +241,22 @@ public class DemandController : ControllerBase
 
         if (!validation.IsValid)
         {
-            return BadRequest(ErrorResponse.Create(
-                validation.Code!,
-                validation.Message!,
-                HttpContext.TraceIdentifier));
+            return BadRequest(new ErrorResponse
+                              {
+                                  Error = new ErrorDetail
+                                  {
+                                      Code = validation.Code!,
+                                      Message = validation.Message!,
+                                      TraceId = HttpContext.TraceIdentifier,
+                                  },
+                              });
         }
 
         var forecast = await _forecastService.CreateForecastAsync(request, cancellationToken);
 
         return StatusCode(
             StatusCodes.Status201Created,
-            ApiResponse<ForecastResponse>.Ok(forecast));
+            new ApiResponse<ForecastResponse>(forecast));
     }
 
     /// <summary>
@@ -242,13 +272,18 @@ public class DemandController : ControllerBase
 
         if (forecast is null)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Forecast {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Forecast {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
-        return Ok(ApiResponse<ForecastResponse>.Ok(forecast));
+        return Ok(new ApiResponse<ForecastResponse>(forecast));
     }
 
     /// <summary>
@@ -268,10 +303,15 @@ public class DemandController : ControllerBase
 
         if (!deleted)
         {
-            return NotFound(ErrorResponse.Create(
-                DemandValidator.NotFoundCode,
-                $"Forecast {id} was not found.",
-                HttpContext.TraceIdentifier));
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Forecast {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
         }
 
         return NoContent();
@@ -319,14 +359,19 @@ public class DemandController : ControllerBase
         {
             return StatusCode(
                 StatusCodes.Status503ServiceUnavailable,
-                ErrorResponse.Create(
-                    "AGENT_UNAVAILABLE",
-                    "The agent service is not running or refused the request. "
+                new ErrorResponse
+                {
+                    Error = new ErrorDetail
+                    {
+                        Code = "AGENT_UNAVAILABLE",
+                        Message = "The agent service is not running or refused the request. "
                         + "No analysis was produced and nothing was changed.",
-                    HttpContext.TraceIdentifier));
+                        TraceId = HttpContext.TraceIdentifier,
+                    },
+                });
         }
 
-        return Ok(ApiResponse<AgentRunResult>.Ok(result));
+        return Ok(new ApiResponse<AgentRunResult>(result));
     }
 
     /// <summary>Whether the internal agent service is reachable.</summary>
@@ -337,7 +382,7 @@ public class DemandController : ControllerBase
     {
         var healthy = await _agentService.IsHealthyAsync(cancellationToken);
 
-        return Ok(ApiResponse<AgentHealthResponse>.Ok(new AgentHealthResponse(healthy)));
+        return Ok(new ApiResponse<AgentHealthResponse>(new AgentHealthResponse(healthy)));
     }
 }
 

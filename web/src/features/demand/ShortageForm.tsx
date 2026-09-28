@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
-import { toErrorMessage } from '@/services/apiClient';
+import { toErrorMessage } from './errors';
 import { SHORTAGE_STATUSES, type ShortageStatus } from '@/types/demand';
 import { DemandChain } from './DemandChain';
 import { DEMO_FACILITY_ID, useCreateShortage, useShortage, useUpdateShortage } from './hooks';

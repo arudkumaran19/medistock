@@ -28,7 +28,7 @@ from medistock_agents.agents.demand_shortage_agent import (
     DemandShortageAgent,
     DemandShortageRequest,
 )
-from medistock_agents.models.agent_models import AgentResult
+from medistock_agents.models.demand_models import AgentResult
 from medistock_agents.safety.output_guard import OutputGuard, OutputRejectedError
 
 from conftest import FACILITY_ID, MEDICINE_ID
