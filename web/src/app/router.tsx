@@ -15,6 +15,7 @@ import { ProcurementPriority } from "../pages/procurement/ProcurementPriority";
 import { ApprovalConsole } from "../pages/procurement/ApprovalConsole";
 import { WorkflowMonitor } from "../pages/procurement/WorkflowMonitor";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 import { AdminPage } from "../pages/AdminPage";
 import { ShortageDashboard } from "../features/demand/ShortageDashboard";
 import { ShortageDetail } from "../features/demand/ShortageDetail";
@@ -76,35 +77,35 @@ export const router = createBrowserRouter([
   // Demand & Shortage routes (Member slice: Sathurstiga S.)
   {
     path: "/demand/shortages",
-    element: <ProtectedRoute><ShortageDashboard /></ProtectedRoute>,
+    element: <ProtectedRoute><DashboardLayout><ShortageDashboard /></DashboardLayout></ProtectedRoute>,
   },
   {
     path: "/demand/shortages/new",
     element: (
       <ProtectedRoute requiredRole="FacilityManager">
-        <ShortageForm />
+        <DashboardLayout><ShortageForm /></DashboardLayout>
       </ProtectedRoute>
     ),
   },
   {
     path: "/demand/shortages/:id",
-    element: <ProtectedRoute><ShortageDetail /></ProtectedRoute>,
+    element: <ProtectedRoute><DashboardLayout><ShortageDetail /></DashboardLayout></ProtectedRoute>,
   },
   {
     path: "/demand/shortages/:id/edit",
     element: (
       <ProtectedRoute requiredRole="FacilityManager">
-        <ShortageForm />
+        <DashboardLayout><ShortageForm /></DashboardLayout>
       </ProtectedRoute>
     ),
   },
   {
     path: "/demand/forecasts",
-    element: <ProtectedRoute><ForecastPage /></ProtectedRoute>,
+    element: <ProtectedRoute><DashboardLayout><ForecastPage /></DashboardLayout></ProtectedRoute>,
   },
   {
     path: "/demand/consumption",
-    element: <ProtectedRoute><ConsumptionAnalytics /></ProtectedRoute>,
+    element: <ProtectedRoute><DashboardLayout><ConsumptionAnalytics /></DashboardLayout></ProtectedRoute>,
   },
 
   // Admin routes
