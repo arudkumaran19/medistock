@@ -17,9 +17,8 @@ import { LoadingState } from '@/components/LoadingState';
 import { toErrorMessage } from './errors';
 import { SHORTAGE_STATUSES, type ShortageStatus } from '@/types/demand';
 import { DemandChain } from './DemandChain';
-import { DEMO_FACILITY_ID, useCreateShortage, useShortage, useUpdateShortage } from './hooks';
-
-const DEMO_MEDICINE_ID = 'c1000000-0000-0000-0000-000000000001';
+import { useCreateShortage, useShortage, useUpdateShortage } from './hooks';
+import { isGuid, useFacilities, useMedicines } from './referenceApi';
 
 export function ShortageForm({ shortageId }: { shortageId?: string }) {
   const params = useParams<{ id: string }>();
@@ -30,9 +29,13 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
   const createShortage = useCreateShortage();
   const updateShortage = useUpdateShortage();
   const { data: existing, isLoading } = useShortage(isEdit ? id : undefined);
+  const { data: medicines, isLoading: medicinesLoading } = useMedicines();
+  const { data: facilities, isLoading: facilitiesLoading } = useFacilities();
 
-  const [facilityId, setFacilityId] = useState(DEMO_FACILITY_ID);
-  const [medicineId, setMedicineId] = useState(DEMO_MEDICINE_ID);
+  // Empty by default: the facility and medicine must be chosen from the real
+  // Inventory reference data, not guessed.
+  const [facilityId, setFacilityId] = useState('');
+  const [medicineId, setMedicineId] = useState('');
   const [currentStock, setCurrentStock] = useState('');
   const [averageDaily, setAverageDaily] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState('');
@@ -54,8 +57,13 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
   const pending = createShortage.isPending || updateShortage.isPending;
 
   function validate(): string | null {
-    if (!facilityId.trim()) return 'Facility is required.';
-    if (!medicineId.trim()) return 'Medicine is required.';
+    // Both are identifiers on the wire. Checking the shape here means a bad value
+    // is reported in place instead of costing a round trip and coming back as a
+    // bare "HTTP 400" the user cannot act on.
+    if (!facilityId.trim()) return 'Select a facility.';
+    if (!isGuid(facilityId)) return 'Select a facility from the list.';
+    if (!medicineId.trim()) return 'Select a medicine.';
+    if (!isGuid(medicineId)) return 'Select a medicine from the list.';
 
     const stock = Number(currentStock);
     if (currentStock === '' || Number.isNaN(stock)) return 'Enter the stock on hand.';
@@ -139,24 +147,48 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
             <div className="form-grid">
               <label className="field">
                 Facility
-                <input
-                  type="text"
+                <select
                   aria-label="Facility"
                   value={facilityId}
-                  disabled={isEdit}
+                  disabled={isEdit || facilitiesLoading}
                   onChange={(event) => setFacilityId(event.target.value)}
-                />
+                >
+                  <option value="">
+                    {facilitiesLoading ? 'Loading facilities…' : 'Select a facility'}
+                  </option>
+                  {(facilities ?? []).map((facility) => (
+                    <option key={facility.id} value={facility.id}>
+                      {facility.name}
+                    </option>
+                  ))}
+                  {/* An alert being edited may reference a facility the list no
+                      longer returns; keep it selectable rather than silently blank. */}
+                  {facilityId && !(facilities ?? []).some((f) => f.id === facilityId) && (
+                    <option value={facilityId}>{facilityId}</option>
+                  )}
+                </select>
               </label>
 
               <label className="field">
                 Medicine
-                <input
-                  type="text"
+                <select
                   aria-label="Medicine"
                   value={medicineId}
-                  disabled={isEdit}
+                  disabled={isEdit || medicinesLoading}
                   onChange={(event) => setMedicineId(event.target.value)}
-                />
+                >
+                  <option value="">
+                    {medicinesLoading ? 'Loading medicines…' : 'Select a medicine'}
+                  </option>
+                  {(medicines ?? []).map((medicine) => (
+                    <option key={medicine.id} value={medicine.id}>
+                      {medicine.name}
+                    </option>
+                  ))}
+                  {medicineId && !(medicines ?? []).some((m) => m.id === medicineId) && (
+                    <option value={medicineId}>{medicineId}</option>
+                  )}
+                </select>
               </label>
 
               <label className="field">

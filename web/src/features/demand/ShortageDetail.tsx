@@ -13,6 +13,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { toErrorMessage } from './errors';
 import { AgentPanel } from './AgentPanel';
 import { DemandChain } from './DemandChain';
+import { useReferenceData } from './referenceApi';
 import { ForecastTimeline } from './components/ForecastTimeline';
 import { Icon } from './components/Icon';
 import { PageHeader, Panel } from './components/Panel';
@@ -23,6 +24,9 @@ import { facilityName, medicineName } from './reference';
 import { useDeleteShortage, useResolveShortage, useShortage } from './hooks';
 
 export function ShortageDetail({ shortageId }: { shortageId?: string }) {
+  // Medicine and facility names come from the Inventory API.
+  useReferenceData();
+
   const params = useParams<{ id: string }>();
   const id = shortageId ?? params.id;
   const navigate = useNavigate();

@@ -20,6 +20,7 @@ import { toErrorMessage } from './errors';
 import { pageCount } from '@/types/demand';
 import type { ShortageAlert, ShortageRiskLevel } from '@/types/demand';
 import { DemandChain } from './DemandChain';
+import { useReferenceData } from './referenceApi';
 import { Icon } from './components/Icon';
 import { MetricCard } from './components/MetricCard';
 import { PageHeader, Panel } from './components/Panel';
@@ -38,6 +39,9 @@ import {
 const PAGE_SIZE = 10;
 
 export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityId?: string }) {
+  // Medicine and facility names come from the Inventory API.
+  useReferenceData();
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [riskLevel, setRiskLevel] = useState<ShortageRiskLevel | ''>('');

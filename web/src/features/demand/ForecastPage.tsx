@@ -32,6 +32,7 @@ import { toErrorMessage } from './errors';
 import { FORECAST_METHODS, type DemandForecast, type ForecastMethod } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';
+import { useReferenceData } from './referenceApi';
 import { ForecastTimeline } from './components/ForecastTimeline';
 import { Icon } from './components/Icon';
 import { MetricCard } from './components/MetricCard';
@@ -56,6 +57,9 @@ export function ForecastPage({
   facilityId?: string;
   medicineId?: string;
 }) {
+  // Medicine and facility names come from the Inventory API.
+  useReferenceData();
+
   const [page, setPage] = useState(1);
   const [medicineId, setMedicineId] = useState(initialMedicineId);
   const [methodFilter, setMethodFilter] = useState<ForecastMethod | ''>('');

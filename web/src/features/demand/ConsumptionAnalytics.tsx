@@ -22,6 +22,7 @@ import { pageCount } from '@/types/demand';
 import type { ConsumptionRecord } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';
+import { useReferenceData } from './referenceApi';
 import { Icon } from './components/Icon';
 import { MetricCard } from './components/MetricCard';
 import { PageHeader, Panel } from './components/Panel';
@@ -38,6 +39,9 @@ import {
 const PAGE_SIZE = 10;
 
 export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facilityId?: string }) {
+  // Medicine and facility names come from the Inventory API.
+  useReferenceData();
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [medicineId, setMedicineId] = useState('');

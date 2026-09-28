@@ -10,7 +10,10 @@
  * Infrastructure/Persistence/Seed/SeedData.cs - they are not invented. Anything not in
  * the map degrades to a short id rather than a made-up name.
  *
- * TEMPORARY. Replace with a lookup against the Inventory API once it exists.
+ * The Inventory API now exists on develop, so registerReferenceNames() fills these
+ * maps from GET /api/medicines and GET /api/facilities. The seeded entries below
+ * remain as a fallback for this vertical's own demonstration data, whose ids were
+ * chosen before the Inventory tables were built.
  */
 const MEDICINE_NAMES: Record<string, string> = {
   'c1000000-0000-0000-0000-000000000001': 'Amoxicillin',
@@ -45,3 +48,24 @@ export const KNOWN_MEDICINES = Object.entries(MEDICINE_NAMES).map(([id, name]) =
   id,
   name,
 }));
+
+
+/**
+ * Registers names fetched from the Inventory API.
+ *
+ * The display helpers above are plain functions called from table cell renderers,
+ * so they cannot be hooks. Reference data is therefore held in these module maps
+ * and topped up once it loads; components subscribe through useReferenceData() so
+ * they re-render when it arrives.
+ */
+export function registerReferenceNames(
+  medicines: ReadonlyArray<{ id: string; name: string }>,
+  facilities: ReadonlyArray<{ id: string; name: string }>,
+): void {
+  for (const medicine of medicines) {
+    MEDICINE_NAMES[medicine.id] = medicine.name;
+  }
+  for (const facility of facilities) {
+    FACILITY_NAMES[facility.id] = facility.name;
+  }
+}
