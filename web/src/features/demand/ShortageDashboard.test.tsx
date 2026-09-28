@@ -131,7 +131,7 @@ describe('ShortageDashboard', () => {
   it('requests the next page when pagination advances', async () => {
     const user = userEvent.setup();
     mockGetShortages.mockResolvedValue(
-      page([shortageAlert()], { totalCount: 25, totalPages: 3, hasNextPage: true }),
+      page([shortageAlert()], { total: 25 }),
     );
 
     renderWithProviders(<ShortageDashboard />);
@@ -146,7 +146,7 @@ describe('ShortageDashboard', () => {
 
   it('disables the previous control on the first page', async () => {
     mockGetShortages.mockResolvedValue(
-      page([shortageAlert()], { totalCount: 25, totalPages: 3, hasNextPage: true }),
+      page([shortageAlert()], { total: 25 }),
     );
 
     renderWithProviders(<ShortageDashboard />);

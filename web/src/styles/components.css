@@ -285,7 +285,7 @@
 
 /* Legacy badge, kept for the shared StatusBadge component ------------------ */
 
-.badge {
+.demand-vertical .badge {
   display: inline-block;
   padding: 3px 9px;
   border: 1px solid var(--border);
@@ -298,13 +298,13 @@
   white-space: nowrap;
 }
 
-.badge[data-tone='HIGH'] {
+.demand-vertical .badge[data-tone='HIGH'] {
   background: var(--sev-high-bg);
   border-color: var(--sev-high-border);
   color: var(--sev-high-ink);
 }
 
-.badge[data-tone='MEDIUM'] {
+.demand-vertical .badge[data-tone='MEDIUM'] {
   background: var(--sev-medium-bg);
   border-color: var(--sev-medium-border);
   color: var(--sev-medium-ink);
@@ -395,7 +395,7 @@
    Toolbar and controls
    ========================================================================== */
 
-.toolbar {
+.demand-vertical .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -416,12 +416,12 @@
   flex: 1 1 200px;
 }
 
-input[type='search'],
-input[type='number'],
-input[type='text'],
-input[type='date'],
-select,
-textarea {
+.demand-vertical input[type='search'],
+.demand-vertical input[type='number'],
+.demand-vertical input[type='text'],
+.demand-vertical input[type='date'],
+.demand-vertical select,
+.demand-vertical textarea {
   font: inherit;
   font-weight: 400;
   color: var(--text-primary);
@@ -433,19 +433,19 @@ textarea {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-input:hover,
-select:hover {
+.demand-vertical input:hover,
+.demand-vertical select:hover {
   border-color: var(--text-muted);
 }
 
-input:focus-visible,
-select:focus-visible {
+.demand-vertical input:focus-visible,
+.demand-vertical select:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
   outline: none;
 }
 
-button {
+.demand-vertical button {
   font: inherit;
   font-weight: 560;
   color: var(--text-primary);
@@ -459,27 +459,27 @@ button {
     transform var(--dur-fast) var(--ease);
 }
 
-button:hover:not(:disabled) {
+.demand-vertical button:hover:not(:disabled) {
   background: var(--surface-sunken);
   border-color: var(--text-muted);
 }
 
-button:active:not(:disabled) {
+.demand-vertical button:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-button:disabled {
+.demand-vertical button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-button[type='submit'] {
+.demand-vertical button[type='submit'] {
   color: var(--accent-ink);
   background: var(--accent);
   border-color: transparent;
 }
 
-button[type='submit']:hover:not(:disabled) {
+.demand-vertical button[type='submit']:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: transparent;
 }
@@ -513,20 +513,20 @@ button[type='submit']:hover:not(:disabled) {
   overflow-x: auto;
 }
 
-.data-table {
+.demand-vertical .data-table {
   width: 100%;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
 
-.data-table caption {
+.demand-vertical .data-table caption {
   text-align: left;
   padding: 0 var(--space-5) var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-.data-table th {
+.demand-vertical .data-table th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -542,22 +542,22 @@ button[type='submit']:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-.data-table td {
+.demand-vertical .data-table td {
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--gridline);
   color: var(--text-primary);
   vertical-align: middle;
 }
 
-.data-table tbody tr {
+.demand-vertical .data-table tbody tr {
   transition: background var(--dur-fast) var(--ease);
 }
 
-.data-table tbody tr:last-child td {
+.demand-vertical .data-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.data-table tbody tr:hover td {
+.demand-vertical .data-table tbody tr:hover td {
   background: var(--accent-wash);
 }
 
@@ -654,14 +654,14 @@ button[type='submit']:hover:not(:disabled) {
    Skeletons
    ========================================================================== */
 
-.skeleton {
+.demand-vertical .skeleton {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
 }
 
-.skeleton::after {
+.demand-vertical .skeleton::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -727,7 +727,7 @@ button[type='submit']:hover:not(:disabled) {
 
 /* Reduced motion: keep the placeholder, drop the movement. */
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after {
+.demand-vertical .skeleton::after {
     animation: none;
   }
 

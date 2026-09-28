@@ -1,3 +1,6 @@
+/* Scoped to .demand-vertical so these tokens cannot override develop's
+   design system. 21 token names collide with design-system.css; before
+   scoping, this file won the cascade on every page in the app. */
 /*
  * SHARED REACT DESIGN SYSTEM - primary owner: Arudkumaran V. (IT24103011).
  * Token set created by the Demand vertical (Sathurstiga S., IT24103156). Replace with
@@ -10,7 +13,7 @@
  * label rather than relying on colour.
  */
 
-:root {
+.demand-vertical {
   color-scheme: light;
 
   /* Typeface ------------------------------------------------------------- */
@@ -97,7 +100,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  .demand-vertical:not([data-theme='light']) {
     color-scheme: dark;
 
     --plane: #0c0f10;
@@ -138,7 +141,7 @@
   }
 }
 
-:root[data-theme='dark'] {
+.demand-vertical[data-theme='dark'] {
   color-scheme: dark;
 
   --plane: #0c0f10;
@@ -180,7 +183,7 @@
 
 /* Anyone who asks for less motion gets none of it. */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  .demand-vertical {
     --dur-fast: 1ms;
     --dur: 1ms;
     --dur-slow: 1ms;

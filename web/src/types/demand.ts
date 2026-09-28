@@ -10,14 +10,23 @@ export interface ApiResponse<T> {
 }
 
 /** Standard paged payload: ?page=1&pageSize=20 */
+/**
+ * develop's envelope: `record PagedResponse<T>(Items, Total, Page, PageSize)`.
+ * It carries no derived paging flags, so callers compute them with pageCount().
+ */
 export interface PagedResponse<T> {
   items: T[];
   page: number;
   pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
+  total: number;
+}
+
+/** Number of pages implied by a PagedResponse. Always at least 1. */
+export function pageCount(paged: { total: number; pageSize: number }): number {
+  if (!paged.pageSize) {
+    return 1;
+  }
+  return Math.max(Math.ceil(paged.total / paged.pageSize), 1);
 }
 
 /** Standard error payload. Shared contract - owner: Arudkumaran V. (IT24103011). */

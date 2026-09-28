@@ -32,6 +32,24 @@ public class DemandApiFactory : WebApplicationFactory<Program>
 
     private readonly string _databaseName = $"medistock-api-{Guid.NewGuid()}";
 
+    /// <summary>
+    /// develop's Program.cs loads backend/.env at startup, but only for keys that are
+    /// not already real environment variables. Claiming them here makes the suite
+    /// independent of whatever .env a developer happens to have locally - without
+    /// this, a local .env silently replaces the signing key below and every
+    /// authenticated test fails with 401.
+    /// </summary>
+    static DemandApiFactory()
+    {
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY", SigningKey);
+        Environment.SetEnvironmentVariable("JWT_ISSUER", Issuer);
+        Environment.SetEnvironmentVariable("JWT_AUDIENCE", Audience);
+        Environment.SetEnvironmentVariable("Jwt__SigningKey", SigningKey);
+        Environment.SetEnvironmentVariable("Jwt__Issuer", Issuer);
+        Environment.SetEnvironmentVariable("Jwt__Audience", Audience);
+        Environment.SetEnvironmentVariable("AgentService__ServiceToken", ServiceToken);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Skips the startup migrate-and-seed, which has no relational database here.

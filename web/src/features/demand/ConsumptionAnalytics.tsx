@@ -18,6 +18,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
 import { SearchBar } from '@/components/SearchBar';
 import { toErrorMessage } from './errors';
+import { pageCount } from '@/types/demand';
 import type { ConsumptionRecord } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';
@@ -178,7 +179,7 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
   ];
 
   return (
-    <section aria-labelledby="consumption-analytics-heading" className="stack">
+    <section aria-labelledby="consumption-analytics-heading" className="demand-vertical stack" data-theme="light">
       <PageHeader
         title="Consumption Analytics"
         subtitle="Analyze historical medicine consumption across facilities and identify demand patterns."
@@ -216,7 +217,7 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
             icon="inbox"
             label="Records shown"
             value={items.length}
-            note={`Of ${data.totalCount} recorded for this facility`}
+            note={`Of ${data.total} recorded for this facility`}
           />
           <MetricCard
             index={1}
@@ -374,7 +375,7 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
           <div className="table-wrap">
             <DataTable caption="Consumption records" columns={columns} rows={items} />
           </div>
-          <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />
+          <Pagination page={data.page} totalPages={pageCount(data)} onPageChange={setPage} />
 
           {editError && (
             <div className="panel__body">

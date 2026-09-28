@@ -51,16 +51,13 @@ export function renderAtRoute(path: string, element: ReactElement, entry: string
 
 export function page<T>(items: T[], overrides: Partial<PagedResponse<T>> = {}): PagedResponse<T> {
   const pageSize = overrides.pageSize ?? 10;
-  const totalCount = overrides.totalCount ?? items.length;
 
+  // develop's envelope is {items, total, page, pageSize} - no derived paging flags.
   return {
     items,
     page: overrides.page ?? 1,
     pageSize,
-    totalCount,
-    totalPages: overrides.totalPages ?? Math.max(Math.ceil(totalCount / pageSize), 1),
-    hasPreviousPage: overrides.hasPreviousPage ?? false,
-    hasNextPage: overrides.hasNextPage ?? false,
+    total: overrides.total ?? items.length,
   };
 }
 

@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
 import { SearchBar } from '@/components/SearchBar';
 import { toErrorMessage } from './errors';
+import { pageCount } from '@/types/demand';
 import type { ShortageAlert, ShortageRiskLevel } from '@/types/demand';
 import { DemandChain } from './DemandChain';
 import { Icon } from './components/Icon';
@@ -154,7 +155,7 @@ export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityI
   ];
 
   return (
-    <section aria-labelledby="shortage-dashboard-heading" className="stack">
+    <section aria-labelledby="shortage-dashboard-heading" className="demand-vertical stack" data-theme="light">
       <PageHeader
         title="Demand & Shortage Monitoring"
         subtitle="Monitor consumption trends, forecast demand, and identify potential medicine shortages before they occur."
@@ -293,7 +294,7 @@ export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityI
                 <div className="table-wrap">
                   <DataTable caption="Shortage alerts" columns={columns} rows={items} />
                 </div>
-                <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />
+                <Pagination page={data.page} totalPages={pageCount(data)} onPageChange={setPage} />
               </>
             )}
           </Panel>

@@ -1,3 +1,4 @@
+import { pageCount } from '@/types/demand';
 /**
  * Forecast page - generate and review demand forecasts.
  * Sathurstiga S. (IT24103156).
@@ -152,7 +153,7 @@ export function ForecastPage({
     }));
 
   return (
-    <section aria-labelledby="forecast-heading" className="stack">
+    <section aria-labelledby="forecast-heading" className="demand-vertical stack" data-theme="light">
       <PageHeader
         title="Demand Forecast"
         subtitle="Understand future medicine demand and projected stock levels."
@@ -419,7 +420,7 @@ export function ForecastPage({
             <div className="table-wrap">
               <DataTable caption="Forecast history" columns={columns} rows={items} />
             </div>
-            <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />
+            <Pagination page={data.page} totalPages={pageCount(data)} onPageChange={setPage} />
           </>
         )}
       </Panel>

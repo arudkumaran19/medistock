@@ -86,7 +86,7 @@ describe('ConsumptionAnalytics', () => {
   it('requests the next page when pagination advances', async () => {
     const user = userEvent.setup();
     mockGetConsumption.mockResolvedValue(
-      page([consumptionRecord()], { totalCount: 30, totalPages: 3, hasNextPage: true }),
+      page([consumptionRecord()], { total: 30 }),
     );
 
     renderWithProviders(<ConsumptionAnalytics />);

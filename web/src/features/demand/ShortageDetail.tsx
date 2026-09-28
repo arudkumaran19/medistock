@@ -60,7 +60,7 @@ export function ShortageDetail({ shortageId }: { shortageId?: string }) {
   }
 
   return (
-    <section aria-labelledby="shortage-detail-heading" className="stack">
+    <section aria-labelledby="shortage-detail-heading" className="demand-vertical stack" data-theme="light">
       <PageHeader
         title={medicineName(alert.medicineId)}
         subtitle={`${facilityName(alert.facilityId)} · raised ${formatDate(alert.generatedAt)}`}

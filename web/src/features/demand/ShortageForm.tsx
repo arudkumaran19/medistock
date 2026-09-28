@@ -117,7 +117,7 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
   }
 
   return (
-    <section aria-labelledby="shortage-form-heading" className="stack">
+    <section aria-labelledby="shortage-form-heading" className="demand-vertical stack" data-theme="light">
       <header className="page-header">
         <h2 id="shortage-form-heading">{isEdit ? 'Edit shortage alert' : 'Raise shortage alert'}</h2>
         <p className="page-header__lead">
