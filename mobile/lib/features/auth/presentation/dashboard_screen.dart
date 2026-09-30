@@ -229,6 +229,20 @@ class _ManagerPanel extends StatelessWidget {
             subtitle: 'Draft a new purchase order',
             onTap: () => onAction(AppRouter.procurementRequest),
           ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.medication_liquid_outlined,
+            title: 'Medicine Catalogue',
+            subtitle: 'Create, edit and archive medicines',
+            onTap: () => onAction(AppRouter.medicineCatalogue),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.event_busy_outlined,
+            title: 'Expiry Monitor',
+            subtitle: 'Batches approaching their expiry date',
+            onTap: () => onAction(AppRouter.expiryMonitor),
+          ),
           const SizedBox(height: 24),
           // Demand & Shortage - Sathurstiga S. (IT24103156).
           const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
@@ -397,6 +411,20 @@ class _StaffPanel extends StatelessWidget {
             title: 'Scan Batch',
             subtitle: 'Look up a batch by scanning its code',
             onTap: () => onAction(AppRouter.scanBatch),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.medication_liquid_outlined,
+            title: 'Medicine Catalogue',
+            subtitle: 'Create, edit and archive medicines',
+            onTap: () => onAction(AppRouter.medicineCatalogue),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.event_busy_outlined,
+            title: 'Expiry Monitor',
+            subtitle: 'Batches approaching their expiry date',
+            onTap: () => onAction(AppRouter.expiryMonitor),
           ),
           const SizedBox(height: 10),
           _QuickAction(

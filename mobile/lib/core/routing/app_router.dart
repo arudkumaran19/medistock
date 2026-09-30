@@ -10,6 +10,8 @@ import '../../features/inventory/screens/receive_stock_screen.dart';
 import '../../features/inventory/screens/scan_batch_screen.dart';
 import '../../features/inventory/screens/stock_adjustment_screen.dart';
 import '../../features/inventory/screens/stock_lookup_screen.dart';
+import '../../features/inventory/screens/medicine_catalogue_screen.dart';
+import '../../features/inventory/screens/expiry_monitor_screen.dart';
 import '../../features/procurement/screens/procurement_request_screen.dart';
 import '../../features/procurement/screens/purchase_status_screen.dart';
 import '../../features/procurement/screens/approval_status_screen.dart';
@@ -38,6 +40,8 @@ class AppRouter {
   static const scanBatch = '/inventory/scan';
   static const batchDetail = '/inventory/batch';
   static const stockAdjustment = '/inventory/adjust';
+  static const medicineCatalogue = '/inventory/medicines';
+  static const expiryMonitor = '/inventory/expiry';
 
   // Procurement routes
   static const procurement = '/procurement';
@@ -108,6 +112,14 @@ class AppRouter {
         page = batchNumber == null
             ? const StockLookupScreen()
             : BatchDetailScreen(batchNumber: batchNumber);
+        break;
+
+      case medicineCatalogue:
+        page = const MedicineCatalogueScreen();
+        break;
+
+      case expiryMonitor:
+        page = const ExpiryMonitorScreen();
         break;
 
       case stockAdjustment:
