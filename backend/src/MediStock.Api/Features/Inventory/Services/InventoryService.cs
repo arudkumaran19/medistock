@@ -58,6 +58,31 @@ public sealed class InventoryService(ApplicationDbContext db)
         if (newQuantity < balance.QuantityReserved) throw new InventoryException("NEGATIVE_AVAILABLE_STOCK", "Adjustment would make available stock negative.");
         balance.QuantityOnHand = newQuantity;
         balance.UpdatedAtUtc = DateTime.UtcNow;
+
+        // A negative adjustment has to come out of the batches that actually hold the
+        // stock. Without this the balance drops but MedicineBatches keeps its quantity,
+        // so the two disagree - and ArchiveAsync, which checks both, then refuses to
+        // archive a medicine the UI reports as empty.
+        //
+        // Earliest expiry first, and batch plus balance move together in one save, which
+        // is the convention BatchService.RetireAsync already follows.
+        if (request.QuantityDelta < 0)
+        {
+            var outstanding = -request.QuantityDelta;
+            var batches = await db.MedicineBatches
+                .Where(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId && x.QuantityOnHand > 0)
+                .OrderBy(x => x.ExpiryDateUtc)
+                .ToListAsync(cancellationToken);
+
+            foreach (var batch in batches)
+            {
+                if (outstanding <= 0) break;
+                var drawn = Math.Min(batch.QuantityOnHand, outstanding);
+                batch.QuantityOnHand -= drawn;
+                outstanding -= drawn;
+            }
+        }
+
         db.StockTransactions.Add(new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, Type = Domain.Enums.StockTransactionType.Adjustment, Quantity = request.QuantityDelta, BalanceAfter = newQuantity, Reason = request.Reason.Trim(), CreatedAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync(cancellationToken);
         return Map(balance);
