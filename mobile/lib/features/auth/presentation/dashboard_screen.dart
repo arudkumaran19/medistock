@@ -215,8 +215,71 @@ class _ManagerPanel extends StatelessWidget {
             subtitle: 'Monitor stock levels and expiry',
             onTap: () => onAction(AppRouter.inventory),
           ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.inbox,
+            title: 'Receive Stock',
+            subtitle: 'Record incoming stock deliveries',
+            onTap: () => onAction(AppRouter.receiveStock),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.add_shopping_cart,
+            title: 'Create Procurement Request',
+            subtitle: 'Draft a new purchase order',
+            onTap: () => onAction(AppRouter.procurementRequest),
+          ),
+          const SizedBox(height: 24),
+          // Demand & Shortage - Sathurstiga S. (IT24103156).
+          const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          _DemandActions(onAction: onAction),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Demand & Shortage quick actions - Sathurstiga S. (IT24103156).
+// Shared by the manager and staff panels so both reach the same screens.
+// ─────────────────────────────────────────────────────────────────────
+class _DemandActions extends StatelessWidget {
+  const _DemandActions({required this.onAction});
+  final void Function(String route) onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _QuickAction(
+          icon: Icons.warning_amber_outlined,
+          title: 'Shortage Alerts',
+          subtitle: 'Medicines projected to run out before resupply',
+          onTap: () => onAction(AppRouter.demandShortages),
+        ),
+        const SizedBox(height: 10),
+        _QuickAction(
+          icon: Icons.trending_up,
+          title: 'Demand Forecasts',
+          subtitle: 'Projected demand and days of cover',
+          onTap: () => onAction(AppRouter.demandForecasts),
+        ),
+        const SizedBox(height: 10),
+        _QuickAction(
+          icon: Icons.edit_note_outlined,
+          title: 'Record Consumption',
+          subtitle: 'Log what was dispensed today',
+          onTap: () => onAction(AppRouter.demandConsumption),
+        ),
+        const SizedBox(height: 10),
+        _QuickAction(
+          icon: Icons.history,
+          title: 'Consumption History',
+          subtitle: 'Review and correct recorded usage',
+          onTap: () => onAction(AppRouter.demandHistory),
+        ),
+      ],
     );
   }
 }
@@ -330,11 +393,24 @@ class _StaffPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _QuickAction(
+            icon: Icons.qr_code_scanner,
+            title: 'Scan Batch',
+            subtitle: 'Look up a batch by scanning its code',
+            onTap: () => onAction(AppRouter.scanBatch),
+          ),
+          const SizedBox(height: 10),
+          _QuickAction(
             icon: Icons.list_alt,
             title: 'View Purchase Orders',
             subtitle: 'Track procurement status',
             onTap: () => onAction(AppRouter.procurement),
           ),
+          const SizedBox(height: 24),
+          // Demand & Shortage - Sathurstiga S. (IT24103156). Store keepers are
+          // the ones recording what was dispensed, so they get these too.
+          const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          _DemandActions(onAction: onAction),
         ],
       ),
     );
