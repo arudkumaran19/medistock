@@ -20,6 +20,7 @@ import '../../features/demand/presentation/consumption_entry_screen.dart';
 import '../../features/demand/presentation/demand_history_screen.dart';
 import '../../features/demand/presentation/forecast_screen.dart';
 import '../../features/demand/presentation/shortage_alerts_screen.dart';
+import '../../features/demand/presentation/agent_analysis_screen.dart';
 
 /// Single global auth service instance used to share session across routes.
 /// In production, use a proper dependency injection / state management solution.
@@ -53,6 +54,7 @@ class AppRouter {
   static const demandForecasts = '/demand/forecasts';
   static const demandConsumption = '/demand/consumption';
   static const demandHistory = '/demand/history';
+  static const demandAgent = '/demand/agent';
 
   static Route<dynamic> generate(RouteSettings settings) {
     final Widget page;
@@ -155,6 +157,10 @@ class AppRouter {
 
       case demandConsumption:
         page = const ConsumptionEntryScreen();
+        break;
+
+      case demandAgent:
+        page = const AgentAnalysisScreen();
         break;
 
       case demandHistory:

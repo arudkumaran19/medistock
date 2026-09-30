@@ -293,6 +293,13 @@ class _DemandActions extends StatelessWidget {
           subtitle: 'Review and correct recorded usage',
           onTap: () => onAction(AppRouter.demandHistory),
         ),
+        const SizedBox(height: 10),
+        _QuickAction(
+          icon: Icons.auto_awesome,
+          title: 'Demand Agent',
+          subtitle: 'Ask the AI agent to assess shortage risk',
+          onTap: () => onAction(AppRouter.demandAgent),
+        ),
       ],
     );
   }
