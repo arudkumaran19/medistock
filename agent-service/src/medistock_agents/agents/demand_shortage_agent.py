@@ -41,6 +41,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from medistock_agents.agents.demand_graph import DemandPlanner, build_demand_graph
+from medistock_agents.agents.demand_reasoning import DemandFacts, DemandNarrator
 from medistock_agents.models.demand_models import (
     AgentResult,
     Evidence,
@@ -63,6 +65,10 @@ AGENT_NAME = "demand_shortage"
 
 DEFAULT_WINDOW_DAYS = 30
 
+# Finding codes whose summary text the reasoning layer is allowed to replace. The
+# codes, values and units are tool-derived and are never touched.
+_NARRATABLE_FINDING = "AI_ASSESSMENT"
+
 
 @dataclass
 class DemandShortageRequest:
@@ -83,10 +89,23 @@ class DemandShortageAgent:
         tools: DemandToolClient,
         input_guard: InputGuard | None = None,
         output_guard: OutputGuard | None = None,
+        narrator: DemandNarrator | None = None,
+        planner: DemandPlanner | None = None,
     ) -> None:
         self._tools = tools
         self._input_guard = input_guard or InputGuard()
         self._output_guard = output_guard or OutputGuard()
+        # Both optional. Without them the agent behaves exactly as it always has.
+        self._narrator = narrator
+        self._planner = planner
+
+        # The full agentic path needs both: something to choose the tools and
+        # something to explain the results.
+        self._graph = (
+            build_demand_graph(planner, tools, narrator)
+            if planner is not None and narrator is not None
+            else None
+        )
 
     # ------------------------------------------------------------------
     # Entry point
@@ -287,6 +306,160 @@ class DemandShortageAgent:
         )
 
     # ------------------------------------------------------------------
+    # Model-assisted entry point
+    # ------------------------------------------------------------------
+
+    async def analyze_with_reasoning(self, request: DemandShortageRequest) -> AgentResult:
+        """Assess shortage risk with the model in the loop.
+
+        Three paths, in descending capability, each degrading into the next:
+
+        1. AGENTIC - the model selects which controlled tools the objective needs
+           (blueprint section 21), code executes them, the model interprets them.
+        2. INTERPRETED - the fixed tool sequence runs, the model explains the result.
+        3. DETERMINISTIC - the original behaviour, with no model involved.
+
+        Whatever fails, the caller gets a correct answer. The model can improve the
+        response but can never be the reason there isn't one (blueprint section 41).
+        """
+        # Screening precedes everything. Injected text must never reach a prompt.
+        if request.objective is not None:
+            screened = self._input_guard.inspect(request.objective)
+
+            if not screened.is_safe:
+                logger.warning(
+                    "Objective refused before planning for facility %s: %s",
+                    request.facility_id,
+                    screened.refusal_reason,
+                )
+                return self._safe_failure("OBJECTIVE_REFUSED", screened.refusal_reason)
+
+        if self._graph is not None:
+            agentic = await self._run_graph(request)
+
+            if agentic is not None:
+                return agentic
+
+            logger.info("Agentic path unavailable; falling back to the fixed sequence.")
+
+        result = self.analyze(request)
+
+        if self._narrator is None:
+            return result
+
+        # Nothing to interpret: the objective was refused or a tool was down. Adding
+        # model prose to a safe failure would only dress up an absence of data.
+        if result.status != "SUCCESS":
+            return result
+
+        facts = _facts_from(result, request)
+        narrative = await self._narrator.interpret(facts, objective=request.objective)
+
+        if not narrative.accepted:
+            logger.info(
+                "Keeping deterministic demand result: %s",
+                narrative.rejection_reason,
+            )
+            return result
+
+        enriched = result.model_copy(
+            update={
+                "findings": [
+                    *result.findings,
+                    Finding(
+                        code=_NARRATABLE_FINDING,
+                        summary=narrative.assessment or "",
+                    ),
+                ],
+                "recommendations": [*result.recommendations, *narrative.recommendations],
+            }
+        )
+
+        # The enriched result goes through the same guard as every other result. A
+        # model-authored recommendation gets no privileged path.
+        return self._validated(enriched)
+
+    async def _run_graph(self, request: DemandShortageRequest) -> AgentResult | None:
+        """Run the agentic workflow. Returns None when the caller must fall back."""
+        window_days = request.window_days or DEFAULT_WINDOW_DAYS
+
+        try:
+            state = await self._graph.ainvoke(  # type: ignore[union-attr]
+                {
+                    "objective": request.objective,
+                    "facility_id": request.facility_id,
+                    "medicine_id": request.medicine_id,
+                    "current_stock": request.current_stock,
+                    "window_days": window_days,
+                    "errors": [],
+                }
+            )
+        except Exception as exc:
+            logger.warning("Demand graph failed: %s", exc)
+            return None
+
+        if state.get("fallback_triggered"):
+            return None
+
+        findings: list[Finding] = list(state.get("findings") or [])
+
+        if not findings:
+            return None
+
+        by_code = {finding.code: finding for finding in findings}
+        recommendations: list[Recommendation] = []
+
+        # The deterministic response to a confirmed shortage, unchanged from analyze().
+        if "SHORTAGE_RISK" in by_code:
+            recommendations.append(
+                Recommendation(
+                    code="INVESTIGATE_REPLENISHMENT",
+                    summary=(
+                        "Shortage risk confirmed. Identify a redistribution or "
+                        "procurement response for review."
+                    ),
+                    priority="HIGH",
+                )
+            )
+
+        # The plan wanted a stockout projection but no stock level was supplied.
+        if "STOCK_REQUIRED" in (state.get("errors") or []):
+            recommendations.append(
+                Recommendation(
+                    code="STOCK_REQUIRED",
+                    summary=(
+                        "Current stock on hand is required before a stockout can be "
+                        "projected. Request it from the Inventory agent."
+                    ),
+                    priority="MEDIUM",
+                )
+            )
+
+        assessment = state.get("assessment")
+
+        if assessment:
+            findings.append(Finding(code=_NARRATABLE_FINDING, summary=assessment))
+            recommendations.extend(state.get("recommendations") or [])
+
+        facts = state.get("facts")
+        average_daily = getattr(facts, "average_daily_consumption", None) or 0.0
+        risk_level = getattr(facts, "risk_level", None) or ""
+
+        return self._validated(
+            AgentResult(
+                agent=AGENT_NAME,
+                status="SUCCESS",
+                confidence=self._confidence(risk_level, average_daily),
+                findings=findings,
+                recommendations=recommendations,
+                # Unchanged: a specialist never clears its own work, however it ran.
+                required_validation=True,
+                requested_action=None,
+                evidence=list(state.get("evidence") or []),
+            )
+        )
+
+    # ------------------------------------------------------------------
     # LangGraph node
     # ------------------------------------------------------------------
 
@@ -346,6 +519,36 @@ class DemandShortageAgent:
             return 0.4
 
         return 0.9 if risk_level == "HIGH" else 0.8
+
+
+def _facts_from(result: AgentResult, request: DemandShortageRequest) -> DemandFacts:
+    """Build the model's fact sheet from the deterministic result.
+
+    Reads back only what the tools put into the result, so the sheet cannot contain a
+    value the backend did not produce.
+    """
+    by_code = {finding.code: finding for finding in result.findings}
+
+    def value_of(code: str) -> float | None:
+        finding = by_code.get(code)
+        return finding.value if finding is not None else None
+
+    lead_time = value_of("LEAD_TIME")
+    days_remaining = value_of("DAYS_OF_STOCK")
+    requires_transfer = "SHORTAGE_RISK" in by_code
+
+    return DemandFacts(
+        facility_id=request.facility_id,
+        medicine_id=request.medicine_id,
+        window_days=request.window_days or DEFAULT_WINDOW_DAYS,
+        average_daily_consumption=value_of("AVERAGE_DAILY_CONSUMPTION"),
+        lead_time_days=int(lead_time) if lead_time is not None else None,
+        current_stock=request.current_stock,
+        days_remaining=int(days_remaining) if days_remaining is not None else None,
+        # Only meaningful once a stockout was actually projected.
+        requires_transfer=requires_transfer if days_remaining is not None else None,
+        risk_level="HIGH" if requires_transfer else None,
+    )
 
 
 def demand_shortage_node(

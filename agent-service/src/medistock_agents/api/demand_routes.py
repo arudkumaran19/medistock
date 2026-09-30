@@ -23,10 +23,13 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
+from medistock_agents.agents.demand_graph import DemandPlanner
+from medistock_agents.agents.demand_reasoning import DemandNarrator
 from medistock_agents.agents.demand_shortage_agent import (
     DemandShortageAgent,
     DemandShortageRequest,
 )
+from medistock_agents.llm.provider import get_llm_provider
 from medistock_agents.models.demand_models import AgentResult
 from medistock_agents.orchestration.routing_policy import (
     classify_intent,
@@ -48,6 +51,16 @@ AGENT_SERVICE_TOKEN = os.getenv("AGENT_SERVICE_TOKEN", "")
 
 # Stateless, so one instance is shared across requests.
 _INPUT_GUARD = InputGuard()
+
+# Model-assisted interpretation. Set DEMAND_AGENT_REASONING=false to pin the vertical
+# to its deterministic path - useful for a reproducible demo or a CI run that must not
+# reach an external API. The agent degrades to exactly this path on its own whenever
+# the model is unavailable, so disabling it changes nothing about correctness.
+REASONING_ENABLED = os.getenv("DEMAND_AGENT_REASONING", "true").strip().lower() not in {
+    "false",
+    "0",
+    "no",
+}
 
 demand_router = APIRouter(prefix="/api/demand-agent", tags=["demand-agent"])
 
@@ -104,14 +117,37 @@ def _authorise(token: str | None) -> None:
         )
 
 
+def _reasoning() -> tuple[DemandNarrator | None, DemandPlanner | None]:
+    """The planner and narrator, or (None, None) to run deterministically.
+
+    ``get_llm_provider`` is owned by Arudkumaran V. (IT24103011) and is imported
+    unmodified. A provider that turns out to be unreachable is not an error here: the
+    agent degrades on its own when a call fails.
+    """
+    if not REASONING_ENABLED:
+        return None, None
+
+    try:
+        provider = get_llm_provider()
+    except Exception as exc:
+        logger.warning("LLM provider could not be constructed, running deterministically: %s", exc)
+        return None, None
+
+    return DemandNarrator(provider), DemandPlanner(provider)
+
+
 def _agent() -> DemandShortageAgent:
+    narrator, planner = _reasoning()
+
     return DemandShortageAgent(
-        tools=DemandToolClient(base_url=API_BASE_URL, service_token=AGENT_SERVICE_TOKEN)
+        tools=DemandToolClient(base_url=API_BASE_URL, service_token=AGENT_SERVICE_TOKEN),
+        narrator=narrator,
+        planner=planner,
     )
 
 
-def _run_agent(request: DemandAgentRequest) -> AgentResult:
-    return _agent().analyze(
+async def _run_agent(request: DemandAgentRequest) -> AgentResult:
+    return await _agent().analyze_with_reasoning(
         DemandShortageRequest(
             facility_id=request.facility_id,
             medicine_id=request.medicine_id,
@@ -134,7 +170,7 @@ def health() -> dict[str, object]:
 
 
 @demand_router.post("/run", response_model=DemandAgentResponse)
-def run(
+async def run(
     request: DemandAgentRequest,
     x_internal_token: Annotated[str | None, Header(alias=SERVICE_TOKEN_HEADER)] = None,
 ) -> DemandAgentResponse:
@@ -167,7 +203,7 @@ def run(
             handled_by="demand_shortage",
             # The agent's own guard produces the SAFE_FAILURE result, so the refusal
             # shape stays identical whether it is caught here or inside analyze().
-            result=_run_agent(request),
+            result=await _run_agent(request),
             duration_ms=int((time.perf_counter() - started) * 1000),
         )
 
@@ -187,6 +223,6 @@ def run(
         intent=intent.value,
         plan=plan,
         handled_by="demand_shortage",
-        result=_run_agent(request),
+        result=await _run_agent(request),
         duration_ms=int((time.perf_counter() - started) * 1000),
     )
