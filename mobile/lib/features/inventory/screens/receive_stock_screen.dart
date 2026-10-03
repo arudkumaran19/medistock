@@ -25,8 +25,12 @@ class _ReceiveStockScreenState extends State<ReceiveStockScreen> {
     final parsedExpiry = DateTime.tryParse(expiry.text); final parsedManufacturing = DateTime.tryParse(manufacturing.text);
     if (medicineId == null || facilityId == null) { setState(() => error = 'Select an active medicine and facility.'); return; }
     if (batchNumber.isEmpty || batchNumber == '-1') { setState(() => error = 'Enter a meaningful batch number.'); return; }
+    // The server enforces this format. Checking it here means the user is told the
+    // rule instead of receiving a bare 400 from the API.
+    if (!RegExp(r'^BATCH-\d{3,}$').hasMatch(batchNumber)) { setState(() => error = 'Batch number must look like BATCH-001: the word BATCH, a hyphen, then at least three digits.'); return; }
     if (parsedQuantity == null || parsedQuantity <= 0) { setState(() => error = 'Quantity must be a positive whole number.'); return; }
     if (parsedExpiry == null || parsedManufacturing == null || !parsedExpiry.isAfter(parsedManufacturing)) { setState(() => error = 'Expiry date must be later than manufacture date.'); return; }
+    if (!parsedExpiry.isAfter(DateTime.now())) { setState(() => error = 'That expiry date has already passed. Stock cannot be received as already expired.'); return; }
     setState(() { error = ''; message = ''; submitting = true; });
     try { await service.receive(medicineId: medicineId!, facilityId: facilityId!, batchNumber: batchNumber, quantity: parsedQuantity, expiry: parsedExpiry, manufacturing: parsedManufacturing); if (mounted) setState(() => message = 'Receipt recorded for $batchNumber.'); }
     catch (e) { if (mounted) setState(() => error = e.toString()); }
@@ -37,7 +41,9 @@ class _ReceiveStockScreenState extends State<ReceiveStockScreen> {
     if (error.isNotEmpty) _Notice(message: error, isError: true), if (message.isNotEmpty) _Notice(message: message),
     DropdownButtonFormField<String>(value: medicineId, decoration: const InputDecoration(labelText: 'Medicine'), items: medicines.map((x) => DropdownMenuItem(value: x.id, child: Text('${x.name} (${x.code})'))).toList(), onChanged: (value) => setState(() => medicineId = value)),
     DropdownButtonFormField<String>(value: facilityId, decoration: const InputDecoration(labelText: 'Facility'), items: facilities.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name))).toList(), onChanged: (value) => setState(() => facilityId = value)),
-    TextField(controller: batch, decoration: const InputDecoration(labelText: 'Batch number', hintText: 'e.g. ABC-123')),
+    // The hint previously read "ABC-123", which the server rejects. It now shows the
+    // format the backend actually enforces.
+    TextField(controller: batch, decoration: const InputDecoration(labelText: 'Batch number', hintText: 'e.g. BATCH-001', helperText: 'Format: BATCH- followed by at least three digits')),
     TextField(controller: quantity, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Quantity')),
     TextField(controller: manufacturing, keyboardType: TextInputType.datetime, decoration: const InputDecoration(labelText: 'Manufacture date (YYYY-MM-DD)')),
     TextField(controller: expiry, keyboardType: TextInputType.datetime, decoration: const InputDecoration(labelText: 'Expiry date (YYYY-MM-DD)')),
