@@ -1,0 +1,43 @@
+name: Agent CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  agent:
+    name: Agent Service Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: agent-service
+
+    # Tests never call a real model. The suite uses scripted stand-ins, and
+    # these pin the service to its offline paths so CI needs no API key.
+    env:
+      DEMAND_AGENT_REASONING: "false"
+      LLM_PROVIDER: mock
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: agent-service/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest tests -q
