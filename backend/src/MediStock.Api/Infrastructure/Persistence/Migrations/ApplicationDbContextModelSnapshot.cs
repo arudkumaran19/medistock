@@ -70,6 +70,200 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("UserFacilities", (string)null);
                 });
 
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ConsumptionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ConsumptionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<decimal>("QuantityUsed")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityId", "MedicineId", "ConsumptionDate")
+                        .HasDatabaseName("IX_ConsumptionRecords_Facility_Medicine_Date");
+
+                    b.ToTable("ConsumptionRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.DemandForecast", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AverageDailyConsumption")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("ConfidenceScore")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ForecastDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("HorizonDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("PredictedDemand")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("WindowDays")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityId", "MedicineId", "GeneratedAt")
+                        .HasDatabaseName("IX_DemandForecasts_Facility_Medicine_GeneratedAt");
+
+                    b.ToTable("DemandForecasts", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ReorderRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("LeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("MinimumStock")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("ReorderPoint")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("SafetyStock")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityId", "MedicineId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ReorderRules_Facility_Medicine");
+
+                    b.ToTable("ReorderRules", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ShortageAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AverageDailyConsumption")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("CurrentStock")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("DaysRemaining")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("DemandForecastId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ProjectedStockoutDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("RequiresTransfer")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DemandForecastId");
+
+                    b.HasIndex("RiskLevel")
+                        .HasDatabaseName("IX_ShortageAlerts_RiskLevel");
+
+                    b.HasIndex("FacilityId", "Status", "GeneratedAt")
+                        .HasDatabaseName("IX_ShortageAlerts_Facility_Status_GeneratedAt");
+
+                    b.ToTable("ShortageAlerts", (string)null);
+                });
+
             modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>
                 {
                     b.Property<Guid>("Id")
@@ -620,6 +814,14 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ShortageAlert", b =>
+                {
+                    b.HasOne("MediStock.Api.Features.Demand.Models.DemandForecast", null)
+                        .WithMany()
+                        .HasForeignKey("DemandForecastId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>

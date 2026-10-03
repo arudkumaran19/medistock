@@ -1,4 +1,5 @@
 using MediStock.Api.Domain.Entities;
+using MediStock.Api.Features.Demand.Models;
 using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement.Models;
 using MediStock.Api.Infrastructure.Persistence.Identity;
@@ -28,6 +29,15 @@ public sealed class ApplicationDbContext
     public DbSet<MedicineBatch> MedicineBatches => Set<MedicineBatch>();
     public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
     public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
+
+    // Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+    // Blueprint section 33 (Demand tables). The entity configurations live in
+    // Infrastructure/Persistence/Configurations/ and are picked up automatically by
+    // ApplyConfigurationsFromAssembly below, so nothing else here needs to change.
+    public DbSet<ConsumptionRecord> ConsumptionRecords => Set<ConsumptionRecord>();
+    public DbSet<DemandForecast> DemandForecasts => Set<DemandForecast>();
+    public DbSet<ReorderRule> ReorderRules => Set<ReorderRule>();
+    public DbSet<ShortageAlert> ShortageAlerts => Set<ShortageAlert>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

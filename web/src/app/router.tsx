@@ -15,7 +15,13 @@ import { ProcurementPriority } from "../pages/procurement/ProcurementPriority";
 import { ApprovalConsole } from "../pages/procurement/ApprovalConsole";
 import { WorkflowMonitor } from "../pages/procurement/WorkflowMonitor";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { DashboardLayout } from "../layouts/DashboardLayout";
 import { AdminPage } from "../pages/AdminPage";
+import { ShortageDashboard } from "../features/demand/ShortageDashboard";
+import { ShortageDetail } from "../features/demand/ShortageDetail";
+import { ShortageForm } from "../features/demand/ShortageForm";
+import { ForecastPage } from "../features/demand/ForecastPage";
+import { ConsumptionAnalytics } from "../features/demand/ConsumptionAnalytics";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -66,6 +72,40 @@ export const router = createBrowserRouter([
   {
     path: "/procurement/workflow",
     element: <ProtectedRoute><WorkflowMonitor /></ProtectedRoute>,
+  },
+
+  // Demand & Shortage routes (Member slice: Sathurstiga S.)
+  {
+    path: "/demand/shortages",
+    element: <ProtectedRoute><DashboardLayout><ShortageDashboard /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/demand/shortages/new",
+    element: (
+      <ProtectedRoute requiredRole="FacilityManager">
+        <DashboardLayout><ShortageForm /></DashboardLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/demand/shortages/:id",
+    element: <ProtectedRoute><DashboardLayout><ShortageDetail /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/demand/shortages/:id/edit",
+    element: (
+      <ProtectedRoute requiredRole="FacilityManager">
+        <DashboardLayout><ShortageForm /></DashboardLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/demand/forecasts",
+    element: <ProtectedRoute><DashboardLayout><ForecastPage /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/demand/consumption",
+    element: <ProtectedRoute><DashboardLayout><ConsumptionAnalytics /></DashboardLayout></ProtectedRoute>,
   },
 
   // Admin routes

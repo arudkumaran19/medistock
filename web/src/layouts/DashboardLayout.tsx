@@ -9,6 +9,9 @@ import {
   Building2,
   ClipboardList,
   Activity,
+  AlertTriangle,
+  TrendingUp,
+  LineChart,
   BadgeCheck,
   GitBranch,
   User,
@@ -72,6 +75,32 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Expiry Monitor",
         path: "/inventory/expiry",
         icon: <CalendarCheck size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+    ],
+  },
+  {
+    // Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+    // Roles mirror the [Authorize] attributes on DemandController and
+    // ShortageController so the sidebar never offers a page the API refuses.
+    group: "Demand & Shortage",
+    items: [
+      {
+        label: "Shortages",
+        path: "/demand/shortages",
+        icon: <AlertTriangle size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+      {
+        label: "Forecasts",
+        path: "/demand/forecasts",
+        icon: <TrendingUp size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+      {
+        label: "Consumption",
+        path: "/demand/consumption",
+        icon: <LineChart size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
         roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
       },
     ],

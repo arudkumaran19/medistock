@@ -15,6 +15,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MediStock.Api.Features.Demand.Services;
+using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Infrastructure.AI;
+using Microsoft.Extensions.Options;
 
 // ============================================================
 // Load backend/.env for local development.
@@ -242,6 +246,38 @@ builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<StockTransactionService>();
 builder.Services.AddScoped<MedicineService>();
 
+// ---------------------------------------------------------------------------
+// Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+// Additive registrations only; nothing above is changed.
+// ---------------------------------------------------------------------------
+builder.Services.AddScoped<ConsumptionService>();
+builder.Services.AddScoped<ForecastService>();
+builder.Services.AddScoped<ShortageService>();
+builder.Services.AddScoped<DemandValidator>();
+
+// Internal agent service (blueprint section 37). Infrastructure/AI has no assigned
+// owner in the blueprint; added so the Demand & Shortage Agent is reachable from
+// ASP.NET Core rather than being a library nothing can invoke.
+builder.Services.Configure<AgentServiceOptions>(
+    builder.Configuration.GetSection(AgentServiceOptions.SectionName));
+
+builder.Services.AddHttpClient<AgentServiceClient>((serviceProvider, client) =>
+{
+    var agentOptions = serviceProvider
+        .GetRequiredService<IOptions<AgentServiceOptions>>()
+        .Value;
+
+    // An unconfigured or malformed base URL must not stop the API starting. The agent
+    // is advisory, so leave the address unset and report a safe failure instead.
+    if (Uri.TryCreate(agentOptions.BaseUrl, UriKind.Absolute, out var agentBaseAddress))
+    {
+        client.BaseAddress = agentBaseAddress;
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(
+        agentOptions.TimeoutSeconds > 0 ? agentOptions.TimeoutSeconds : 30);
+});
+
 
 // ============================================================
 // Validation & Error Handling
@@ -340,6 +376,10 @@ using (var scope = app.Services.CreateScope())
     }
 
     SeedData.Apply(db);
+
+    // Demand & Shortage seed data (Sathurstiga S., IT24103156). Applied after the
+    // shared reference data so facilities and medicines already exist.
+    DemandSeedData.Apply(db);
 }
 
 await SeedUsers.SeedAsync(app.Services);

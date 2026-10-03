@@ -50,7 +50,6 @@ Thumbs.db
 # Local secrets / credentials
 *.pem
 *.key
-
 # Scratch / verification scripts
 agent-service/demonstration_runner.py
 agent-service/e2e_verification.py
@@ -58,3 +57,7 @@ agent-service/edge_cases_test.py
 agent-service/notebooks/
 MediStock-Architecture-Blueprint-Final.md
 .fake
+
+# Local tooling
+.claude/
+*.tsbuildinfo
