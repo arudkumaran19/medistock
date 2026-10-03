@@ -22,6 +22,7 @@ import { SearchBar } from '../../components/SearchBar';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
+import { useTransferSignalR } from './useTransferSignalR';
 
 export const TransferDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -31,23 +32,49 @@ export const TransferDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  const fetchTransfers = async () => {
+  const fetchTransfers = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const params = statusFilter !== 'ALL' ? { status: statusFilter } : undefined;
       const data = await redistributionApi.getTransfers(params);
       setTransfers(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch transfers from backend.');
+      if (!silent) setError(err.message || 'Failed to fetch transfers from backend.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchTransfers();
   }, [statusFilter]);
+
+  // Real-time Push via SignalR for Manager Dashboard
+  const { isConnected } = useTransferSignalR({
+    isManager: true,
+    onStatusChanged: (updatedTransfer) => {
+      setTransfers((prev) => {
+        const index = prev.findIndex((t) => t.id === updatedTransfer.id);
+        if (index >= 0) {
+          const next = [...prev];
+          next[index] = updatedTransfer;
+          return next;
+        } else {
+          return [updatedTransfer, ...prev];
+        }
+      });
+    },
+  });
+
+  // Polling fallback only when socket is disconnected
+  useEffect(() => {
+    if (isConnected) return;
+    const interval = setInterval(() => {
+      fetchTransfers(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [statusFilter, isConnected]);
 
   const filteredTransfers = transfers.filter((t) => {
     const query = searchQuery.toLowerCase();
@@ -76,15 +103,41 @@ export const TransferDashboard: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={fetchTransfers}
-          className="btn btn-secondary"
-          title="Refresh transfers"
-          style={{ height: '40px' }}
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              backgroundColor: isConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+              color: isConnected ? 'var(--color-emerald)' : 'var(--color-amber)',
+              border: isConnected ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: isConnected ? 'var(--color-emerald)' : 'var(--color-amber)',
+              }}
+            />
+            {isConnected ? 'SignalR Live' : 'Polling (Fallback)'}
+          </span>
+          <button
+            onClick={() => fetchTransfers(false)}
+            className="btn btn-secondary"
+            title="Refresh transfers"
+            style={{ height: '40px' }}
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Metrics Row */}

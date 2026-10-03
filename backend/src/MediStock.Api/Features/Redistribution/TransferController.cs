@@ -115,6 +115,7 @@ public class TransferController : ControllerBase
         [FromBody] ReserveTransferRequest request,
         CancellationToken ct = default)
     {
+        // TODO: enforce roles after auth merge (approve: manager)
         if (request.UserId == Guid.Empty)
         {
             request.UserId = GetCurrentUserId();
@@ -130,9 +131,10 @@ public class TransferController : ControllerBase
     }
 
     /// <summary>
-    /// 5b. POST /api/transfers/{id}/dispatch - Dispatch transfer to transition from Reserved to Dispatched
+    /// 5b. POST /api/transfers/{id}/dispatch - Dispatch transfer to transition from Reserved to Dispatched/InTransit
     /// </summary>
     [HttpPost("{id:guid}/dispatch")]
+    [HttpPost("{id:guid}/pickup")] // "Confirm Pickup" endpoint -> InTransit
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
@@ -141,6 +143,7 @@ public class TransferController : ControllerBase
         [FromBody] DispatchTransferRequest? request,
         CancellationToken ct = default)
     {
+        // TODO: enforce roles after auth merge (pickup: source field officer)
         request ??= new DispatchTransferRequest();
         if (request.UserId == Guid.Empty)
         {
@@ -182,9 +185,10 @@ public class TransferController : ControllerBase
     }
 
     /// <summary>
-    /// 6. POST /api/transfers/{id}/receive - Receive transfer and adjust inventory at destination
+    /// 6. POST /api/transfers/{id}/receive - Receive transfer and adjust inventory at destination (Confirm Delivery -> Delivered)
     /// </summary>
     [HttpPost("{id:guid}/receive")]
+    [HttpPost("{id:guid}/deliver")] // "Confirm Delivery" endpoint -> Delivered
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
@@ -193,6 +197,7 @@ public class TransferController : ControllerBase
         [FromBody] ReceiveTransferRequest request,
         CancellationToken ct = default)
     {
+        // TODO: enforce roles after auth merge (delivery: field officer)
         if (request.ReceivedByUserId == Guid.Empty)
         {
             request.ReceivedByUserId = GetCurrentUserId();
@@ -236,6 +241,34 @@ public class TransferController : ControllerBase
         if (!result.Success)
         {
             return BadRequest(new ErrorResponse(result.Message, "ROUTING_FAILED", result.Errors));
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/transfers/{id}/location - Post live GPS coordinates during InTransit status
+    /// </summary>
+    [HttpPost("{id:guid}/location")]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateLocation(
+        [FromRoute] Guid id,
+        [FromBody] UpdateTransferLocationRequest request,
+        CancellationToken ct = default)
+    {
+        // TODO: enforce roles after auth merge (field officer)
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new ErrorResponse("Validation failed", "VALIDATION_FAILED",
+                ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()));
+        }
+
+        var result = await _transferService.UpdateTransferLocationAsync(id, request, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "LOCATION_UPDATE_FAILED", result.Errors));
         }
 
         return Ok(result);

@@ -19,6 +19,34 @@ public static class DbInitializer
             // Ensure database schema is created
             await context.Database.EnsureCreatedAsync();
 
+            if (!context.Database.IsInMemory())
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLatitude"" double precision;
+                    ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLongitude"" double precision;
+                    ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLocationAt"" timestamp with time zone;
+
+                    CREATE TABLE IF NOT EXISTS transfer_notifications (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TransferId"" uuid NOT NULL,
+                        ""Audience"" character varying(50) NOT NULL,
+                        ""RecipientUserId"" uuid NULL,
+                        ""Title"" character varying(200) NOT NULL,
+                        ""Message"" character varying(1000) NOT NULL,
+                        ""IsRead"" boolean NOT NULL DEFAULT FALSE,
+                        ""CreatedAt"" timestamp with time zone NOT NULL,
+                        CONSTRAINT ""FK_transfer_notifications_transfer_requests_TransferId""
+                            FOREIGN KEY (""TransferId"") REFERENCES transfer_requests (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_TransferId"" ON transfer_notifications (""TransferId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_Audience"" ON transfer_notifications (""Audience"");
+                    CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_RecipientUserId"" ON transfer_notifications (""RecipientUserId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_IsRead"" ON transfer_notifications (""IsRead"");
+                    CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_CreatedAt"" ON transfer_notifications (""CreatedAt"");
+                ");
+            }
+
             if (!await context.Facilities.AnyAsync())
             {
                 logger.LogInformation("Seeding initial facilities, medicines, and inventories...");

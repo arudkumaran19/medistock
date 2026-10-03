@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medistock_mobile/features/redistribution/models/transfer_models.dart';
-import 'package:medistock_mobile/features/redistribution/screens/create_transfer_screen.dart';
 import 'package:medistock_mobile/features/redistribution/screens/receive_transfer_screen.dart';
 import 'package:medistock_mobile/features/redistribution/screens/transfer_details_screen.dart';
 import 'package:medistock_mobile/features/redistribution/screens/transfer_list_screen.dart';
@@ -152,7 +151,7 @@ void main() {
         sourceFacilityName: 'Karapitiya Hospital',
         destinationFacilityId: 'f-dest',
         destinationFacilityName: 'Teaching Hospital Kandy',
-        status: 'Requested',
+        status: 'Approved',
         priority: 'Routine',
         estimatedDistanceKm: 180.0,
         estimatedDurationMinutes: 240.0,
@@ -209,10 +208,9 @@ void main() {
       expect(find.text('TR-2026-0001'), findsOneWidget);
       expect(find.text('TR-2026-0002'), findsOneWidget);
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
-      expect(find.text('Declare Shortage'), findsOneWidget);
     });
 
-    testWidgets('CreateTransferScreen validates quantity and declares field shortage',
+    testWidgets('TransferDetailsScreen allows Field Officer to navigate to Confirm Delivery',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
@@ -223,30 +221,24 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: CreateTransferScreen(apiService: fakeApi),
+          home: TransferDetailsScreen(
+            transferId: 't-1',
+            apiService: fakeApi,
+            initialTransfer: mockTransfers.first,
+          ),
         ),
       );
 
-      expect(find.text('Declare Field Shortage'), findsOneWidget);
-      expect(find.text('Requested Quantity (Doses/Packs)'), findsOneWidget);
-
-      // Find the quantity field and enter 350
-      final quantityFinder = find.byType(TextFormField).first;
-      await tester.enterText(quantityFinder, '350');
-
-      // Select Emergency Urgency
-      await tester.tap(find.text('Emergency'));
       await tester.pumpAndSettle();
 
-      // Tap submit button
-      final submitFinder = find.text('Initiate Redistribution Request');
-      await tester.ensureVisible(submitFinder);
-      await tester.tap(submitFinder);
+      final confirmBtn = find.text('Confirm Delivery');
+      expect(confirmBtn, findsOneWidget);
+      await tester.ensureVisible(confirmBtn);
+      await tester.tap(confirmBtn);
       await tester.pumpAndSettle();
 
-      // Verify a new transfer was created in fakeApi
-      expect(fakeApi.transfersList.length, 3);
-      expect(fakeApi.transfersList.last.priority, 'Emergency');
+      expect(find.byType(ReceiveTransferScreen), findsOneWidget);
+      expect(find.text('Confirm Delivery & Verification'), findsOneWidget);
     });
 
     testWidgets('TransferDetailsScreen renders item specs, pipeline, and facilities',
@@ -266,7 +258,7 @@ void main() {
       expect(find.text('TR-2026-0001'), findsOneWidget);
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
       expect(find.text('Batch: BAT-2026-01'), findsOneWidget);
-      expect(find.text('Verify & Receive Delivery'), findsOneWidget);
+      expect(find.text('Confirm Delivery'), findsOneWidget);
       expect(find.text('Track Road Transit & Waypoints'), findsOneWidget);
     });
 
@@ -304,7 +296,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Receive Delivery & Verification'), findsOneWidget);
+      expect(find.text('Confirm Delivery & Verification'), findsOneWidget);
       expect(find.text('Physical Count Received'), findsOneWidget);
       expect(find.text('Physical Batch / Lot Number'), findsOneWidget);
 

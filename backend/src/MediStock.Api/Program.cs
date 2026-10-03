@@ -37,11 +37,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
+
+// Real-time Push via SignalR
+builder.Services.AddSignalR();
 
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -70,6 +74,7 @@ builder.Services.AddHttpClient<IAgentGateway, AgentGateway>(client =>
 builder.Services.AddSingleton<MediStock.Api.Features.Redistribution.Validators.TransferValidator>();
 
 // Feature Services
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ITransferNotificationService, MediStock.Api.Features.Redistribution.Services.TransferNotificationService>();
 builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ICandidateFacilityService, MediStock.Api.Features.Redistribution.Services.CandidateFacilityService>();
 builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ITransferService, MediStock.Api.Features.Redistribution.Services.TransferService>();
 builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IWorkflowStateService, MediStock.Api.Features.Workflow.Services.WorkflowStateService>();
@@ -95,6 +100,7 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 
 app.MapControllers();
+app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers");
 
 // Ensure DB schema and seed initial data
 using (var scope = app.Services.CreateScope())

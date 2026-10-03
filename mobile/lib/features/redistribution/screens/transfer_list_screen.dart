@@ -1,14 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../models/transfer_models.dart';
 import '../services/transfer_api_service.dart';
-import 'create_transfer_screen.dart';
+import '../services/transfer_signalr_service.dart';
 import 'transfer_details_screen.dart';
+import 'notification_inbox_screen.dart';
 
 class TransferListScreen extends StatefulWidget {
   final TransferApiService? apiService;
+  final TransferSignalRService? signalRService;
 
-  const TransferListScreen({super.key, this.apiService});
+  const TransferListScreen({
+    super.key,
+    this.apiService,
+    this.signalRService,
+  });
 
   @override
   State<TransferListScreen> createState() => _TransferListScreenState();
@@ -16,16 +23,20 @@ class TransferListScreen extends StatefulWidget {
 
 class _TransferListScreenState extends State<TransferListScreen> {
   late final TransferApiService _apiService;
+  TransferSignalRService? _signalRService;
+  StreamSubscription<TransferNotificationItem>? _notifSub;
+
   List<Transfer> _transfers = [];
   bool _isLoading = true;
   String? _errorMessage;
   String _selectedStatusFilter = 'ALL';
   String _searchQuery = '';
+  int _unreadNotifCount = 0;
 
   final List<String> _filters = [
     'ALL',
-    'Requested',
     'Approved',
+    'Reserved',
     'InTransit',
     'Delivered',
   ];
@@ -34,7 +45,104 @@ class _TransferListScreenState extends State<TransferListScreen> {
   void initState() {
     super.initState();
     _apiService = widget.apiService ?? TransferApiService();
+    _signalRService = widget.signalRService;
     _fetchTransfers();
+    _fetchUnreadNotificationsCount();
+    _initSignalRNotificationListener();
+  }
+
+  void _initSignalRNotificationListener() {
+    if (_signalRService != null) {
+      _notifSub = _signalRService!.onNotificationCreated.listen((notif) {
+        if (mounted) {
+          setState(() {
+            _unreadNotifCount++;
+          });
+          _showNotificationBanner(notif);
+        }
+      });
+    }
+  }
+
+  void _showNotificationBanner(TransferNotificationItem notif) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.surface,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColors.secondary, width: 1.5),
+        ),
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_active_rounded,
+                color: AppColors.secondary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notif.title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    notif.message,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'View',
+          textColor: AppColors.secondary,
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => NotificationInboxScreen(
+                  apiService: _apiService,
+                  signalRService: _signalRService,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fetchUnreadNotificationsCount() async {
+    try {
+      final items = await _apiService.getNotifications(
+        audience: 'FieldOfficer',
+        unreadOnly: true,
+      );
+      if (mounted) {
+        setState(() {
+          _unreadNotifCount = items.length;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchTransfers() async {
@@ -49,7 +157,15 @@ class _TransferListScreenState extends State<TransferListScreen> {
       );
       if (mounted) {
         setState(() {
-          _transfers = data;
+          // Field Officer view: shows transfers once Approved or Reserved (ready for pickup) or further
+          if (_selectedStatusFilter == 'ALL') {
+            _transfers = data.where((t) {
+              final s = t.status.toLowerCase();
+              return s == 'approved' || s == 'reserved' || s == 'intransit' || s == 'delivered';
+            }).toList();
+          } else {
+            _transfers = data;
+          }
           _isLoading = false;
         });
       }
@@ -87,29 +203,53 @@ class _TransferListScreenState extends State<TransferListScreen> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => NotificationInboxScreen(
+                        apiService: _apiService,
+                        signalRService: _signalRService,
+                      ),
+                    ),
+                  );
+                  _fetchUnreadNotificationsCount();
+                },
+              ),
+              if (_unreadNotifCount > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.statusRejected,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '$_unreadNotifCount',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _fetchTransfers,
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CreateTransferScreen(apiService: _apiService),
-            ),
-          );
-          if (result == true) {
-            _fetchTransfers();
-          }
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text(
-          'Declare Shortage',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
       ),
       body: Column(
         children: [

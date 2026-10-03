@@ -155,4 +155,75 @@ class TransferApiService {
       message: 'Failed to load route transit details.',
     );
   }
+
+  // 7. POST /api/transfers/{id}/location (Post live GPS coordinates during InTransit)
+  Future<Transfer> updateLocation({
+    required String transferId,
+    required double latitude,
+    required double longitude,
+    double? speed,
+    double? heading,
+    DateTime? timestamp,
+  }) async {
+    final payload = {
+      'latitude': latitude,
+      'longitude': longitude,
+      if (speed != null) 'speed': speed,
+      if (heading != null) 'heading': heading,
+      'timestamp': (timestamp ?? DateTime.now().toUtc()).toIso8601String(),
+    };
+
+    final response =
+        await _apiClient.post('/api/transfers/$transferId/location', body: payload);
+    if (response is Map<String, dynamic>) {
+      return Transfer.fromJson(response);
+    }
+    throw ApiException(
+      statusCode: 500,
+      message: 'Failed to update transfer location.',
+    );
+  }
+
+  // 8. GET /api/notifications
+  Future<List<TransferNotificationItem>> getNotifications({
+    String? audience,
+    String? transferId,
+    bool unreadOnly = false,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'page': page,
+      'pageSize': pageSize,
+      'unreadOnly': unreadOnly,
+    };
+    if (audience != null && audience.isNotEmpty) {
+      queryParams['audience'] = audience;
+    }
+    if (transferId != null && transferId.isNotEmpty) {
+      queryParams['transferId'] = transferId;
+    }
+
+    final response =
+        await _apiClient.get('/api/notifications', queryParameters: queryParams);
+    if (response is List) {
+      return response
+          .map((item) => TransferNotificationItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  // 9. POST /api/notifications/{id}/read
+  Future<void> markNotificationAsRead(String id) async {
+    await _apiClient.post('/api/notifications/$id/read');
+  }
+
+  // 10. POST /api/notifications/read-all
+  Future<void> markAllNotificationsAsRead({String? audience}) async {
+    final path = (audience != null && audience.isNotEmpty)
+        ? '/api/notifications/read-all?audience=$audience'
+        : '/api/notifications/read-all';
+    await _apiClient.post(path);
+  }
 }

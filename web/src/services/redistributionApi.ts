@@ -6,6 +6,7 @@ import {
   ReserveStockRequest,
   RouteDetailsDto,
   TransferDto,
+  TransferNotificationDto,
 } from '../types/redistribution';
 
 export interface TransferFilterParams {
@@ -73,6 +74,10 @@ function normalizeRoute(r: any): RouteDetailsDto {
     sourceFacilityName: raw.sourceFacilityName || '',
     destinationFacilityId: raw.destinationFacilityId || '',
     destinationFacilityName: raw.destinationFacilityName || '',
+    sourceLatitude: raw.sourceLatitude,
+    sourceLongitude: raw.sourceLongitude,
+    destinationLatitude: raw.destinationLatitude,
+    destinationLongitude: raw.destinationLongitude,
     distanceKm: raw.distanceKm ?? 0,
     durationMinutes: raw.durationMinutes ?? raw.estimatedDurationMinutes ?? 0,
     provider: raw.provider || raw.routingProvider || 'HaversineFallback',
@@ -178,5 +183,45 @@ export const redistributionApi = {
   getRoute: async (id: string): Promise<RouteDetailsDto> => {
     const res = await apiClient.get<any>(`/api/transfers/${id}/route`);
     return normalizeRoute(res);
+  },
+
+  // 9. GET /api/notifications
+  getNotifications: async (params?: {
+    audience?: string;
+    transferId?: string;
+    unreadOnly?: boolean;
+    page?: number;
+    pageSize?: number;
+  }): Promise<TransferNotificationDto[]> => {
+    const query = new URLSearchParams();
+    if (params?.audience) query.append('audience', params.audience);
+    if (params?.transferId) query.append('transferId', params.transferId);
+    if (params?.unreadOnly !== undefined) query.append('unreadOnly', String(params.unreadOnly));
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.pageSize) query.append('pageSize', String(params.pageSize));
+
+    const qs = query.toString();
+    const url = `/api/notifications${qs ? `?${qs}` : ''}`;
+    const res = await apiClient.get<any>(url);
+    if (res && Array.isArray(res.items)) {
+      return res.items;
+    }
+    if (Array.isArray(res)) {
+      return res;
+    }
+    return [];
+  },
+
+  // 10. POST /api/notifications/{id}/read
+  markNotificationAsRead: async (id: string): Promise<TransferNotificationDto> => {
+    const res = await apiClient.post<any>(`/api/notifications/${id}/read`, {});
+    return res?.data ?? res;
+  },
+
+  // 11. POST /api/notifications/read-all
+  markAllNotificationsAsRead: async (audience?: string): Promise<number> => {
+    const qs = audience ? `?audience=${encodeURIComponent(audience)}` : '';
+    const res = await apiClient.post<any>(`/api/notifications/read-all${qs}`, {});
+    return res?.data ?? 0;
   },
 };

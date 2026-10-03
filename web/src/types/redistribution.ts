@@ -30,8 +30,10 @@ export interface TransferDto {
   medicineId: string;
   medicineName: string;
   medicineBatchNumber: string;
+  medicineExpiryDate?: string;
   requestedQuantity: number;
   allocatedQuantity: number;
+  receivedQuantity?: number;
   status: TransferStatus;
   priority: TransferPriority;
   distanceKm: number;
@@ -43,6 +45,11 @@ export interface TransferDto {
   dispatchedAt: string | null;
   deliveredAt: string | null;
   workflowRunId?: string | null;
+  routePolyline?: string | null;
+  routingProvider?: string | null;
+  lastLatitude?: number | null;
+  lastLongitude?: number | null;
+  lastLocationAt?: string | null;
   items?: Array<{
     id?: string;
     medicineId: string;
@@ -54,6 +61,15 @@ export interface TransferDto {
     batchNumber?: string | null;
   }>;
   statusHistories?: TransferStatusHistoryDto[];
+}
+
+export interface TransferLocationUpdate {
+  transferId: string;
+  latitude: number;
+  longitude: number;
+  speed?: number | null;
+  heading?: number | null;
+  timestamp: string;
 }
 
 export interface CandidateFacilityDto {
@@ -83,6 +99,10 @@ export interface RouteDetailsDto {
   sourceFacilityName: string;
   destinationFacilityId: string;
   destinationFacilityName: string;
+  sourceLatitude?: number;
+  sourceLongitude?: number;
+  destinationLatitude?: number;
+  destinationLongitude?: number;
   distanceKm: number;
   durationMinutes: number;
   provider: string;
@@ -115,4 +135,15 @@ export interface ReceiveTransferRequest {
   destinationFacilityId: string;
   discrepancyReason?: string;
   notes?: string;
+}
+
+export interface TransferNotificationDto {
+  id: string;
+  transferId: string;
+  audience: string;
+  recipientUserId?: string | null;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 }

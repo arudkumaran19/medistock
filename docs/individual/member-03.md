@@ -62,11 +62,10 @@ MediStock Redistribution serves central directors and hospital field staff in ba
 ### Step 5: Flutter Field / Operational Mobile Application
 - **Path:** `mobile/lib/features/redistribution/`
 - **Modules Built:**
-  - `CreateTransferScreen` - Field shortage declaration and immediate request initiation.
-  - `TransferDetailsScreen` - Operational line items breakdown, batch lot details, and lifecycle tracking.
-  - `TransferTrackingScreen` - Road transit duration, distance in km, and waypoint milestones.
+  - `TransferListScreen` - Operational list with real-time status chips and operational status filtering (`Approved`, `Reserved`, `InTransit`, `Delivered`).
+  - `TransferDetailsScreen` - Operational line items breakdown, batch lot details, lifecycle tracking, Confirm Pickup, and Confirm Delivery actions.
+  - `TransferTrackingScreen` - Road transit duration, distance in km, waypoint milestones, and real-time GPS streaming.
   - `ReceiveTransferScreen` - Physical receipt verification, batch barcode validation, and automated discrepancy logging.
-  - `TransferListScreen` - Operational list with real-time status chips and search.
 
 ---
 

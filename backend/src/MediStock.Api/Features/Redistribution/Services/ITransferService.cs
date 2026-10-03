@@ -45,4 +45,6 @@ public interface ITransferService
     Task<ApiResponse<TransferResponse>> ProposeCandidateInternalAsync(Guid transferId, Guid sourceFacilityId, Guid userId, CancellationToken ct = default);
 
     Task AttachWorkflowRunInternalAsync(Guid transferId, Guid workflowRunId, CancellationToken ct = default);
+
+    Task<ApiResponse<TransferResponse>> UpdateTransferLocationAsync(Guid transferId, UpdateTransferLocationRequest request, CancellationToken ct = default);
 }

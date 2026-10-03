@@ -20,6 +20,7 @@ public class MediStockDbContext : DbContext
     public DbSet<TransferRequest> TransferRequests => Set<TransferRequest>();
     public DbSet<TransferItem> TransferItems => Set<TransferItem>();
     public DbSet<TransferStatusHistory> TransferStatusHistories => Set<TransferStatusHistory>();
+    public DbSet<TransferNotification> TransferNotifications => Set<TransferNotification>();
 
     // Workflow Entities
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
@@ -97,6 +98,9 @@ public class MediStockDbContext : DbContext
             entity.Property(e => e.EstimatedDistanceKm).HasPrecision(10, 2);
             entity.Property(e => e.EstimatedDurationMinutes).HasPrecision(10, 2);
             entity.Property(e => e.RoutingProvider).HasMaxLength(50);
+            entity.Property(e => e.LastLatitude);
+            entity.Property(e => e.LastLongitude);
+            entity.Property(e => e.LastLocationAt);
 
             entity.HasOne(e => e.SourceFacility)
                 .WithMany()
@@ -153,6 +157,30 @@ public class MediStockDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.TransferRequestId, e.ChangedAt });
+        });
+
+        // TransferNotification
+        modelBuilder.Entity<TransferNotification>(entity =>
+        {
+            entity.ToTable("transfer_notifications");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Audience).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt);
+
+            entity.HasOne(e => e.TransferRequest)
+                .WithMany()
+                .HasForeignKey(e => e.TransferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.TransferId);
+            entity.HasIndex(e => e.Audience);
+            entity.HasIndex(e => e.RecipientUserId);
+            entity.HasIndex(e => e.IsRead);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         // WorkflowRun

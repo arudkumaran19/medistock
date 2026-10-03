@@ -4,12 +4,14 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../models/transfer_models.dart';
 import '../services/transfer_api_service.dart';
+import '../services/transfer_signalr_service.dart';
 import 'receive_transfer_screen.dart';
 import 'transfer_tracking_screen.dart';
 
 class TransferDetailsScreen extends StatefulWidget {
   final String transferId;
   final TransferApiService? apiService;
+  final TransferSignalRService? signalRService;
   final Transfer? initialTransfer;
   final bool enablePolling;
 
@@ -17,6 +19,7 @@ class TransferDetailsScreen extends StatefulWidget {
     super.key,
     required this.transferId,
     this.apiService,
+    this.signalRService,
     this.initialTransfer,
     this.enablePolling = true,
   });
@@ -27,6 +30,10 @@ class TransferDetailsScreen extends StatefulWidget {
 
 class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
   late final TransferApiService _apiService;
+  TransferSignalRService? _signalRService;
+  StreamSubscription<Transfer>? _signalRSubscription;
+  StreamSubscription<bool>? _signalRStateSubscription;
+  bool _isSignalRConnected = false;
   Transfer? _transfer;
   bool _isLoading = true;
   String? _errorMessage;
@@ -35,6 +42,7 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
   static const List<String> _pipelineSteps = [
     'Draft',
     'Requested',
+    'Proposed',
     'Approved',
     'Reserved',
     'InTransit',
@@ -45,20 +53,44 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
   void initState() {
     super.initState();
     _apiService = widget.apiService ?? TransferApiService();
+
     if (widget.initialTransfer != null) {
       _transfer = widget.initialTransfer;
       _isLoading = false;
     } else {
       _loadTransfer();
     }
+
+    _initSignalR();
+
     if (widget.enablePolling) {
       _startPolling();
     }
   }
 
+  void _initSignalR() {
+    _signalRService = widget.signalRService ?? TransferSignalRService();
+    _signalRSubscription = _signalRService!.onTransferStatusChanged.listen((updated) {
+      if (mounted && updated.id == widget.transferId) {
+        setState(() {
+          _transfer = updated;
+        });
+      }
+    });
+    _signalRStateSubscription = _signalRService!.onConnectionStateChanged.listen((connected) {
+      if (mounted) {
+        setState(() {
+          _isSignalRConnected = connected;
+        });
+      }
+    });
+    _signalRService!.initAndConnect(transferId: widget.transferId);
+  }
+
   void _startPolling() {
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted) {
+      // Keep polling only as a fallback when the socket is disconnected
+      if (mounted && !_isSignalRConnected) {
         _loadTransfer(silent: true);
       }
     });
@@ -67,6 +99,9 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _signalRSubscription?.cancel();
+    _signalRStateSubscription?.cancel();
+    _signalRService?.disconnect();
     super.dispose();
   }
 
@@ -289,7 +324,42 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildStatusBadge(_transfer!.status),
+                                    Row(
+                                      children: [
+                                        _buildStatusBadge(_transfer!.status),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _isSignalRConnected ? AppColors.primary.withOpacity(0.15) : Colors.amber.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: _isSignalRConnected ? AppColors.primary.withOpacity(0.4) : Colors.amber.withOpacity(0.4)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: BoxDecoration(
+                                                  color: _isSignalRConnected ? AppColors.primary : Colors.amber,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _isSignalRConnected ? 'LIVE' : 'POLLING',
+                                                style: TextStyle(
+                                                  color: _isSignalRConnected ? AppColors.primary : Colors.amber,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                     _buildPriorityBadge(_transfer!.priority),
                                   ],
                                 ),
@@ -472,28 +542,16 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
 
                           const SizedBox(height: 24),
 
-                          if (_transfer!.status.toLowerCase() == 'draft')
+                          if (_transfer!.status.toLowerCase() == 'reserved' ||
+                              _transfer!.status.toLowerCase() == 'approved') ...[
                             ElevatedButton.icon(
                               onPressed: () async {
-                                await _apiService.submitTransferRequest(_transfer!.id);
-                                _loadTransfer();
-                              },
-                              icon: const Icon(Icons.send_rounded, size: 18),
-                              label: const Text('Submit Formal Request'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                            ),
-
-                          if (_transfer!.status.toLowerCase() == 'reserved') ...[
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                await _apiService.dispatchTransfer(_transfer!.id, notes: 'Consignment dispatched from facility.');
+                                // TODO: enforce roles after auth merge (pickup: field officer)
+                                await _apiService.dispatchTransfer(_transfer!.id, notes: 'Consignment confirmed pickup by field officer.');
                                 _loadTransfer();
                               },
                               icon: const Icon(Icons.local_shipping_rounded, size: 18),
-                              label: const Text('Dispatch Consignment'),
+                              label: const Text('Confirm Pickup'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -505,6 +563,7 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                           if (_transfer!.status.toLowerCase() == 'intransit') ...[
                             ElevatedButton.icon(
                               onPressed: () async {
+                                // TODO: enforce roles after auth merge (delivery: field officer)
                                 final received = await Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => ReceiveTransferScreen(
@@ -516,7 +575,7 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                 if (received == true) _loadTransfer();
                               },
                               icon: const Icon(Icons.inventory_rounded, size: 18),
-                              label: const Text('Verify & Receive Delivery'),
+                              label: const Text('Confirm Delivery'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 padding: const EdgeInsets.symmetric(vertical: 14),

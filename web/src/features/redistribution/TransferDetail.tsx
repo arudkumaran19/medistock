@@ -10,6 +10,7 @@ import {
   Compass,
   FileText,
   MapPin,
+  Navigation,
   Package,
   Route,
   ShieldCheck,
@@ -19,17 +20,19 @@ import {
 } from 'lucide-react';
 import { redistributionApi } from '../../services/redistributionApi';
 import { workflowApi } from '../../services/workflowApi';
-import { TransferDto, TransferStatus } from '../../types/redistribution';
+import { RouteDetailsDto, TransferDto, TransferStatus } from '../../types/redistribution';
 import { WorkflowRunDto } from '../../types/workflow';
 import { PriorityBadge, StatusBadge } from '../../components/StatusBadge';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorState } from '../../components/ErrorState';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useTransferSignalR } from './useTransferSignalR';
+import { TransferLiveMap } from './TransferLiveMap';
 
 const STATUS_PIPELINE: TransferStatus[] = [
   'Draft',
-  'Proposed',
   'Requested',
+  'Proposed',
   'Approved',
   'Reserved',
   'InTransit',
@@ -41,6 +44,7 @@ export const TransferDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [transfer, setTransfer] = useState<TransferDto | null>(null);
+  const [routeData, setRouteData] = useState<RouteDetailsDto | null>(null);
   const [workflowRun, setWorkflowRun] = useState<WorkflowRunDto | null>(null);
   const [decisionNotes, setDecisionNotes] = useState('');
   const [loading, setLoading] = useState(true);
@@ -62,10 +66,10 @@ export const TransferDetail: React.FC = () => {
     action: async () => {},
   });
 
-  const fetchTransfer = async () => {
+  const fetchTransfer = async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const data = await redistributionApi.getTransferById(id);
       setTransfer(data);
@@ -79,16 +83,54 @@ export const TransferDetail: React.FC = () => {
       } else {
         setWorkflowRun(null);
       }
+
+      if (data.sourceFacilityId) {
+        try {
+          const route = await redistributionApi.getRoute(id);
+          setRouteData(route);
+        } catch (e) {
+          console.warn('Could not fetch route details:', e);
+        }
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch transfer details.');
+      if (!silent) setError(err.message || 'Failed to fetch transfer details.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchTransfer();
   }, [id]);
+
+  // Real-time Push via SignalR with polling fallback
+  const { isConnected } = useTransferSignalR({
+    transferId: id,
+    isManager: true,
+    onStatusChanged: (updatedTransfer) => {
+      setTransfer(updatedTransfer);
+    },
+    onLocationUpdated: (location) => {
+      setTransfer((prev) => {
+        if (!prev || prev.id !== location.transferId) return prev;
+        return {
+          ...prev,
+          lastLatitude: location.latitude,
+          lastLongitude: location.longitude,
+          lastLocationAt: location.timestamp,
+        };
+      });
+    },
+  });
+
+  // Polling fallback only when SignalR socket is disconnected
+  useEffect(() => {
+    if (isConnected) return;
+    const interval = setInterval(() => {
+      fetchTransfer(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [id, isConnected]);
 
   const handleReserveStock = () => {
     if (!transfer) return;
@@ -248,16 +290,8 @@ export const TransferDetail: React.FC = () => {
   if (error || !transfer) return <ErrorState message={error || 'Transfer not found.'} onRetry={fetchTransfer} />;
 
   const currentStepIndex = STATUS_PIPELINE.indexOf(transfer.status);
-  const isAwaitingApproval =
-    (transfer.status === 'Requested' || workflowRun?.status === 'WaitingForApproval') &&
-    transfer.status !== 'Draft' &&
-    transfer.status !== 'Proposed' &&
-    transfer.status !== 'Approved' &&
-    transfer.status !== 'Reserved' &&
-    transfer.status !== 'InTransit' &&
-    transfer.status !== 'Delivered' &&
-    transfer.status !== 'Rejected' &&
-    transfer.status !== 'Cancelled';
+  // Manager Approve/Reject in React only when Proposed per ADR and workflow specification
+  const isAwaitingApproval = transfer.status === 'Proposed';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -279,6 +313,30 @@ export const TransferDetail: React.FC = () => {
               </h1>
               <StatusBadge status={transfer.status} />
               <PriorityBadge priority={transfer.priority} />
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '3px 9px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: isConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                  color: isConnected ? 'var(--color-emerald)' : 'var(--color-amber)',
+                  border: isConnected ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isConnected ? 'var(--color-emerald)' : 'var(--color-amber)',
+                  }}
+                />
+                {isConnected ? 'SignalR Live' : 'Polling (Fallback)'}
+              </span>
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '2px' }}>
               ID: <span style={{ fontFamily: 'monospace' }}>{transfer.id}</span>
@@ -304,8 +362,8 @@ export const TransferDetail: React.FC = () => {
             Road Route
           </button>
 
-          {/* Draft or Proposed: read-only note (field officer submits via Flutter mobile app per ADR-008) */}
-          {(transfer.status === 'Draft' || transfer.status === 'Proposed') && (
+          {/* Draft: read-only note (field officer submits via Flutter mobile app per ADR-008) */}
+          {transfer.status === 'Draft' && (
             <div
               style={{
                 display: 'inline-flex',
@@ -322,6 +380,27 @@ export const TransferDetail: React.FC = () => {
             >
               <Clock size={15} />
               <span>Waiting for field officer to submit the request</span>
+            </div>
+          )}
+
+          {/* Requested: AI planning agent in progress */}
+          {transfer.status === 'Requested' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                color: 'var(--color-primary)',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+              }}
+            >
+              <Clock size={15} />
+              <span>AI planning agent in progress</span>
             </div>
           )}
 
@@ -519,6 +598,36 @@ export const TransferDetail: React.FC = () => {
               </div>
             </div>
 
+            {transfer.lastLatitude != null && (
+              <div
+                style={{
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '4px',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                    Live Field Officer GPS
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '2px', fontFamily: 'monospace' }}>
+                    {transfer.lastLatitude.toFixed(5)}, {transfer.lastLongitude?.toFixed(5)}
+                  </div>
+                </div>
+                {transfer.lastLocationAt && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {new Date(transfer.lastLocationAt).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <span style={{ color: 'var(--text-muted)' }}>Request Notes:</span>
               <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
@@ -528,6 +637,56 @@ export const TransferDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Live Operational Map & Transit Tracking (OpenStreetMap) */}
+      {transfer.sourceFacilityId && (
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Navigation size={20} color="var(--color-primary)" />
+              <h3 style={{ fontSize: '1.1rem' }}>Live Operational Transit Map (OpenStreetMap)</h3>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Routing Engine:</span>
+              <span
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  padding: '3px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  color: 'var(--color-primary)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                }}
+              >
+                {routeData?.provider || transfer.routingProvider || 'OpenRouteService'}
+              </span>
+            </div>
+          </div>
+
+          <TransferLiveMap
+            sourceFacilityName={transfer.sourceFacilityName || 'Source Depot'}
+            sourceCoords={[
+              routeData?.sourceLatitude ?? 6.9175,
+              routeData?.sourceLongitude ?? 79.8653,
+            ]}
+            destinationFacilityName={transfer.destinationFacilityName || 'Destination Hospital'}
+            destinationCoords={[
+              routeData?.destinationLatitude ?? 7.2882,
+              routeData?.destinationLongitude ?? 80.6278,
+            ]}
+            vehicleCoords={
+              transfer.lastLatitude != null && transfer.lastLongitude != null
+                ? [transfer.lastLatitude, transfer.lastLongitude]
+                : null
+            }
+            waypoints={routeData?.waypoints || []}
+            distanceKm={transfer.distanceKm || routeData?.distanceKm}
+            durationMinutes={transfer.estimatedDurationMinutes || routeData?.durationMinutes}
+            status={transfer.status}
+          />
+        </div>
+      )}
 
       {/* Workflow Plan & Management Decision Section */}
       <div className="glass-panel" style={{ padding: '24px' }}>
@@ -728,8 +887,8 @@ export const TransferDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Read-only note for Draft/Proposed awaiting field officer submission */}
-          {(transfer.status === 'Draft' || transfer.status === 'Proposed') && (
+          {/* Read-only notes for earlier lifecycle stages */}
+          {transfer.status === 'Draft' && (
             <div
               style={{
                 display: 'flex',
@@ -748,6 +907,30 @@ export const TransferDetail: React.FC = () => {
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                   Waiting for field officer to submit the request
+                </div>
+              </div>
+            </div>
+          )}
+
+          {transfer.status === 'Requested' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px 18px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+              }}
+            >
+              <Clock size={20} color="var(--color-primary)" />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                  AI Planning Agent in Progress
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Shortage request received. AI agent is evaluating surplus facilities and calculating optimal route.
                 </div>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   Layers,
   ShieldCheck,
 } from 'lucide-react';
+import { NotificationBell } from '../features/redistribution/NotificationBell';
 
 export const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -183,6 +184,8 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <NotificationBell />
+
             <div
               style={{
                 display: 'flex',

@@ -22,13 +22,13 @@ We enforce a strict separation of client responsibilities across two frontend pl
 - **Authority:** Approves and rejects proposed transfer plans via `/api/workflow/runs/{id}/approve` and `/api/workflow/runs/{id}/reject`.
 
 ### 2. Flutter Mobile Application (`mobile/lib/features/redistribution/`)
-- **Target Persona:** Pharmacy Technicians, Storekeepers, Logistics Drivers.
+- **Target Persona:** Field Officers (Logistics Drivers & Couriers).
 - **Key Modules:**
-  - `CreateTransferScreen`: Quick field shortage declaration and transfer initiation.
-  - `TransferDetailsScreen`: Operational details with item lists and status badges.
-  - `TransferTrackingScreen`: Live transit timeline with route waypoints.
+  - `TransferListScreen`: Operational transfer list with real-time status chips and operational status filtering (`Approved`, `Reserved`, `InTransit`, `Delivered`).
+  - `TransferDetailsScreen`: Operational hub with item lists, Confirm Pickup, Confirm Delivery, and route metrics.
+  - `TransferTrackingScreen`: Live transit timeline with route waypoints and real-time GPS tracking.
   - `ReceiveTransferScreen`: Delivery verification, batch receipt confirmation, and discrepancy logging.
-- **Authority:** Initiates shortage requests, locks inventory on dispatch, and marks delivery receipts via `/api/transfers/{id}/receive`.
+- **Authority:** Picks up consignment from depot (`Confirm Pickup`), shares live GPS location during transit, and marks delivery receipts via `/api/transfers/{id}/receive`. Shortage declaration enters upstream from external vertical.
 
 ## Consequences
 - **Positive:** UI/UX is deeply tailored to each user's context of use.

@@ -141,7 +141,7 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
-          'Receive Delivery & Verification',
+          'Confirm Delivery & Verification',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
         backgroundColor: AppColors.surface,

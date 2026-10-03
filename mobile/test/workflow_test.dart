@@ -16,7 +16,7 @@ class WorkflowMockApiService extends TransferApiService {
         sourceFacilityName: 'National Hospital Colombo',
         destinationFacilityId: 'f-kandy',
         destinationFacilityName: 'Teaching Hospital Kandy',
-        status: 'InTransit',
+        status: 'Reserved',
         priority: 'Urgent',
         estimatedDistanceKm: 115.5,
         estimatedDurationMinutes: 154.0,
@@ -54,40 +54,12 @@ class WorkflowMockApiService extends TransferApiService {
   }
 
   @override
-  Future<Transfer> createTransfer({
-    required String destinationFacilityId,
-    required String medicineId,
-    required int requestedQuantity,
-    required String priority,
-    String? sourceFacilityId,
+  Future<Transfer> dispatchTransfer(
+    String id, {
     String? notes,
+    String? carrierName,
+    String? trackingNumber,
   }) async {
-    final item = Transfer(
-      id: 'flow-transfer-002',
-      transferNumber: 'TR-FLOW-002',
-      sourceFacilityId: sourceFacilityId,
-      sourceFacilityName: 'National Hospital Colombo',
-      destinationFacilityId: destinationFacilityId,
-      destinationFacilityName: 'Teaching Hospital Kandy',
-      status: 'Requested',
-      priority: priority,
-      createdAt: DateTime.now(),
-      items: [
-        TransferItem(
-          id: 'item-flow-2',
-          medicineId: medicineId,
-          medicineName: 'Ceftriaxone 1g Injection Vials',
-          requestedQuantity: requestedQuantity,
-          allocatedQuantity: requestedQuantity,
-        ),
-      ],
-    );
-    database.add(item);
-    return item;
-  }
-
-  @override
-  Future<Transfer> submitTransferRequest(String id, {String? notes}) async {
     final idx = database.indexWhere((t) => t.id == id);
     if (idx != -1) {
       final old = database[idx];
@@ -98,8 +70,10 @@ class WorkflowMockApiService extends TransferApiService {
         sourceFacilityName: old.sourceFacilityName,
         destinationFacilityId: old.destinationFacilityId,
         destinationFacilityName: old.destinationFacilityName,
-        status: 'Requested',
+        status: 'InTransit',
         priority: old.priority,
+        estimatedDistanceKm: old.estimatedDistanceKm,
+        estimatedDurationMinutes: old.estimatedDurationMinutes,
         createdAt: old.createdAt,
         items: old.items,
       );
@@ -130,6 +104,8 @@ class WorkflowMockApiService extends TransferApiService {
         destinationFacilityName: old.destinationFacilityName,
         status: 'Delivered',
         priority: old.priority,
+        estimatedDistanceKm: old.estimatedDistanceKm,
+        estimatedDurationMinutes: old.estimatedDurationMinutes,
         createdAt: old.createdAt,
         receivedAt: DateTime.now(),
         items: old.items,
@@ -160,7 +136,7 @@ class WorkflowMockApiService extends TransferApiService {
 }
 
 void main() {
-  testWidgets('Full Field Operations Workflow: Declaration -> Detail -> Tracking -> Receipt',
+  testWidgets('Field Officer Operations Workflow: Pickup (Reserved -> InTransit) -> Tracking -> Delivery (InTransit -> Delivered)',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -179,7 +155,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify existing InTransit transfer is displayed
+    // Verify existing Reserved transfer is displayed in operational list
     expect(find.text('TR-FLOW-001'), findsOneWidget);
     expect(find.text('Amoxicillin 500mg'), findsOneWidget);
 
@@ -188,10 +164,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Transfer TR-FLOW-001'), findsOneWidget);
-    expect(find.text('Verify & Receive Delivery'), findsOneWidget);
+    expect(find.text('Confirm Pickup'), findsOneWidget);
+
+    // 3. Confirm Pickup (Reserved -> InTransit)
+    await tester.tap(find.text('Confirm Pickup'));
+    await tester.pumpAndSettle();
+
+    expect(mockApi.database.first.status, 'InTransit');
+    expect(find.text('Confirm Delivery'), findsOneWidget);
     expect(find.text('Track Road Transit & Waypoints'), findsOneWidget);
 
-    // 3. Open Live Transit Tracking
+    // 4. Open Live Transit Tracking
     await tester.tap(find.text('Track Road Transit & Waypoints'));
     await tester.pumpAndSettle();
 
@@ -203,11 +186,11 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    // 4. Open Delivery Receipt Verification
-    await tester.tap(find.text('Verify & Receive Delivery'));
+    // 5. Open Delivery Confirmation & Verification
+    await tester.tap(find.text('Confirm Delivery'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Receive Delivery & Verification'), findsOneWidget);
+    expect(find.text('Confirm Delivery & Verification'), findsOneWidget);
     expect(find.text('Physical Count Received'), findsOneWidget);
 
     final confirmBtn = find.text('Confirm & Finalize Delivery Receipt');

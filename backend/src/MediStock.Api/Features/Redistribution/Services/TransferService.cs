@@ -27,6 +27,7 @@ public class TransferService : ITransferService
     private readonly TransferValidator _validator;
     private readonly ILogger<TransferService> _logger;
     private readonly IServiceProvider? _serviceProvider;
+    private readonly ITransferNotificationService? _notificationService;
 
     public TransferService(
         MediStockDbContext dbContext,
@@ -34,7 +35,8 @@ public class TransferService : ITransferService
         ICandidateFacilityService candidateFacilityService,
         TransferValidator validator,
         ILogger<TransferService> logger,
-        IServiceProvider? serviceProvider = null)
+        IServiceProvider? serviceProvider = null,
+        ITransferNotificationService? notificationService = null)
     {
         _dbContext = dbContext;
         _routingService = routingService;
@@ -42,6 +44,7 @@ public class TransferService : ITransferService
         _validator = validator;
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _notificationService = notificationService;
     }
 
     private static readonly Dictionary<Guid, Guid> FacilityAliases = new()
@@ -251,7 +254,13 @@ public class TransferService : ITransferService
 
         _logger.LogInformation("Created new TransferRequest {TransferNumber} (ID: {TransferId}) in Draft status", transfer.TransferNumber, transfer.Id);
 
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer request created successfully.");
+        var createdResponse = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(createdResponse, ct);
+        }
+
+        return ApiResponse<TransferResponse>.Ok(createdResponse, "Transfer request created successfully.");
     }
 
     public async Task<ApiResponse<TransferResponse>> SubmitTransferRequestAsync(
@@ -289,6 +298,20 @@ public class TransferService : ITransferService
 
         AddStatusHistory(transfer, previousStatus, TransferStatus.Requested, userId, notes ?? "Formally submitted transfer request for approval.");
         await _dbContext.SaveChangesAsync(ct);
+
+        await CreateAndBroadcastNotificationsAsync(
+            transfer,
+            "Your request was submitted",
+            $"Your redistribution request {transfer.TransferNumber} has been submitted.",
+            "New Transfer Requested",
+            $"Redistribution request {transfer.TransferNumber} submitted for {transfer.DestinationFacility?.Name ?? "destination facility"}.",
+            ct);
+
+        // Broadcast Requested status immediately
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(MapToResponse(transfer), ct);
+        }
 
         // Auto-trigger the AI planning workflow (calling real Python LangGraph agent via AgentGateway)
         bool workflowTriggered = false;
@@ -331,6 +354,21 @@ public class TransferService : ITransferService
 
         if (!workflowTriggered)
         {
+            // Fallback: auto-propose best candidate source facility and route so transfer advances to Proposed
+            try
+            {
+                var candidates = await _candidateFacilityService.FindCandidatesForTransferAsync(transfer.Id, ct);
+                var bestCandidate = candidates.FirstOrDefault(c => c.AvailableSurplus > 0) ?? candidates.FirstOrDefault();
+                if (bestCandidate != null)
+                {
+                    await ProposeCandidateInternalAsync(transfer.Id, bestCandidate.FacilityId, userId, ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not auto-propose fallback candidate facility for transfer {TransferId}", transfer.Id);
+            }
+
             // Fallback: Ensure a linked WorkflowRun exists in WaitingForApproval state
             if (transfer.WorkflowRunId == null || transfer.WorkflowRunId == Guid.Empty)
             {
@@ -477,8 +515,21 @@ public class TransferService : ITransferService
             await _dbContext.SaveChangesAsync(ct);
             if (transaction != null) await transaction.CommitAsync(ct);
 
+            await CreateAndBroadcastNotificationsAsync(
+                transfer,
+                "Medicines reserved",
+                $"Medicines for {transfer.TransferNumber} are reserved and packed at {transfer.SourceFacility?.Name ?? "depot"}.",
+                "Stock Reserved at Depot",
+                $"Items for {transfer.TransferNumber} reserved at {transfer.SourceFacility?.Name ?? "depot"}.",
+                ct);
+
             _logger.LogInformation("Transfer {TransferNumber} successfully reserved inventory", transfer.TransferNumber);
-            return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer inventory reserved successfully.");
+            var reservedResponse = MapToResponse(transfer);
+            if (_notificationService != null)
+            {
+                await _notificationService.BroadcastStatusChangedAsync(reservedResponse, ct);
+            }
+            return ApiResponse<TransferResponse>.Ok(reservedResponse, "Transfer inventory reserved successfully.");
         }
         catch (Exception ex)
         {
@@ -533,8 +584,21 @@ public class TransferService : ITransferService
 
         await _dbContext.SaveChangesAsync(ct);
 
+        await CreateAndBroadcastNotificationsAsync(
+            transfer,
+            "Your medicines are on the way",
+            $"Field courier has picked up items for {transfer.TransferNumber} and is en route.",
+            "Transfer In Transit",
+            $"Courier is delivering {transfer.TransferNumber}.",
+            ct);
+
         _logger.LogInformation("Transfer {TransferNumber} successfully dispatched", transfer.TransferNumber);
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer successfully marked as dispatched.");
+        var dispatchedResponse = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(dispatchedResponse, ct);
+        }
+        return ApiResponse<TransferResponse>.Ok(dispatchedResponse, "Transfer successfully marked as dispatched.");
     }
 
     public async Task<ApiResponse<TransferResponse>> ReceiveTransferAsync(
@@ -624,8 +688,21 @@ public class TransferService : ITransferService
             await _dbContext.SaveChangesAsync(ct);
             if (transaction != null) await transaction.CommitAsync(ct);
 
+            await CreateAndBroadcastNotificationsAsync(
+                transfer,
+                "Medicines delivered",
+                $"Transfer {transfer.TransferNumber} has arrived and receipt was verified.",
+                "Delivery Completed",
+                $"Transfer {transfer.TransferNumber} has been delivered and received.",
+                ct);
+
             _logger.LogInformation("Transfer {TransferNumber} successfully received and verified", transfer.TransferNumber);
-            return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer received and inventory balances updated successfully.");
+            var receivedResponse = MapToResponse(transfer);
+            if (_notificationService != null)
+            {
+                await _notificationService.BroadcastStatusChangedAsync(receivedResponse, ct);
+            }
+            return ApiResponse<TransferResponse>.Ok(receivedResponse, "Transfer received and inventory balances updated successfully.");
         }
         catch (Exception ex)
         {
@@ -732,8 +809,21 @@ public class TransferService : ITransferService
 
         await _dbContext.SaveChangesAsync(ct);
 
+        await CreateAndBroadcastNotificationsAsync(
+            transfer,
+            "Transfer approved",
+            $"Your transfer request {transfer.TransferNumber} was approved by management.",
+            "Transfer Approved",
+            $"Transfer {transfer.TransferNumber} was approved.",
+            ct);
+
         _logger.LogInformation("Transfer {TransferNumber} approved internally via workflow approval", transfer.TransferNumber);
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer proposal approved successfully.");
+        var approvedResponse = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(approvedResponse, ct);
+        }
+        return ApiResponse<TransferResponse>.Ok(approvedResponse, "Transfer proposal approved successfully.");
     }
 
     public async Task<ApiResponse<TransferResponse>> RejectTransferInternalAsync(
@@ -769,8 +859,21 @@ public class TransferService : ITransferService
 
         await _dbContext.SaveChangesAsync(ct);
 
+        await CreateAndBroadcastNotificationsAsync(
+            transfer,
+            "Transfer rejected",
+            $"Your transfer request {transfer.TransferNumber} was rejected: {reason}",
+            "Transfer Rejected",
+            $"Transfer {transfer.TransferNumber} was rejected.",
+            ct);
+
         _logger.LogInformation("Transfer {TransferNumber} rejected internally via workflow approval", transfer.TransferNumber);
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Transfer proposal rejected.");
+        var rejectedResponse = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(rejectedResponse, ct);
+        }
+        return ApiResponse<TransferResponse>.Ok(rejectedResponse, "Transfer proposal rejected.");
     }
 
     public async Task<ApiResponse<TransferResponse>> ProposeCandidateInternalAsync(
@@ -827,7 +930,21 @@ public class TransferService : ITransferService
         AddStatusHistory(transfer, previousStatus, TransferStatus.Proposed, userId, $"Agent proposed source facility: {sourceFacility.Name} ({route.DistanceKm} km away).");
 
         await _dbContext.SaveChangesAsync(ct);
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Candidate proposed successfully.");
+
+        await CreateAndBroadcastNotificationsAsync(
+            transfer,
+            "Source facility proposed",
+            $"Candidate supply sources have been matched for {transfer.TransferNumber} from {sourceFacility.Name}.",
+            "Proposal Ready for Review",
+            $"Transfer request {transfer.TransferNumber} has matching supply sources proposed from {sourceFacility.Name}.",
+            ct);
+
+        var proposedResponse = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(proposedResponse, ct);
+        }
+        return ApiResponse<TransferResponse>.Ok(proposedResponse, "Candidate proposed successfully.");
     }
 
     public async Task AttachWorkflowRunInternalAsync(Guid transferId, Guid workflowRunId, CancellationToken ct = default)
@@ -892,6 +1009,9 @@ public class TransferService : ITransferService
             ApprovedByUserId = t.ApprovedByUserId,
             DispatchedAt = t.DispatchedAt,
             ReceivedAt = t.ReceivedAt,
+            LastLatitude = t.LastLatitude,
+            LastLongitude = t.LastLongitude,
+            LastLocationAt = t.LastLocationAt,
             RejectionReason = t.RejectionReason,
             Notes = t.Notes,
             WorkflowRunId = t.WorkflowRunId,
@@ -920,5 +1040,133 @@ public class TransferService : ITransferService
                 MetadataJson = h.MetadataJson
             }).ToList()
         };
+    }
+
+    public async Task<ApiResponse<TransferResponse>> UpdateTransferLocationAsync(
+        Guid transferId,
+        UpdateTransferLocationRequest request,
+        CancellationToken ct = default)
+    {
+        if (request == null)
+        {
+            return ApiResponse<TransferResponse>.Fail("Invalid location update payload.");
+        }
+
+        var transfer = await _dbContext.TransferRequests
+            .Include(t => t.SourceFacility)
+            .Include(t => t.DestinationFacility)
+            .Include(t => t.Items)
+            .Include(t => t.StatusHistory)
+            .FirstOrDefaultAsync(t => t.Id == transferId, ct);
+
+        if (transfer == null)
+        {
+            return ApiResponse<TransferResponse>.Fail($"Transfer {transferId} not found.");
+        }
+
+        // Location updates are only valid while the transfer is InTransit (or Dispatched)
+        if (transfer.Status != TransferStatus.InTransit && transfer.Status != TransferStatus.Dispatched)
+        {
+            return ApiResponse<TransferResponse>.Fail(
+                $"Cannot update location for transfer in status {transfer.Status}. Location tracking is only permitted while InTransit.");
+        }
+
+        var timestamp = request.Timestamp ?? DateTime.UtcNow;
+        transfer.LastLatitude = request.Latitude;
+        transfer.LastLongitude = request.Longitude;
+        transfer.LastLocationAt = timestamp;
+        transfer.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        var locationUpdateDto = new TransferLocationUpdateDto
+        {
+            TransferId = transfer.Id,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            Speed = request.Speed,
+            Heading = request.Heading,
+            Timestamp = timestamp
+        };
+
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastLocationUpdatedAsync(locationUpdateDto, ct);
+        }
+
+        var response = MapToResponse(transfer);
+        return ApiResponse<TransferResponse>.Ok(response, "Location updated successfully.");
+    }
+
+    private async Task CreateAndBroadcastNotificationsAsync(
+        TransferRequest transfer,
+        string fieldOfficerTitle,
+        string fieldOfficerMessage,
+        string managerTitle,
+        string managerMessage,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var fieldOfficerNotif = new TransferNotification
+            {
+                Id = Guid.NewGuid(),
+                TransferId = transfer.Id,
+                Audience = "FieldOfficer",
+                RecipientUserId = transfer.RequestedByUserId,
+                Title = fieldOfficerTitle,
+                Message = fieldOfficerMessage,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var managerNotif = new TransferNotification
+            {
+                Id = Guid.NewGuid(),
+                TransferId = transfer.Id,
+                Audience = "Manager",
+                RecipientUserId = null,
+                Title = managerTitle,
+                Message = managerMessage,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.TransferNotifications.AddRange(fieldOfficerNotif, managerNotif);
+            await _dbContext.SaveChangesAsync(ct);
+
+            if (_notificationService != null)
+            {
+                var foDto = new TransferNotificationResponse
+                {
+                    Id = fieldOfficerNotif.Id,
+                    TransferId = fieldOfficerNotif.TransferId,
+                    Audience = fieldOfficerNotif.Audience,
+                    RecipientUserId = fieldOfficerNotif.RecipientUserId,
+                    Title = fieldOfficerNotif.Title,
+                    Message = fieldOfficerMessage,
+                    IsRead = fieldOfficerNotif.IsRead,
+                    CreatedAt = fieldOfficerNotif.CreatedAt
+                };
+                await _notificationService.BroadcastNotificationCreatedAsync(foDto, ct);
+
+                var mgrDto = new TransferNotificationResponse
+                {
+                    Id = managerNotif.Id,
+                    TransferId = managerNotif.TransferId,
+                    Audience = managerNotif.Audience,
+                    RecipientUserId = managerNotif.RecipientUserId,
+                    Title = managerNotif.Title,
+                    Message = managerNotif.Message,
+                    IsRead = managerNotif.IsRead,
+                    CreatedAt = managerNotif.CreatedAt
+                };
+                await _notificationService.BroadcastNotificationCreatedAsync(mgrDto, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create/broadcast notifications for transfer {TransferId}", transfer.Id);
+        }
     }
 }

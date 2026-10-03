@@ -102,6 +102,9 @@ class Transfer {
   final DateTime createdAt;
   final DateTime? dispatchedAt;
   final DateTime? receivedAt;
+  final double? lastLatitude;
+  final double? lastLongitude;
+  final DateTime? lastLocationAt;
   final List<TransferItem> items;
   final List<TransferStatusHistory> statusHistory;
 
@@ -123,6 +126,9 @@ class Transfer {
     required this.createdAt,
     this.dispatchedAt,
     this.receivedAt,
+    this.lastLatitude,
+    this.lastLongitude,
+    this.lastLocationAt,
     required this.items,
     this.statusHistory = const [],
   });
@@ -212,8 +218,44 @@ class Transfer {
       receivedAt: json['receivedAt'] != null
           ? DateTime.tryParse(json['receivedAt'].toString())
           : null,
+      lastLatitude: (json['lastLatitude'] as num?)?.toDouble(),
+      lastLongitude: (json['lastLongitude'] as num?)?.toDouble(),
+      lastLocationAt: json['lastLocationAt'] != null
+          ? DateTime.tryParse(json['lastLocationAt'].toString())
+          : null,
       items: itemsList,
       statusHistory: historyList,
+    );
+  }
+}
+
+class TransferLocationUpdate {
+  final String transferId;
+  final double latitude;
+  final double longitude;
+  final double? speed;
+  final double? heading;
+  final DateTime timestamp;
+
+  TransferLocationUpdate({
+    required this.transferId,
+    required this.latitude,
+    required this.longitude,
+    this.speed,
+    this.heading,
+    required this.timestamp,
+  });
+
+  factory TransferLocationUpdate.fromJson(Map<String, dynamic> json) {
+    return TransferLocationUpdate(
+      transferId: json['transferId']?.toString() ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      speed: (json['speed'] as num?)?.toDouble(),
+      heading: (json['heading'] as num?)?.toDouble(),
+      timestamp: json['timestamp'] != null
+          ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }
@@ -241,8 +283,12 @@ class RouteWaypoint {
 class RouteDetails {
   final String sourceFacilityId;
   final String sourceFacilityName;
+  final double? sourceLatitude;
+  final double? sourceLongitude;
   final String destinationFacilityId;
   final String destinationFacilityName;
+  final double? destinationLatitude;
+  final double? destinationLongitude;
   final double distanceKm;
   final double durationMinutes;
   final String provider;
@@ -252,8 +298,12 @@ class RouteDetails {
   RouteDetails({
     required this.sourceFacilityId,
     required this.sourceFacilityName,
+    this.sourceLatitude,
+    this.sourceLongitude,
     required this.destinationFacilityId,
     required this.destinationFacilityName,
+    this.destinationLatitude,
+    this.destinationLongitude,
     required this.distanceKm,
     required this.durationMinutes,
     required this.provider,
@@ -276,9 +326,13 @@ class RouteDetails {
     return RouteDetails(
       sourceFacilityId: json['sourceFacilityId']?.toString() ?? '',
       sourceFacilityName: json['sourceFacilityName']?.toString() ?? 'Source Facility',
+      sourceLatitude: (json['sourceLatitude'] as num?)?.toDouble(),
+      sourceLongitude: (json['sourceLongitude'] as num?)?.toDouble(),
       destinationFacilityId: json['destinationFacilityId']?.toString() ?? '',
       destinationFacilityName:
           json['destinationFacilityName']?.toString() ?? 'Destination Facility',
+      destinationLatitude: (json['destinationLatitude'] as num?)?.toDouble(),
+      destinationLongitude: (json['destinationLongitude'] as num?)?.toDouble(),
       distanceKm: (distance is num) ? distance.toDouble() : 0.0,
       durationMinutes: (duration is num) ? duration.toDouble() : 0.0,
       provider: json['provider']?.toString() ?? 'HaversineFallback',
@@ -287,3 +341,63 @@ class RouteDetails {
     );
   }
 }
+
+class TransferNotificationItem {
+  final String id;
+  final String transferId;
+  final String audience;
+  final String? recipientUserId;
+  final String title;
+  final String message;
+  final bool isRead;
+  final DateTime createdAt;
+
+  TransferNotificationItem({
+    required this.id,
+    required this.transferId,
+    required this.audience,
+    this.recipientUserId,
+    required this.title,
+    required this.message,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory TransferNotificationItem.fromJson(Map<String, dynamic> json) {
+    return TransferNotificationItem(
+      id: json['id']?.toString() ?? '',
+      transferId: json['transferId']?.toString() ?? '',
+      audience: json['audience']?.toString() ?? '',
+      recipientUserId: json['recipientUserId']?.toString(),
+      title: json['title']?.toString() ?? '',
+      message: json['message']?.toString() ?? '',
+      isRead: json['isRead'] as bool? ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+
+  TransferNotificationItem copyWith({
+    String? id,
+    String? transferId,
+    String? audience,
+    String? recipientUserId,
+    String? title,
+    String? message,
+    bool? isRead,
+    DateTime? createdAt,
+  }) {
+    return TransferNotificationItem(
+      id: id ?? this.id,
+      transferId: transferId ?? this.transferId,
+      audience: audience ?? this.audience,
+      recipientUserId: recipientUserId ?? this.recipientUserId,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+

@@ -35,7 +35,7 @@ public class TransferControllerTests
             .ToList();
 
         // Must have expected action methods
-        actionMethods.Should().HaveCount(10, "TransferController exposes the blueprint endpoints including dispatch and propose");
+        actionMethods.Should().HaveCount(11, "TransferController exposes the blueprint endpoints including dispatch, propose, and live location");
 
         var methodNames = actionMethods.Select(m => m.Name).ToList();
         methodNames.Should().Contain(nameof(TransferController.GetTransfers));
@@ -48,10 +48,47 @@ public class TransferControllerTests
         methodNames.Should().Contain(nameof(TransferController.ReceiveTransfer));
         methodNames.Should().Contain(nameof(TransferController.GetCandidates));
         methodNames.Should().Contain(nameof(TransferController.GetRoute));
+        methodNames.Should().Contain(nameof(TransferController.UpdateLocation));
 
         // Must NOT contain Approve or Reject
         methodNames.Should().NotContain("ApproveTransfer");
         methodNames.Should().NotContain("RejectTransfer");
+    }
+
+    [Fact]
+    public async Task UpdateLocation_WhenValid_Returns200Ok()
+    {
+        // Arrange
+        var transferId = Guid.NewGuid();
+        var request = new UpdateTransferLocationRequest
+        {
+            Latitude = 6.9271,
+            Longitude = 79.8612,
+            Speed = 45.5,
+            Heading = 180.0
+        };
+
+        var transferResponse = new TransferResponse
+        {
+            Id = transferId,
+            TransferNumber = "TR-2026-LOC",
+            Status = TransferStatus.InTransit,
+            LastLatitude = 6.9271,
+            LastLongitude = 79.8612
+        };
+
+        _transferServiceMock
+            .Setup(s => s.UpdateTransferLocationAsync(transferId, It.IsAny<UpdateTransferLocationRequest>(), default))
+            .ReturnsAsync(ApiResponse<TransferResponse>.Ok(transferResponse));
+
+        // Act
+        var result = await _controller.UpdateLocation(transferId, request);
+
+        // Assert
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value.Should().BeOfType<ApiResponse<TransferResponse>>().Subject;
+        response.Data!.LastLatitude.Should().Be(6.9271);
+        response.Data!.LastLongitude.Should().Be(79.8612);
     }
 
     [Fact]

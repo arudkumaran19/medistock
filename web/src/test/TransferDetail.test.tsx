@@ -89,11 +89,11 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     expect(screen.queryByText('Clinical Request Notes:')).not.toBeInTheDocument();
   });
 
-  it('renders Proposed transfer with read-only waiting note and without Approve/Reject buttons', async () => {
-    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockProposedTransfer);
+  it('renders Requested transfer with AI planning in progress note and without Approve/Reject buttons', async () => {
+    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockRequestedTransfer);
 
     render(
-      <MemoryRouter initialEntries={['/transfers/tr-proposed-002']}>
+      <MemoryRouter initialEntries={['/transfers/tr-requested-003']}>
         <Routes>
           <Route path="/transfers/:id" element={<TransferDetail />} />
         </Routes>
@@ -101,26 +101,26 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Transfer TR-2026-PROP')).toBeInTheDocument();
+      expect(screen.getByText('Transfer TR-2026-REQ')).toBeInTheDocument();
     });
 
     // Submit Request button must NOT be present
     expect(screen.queryByRole('button', { name: /Submit Request/i })).not.toBeInTheDocument();
 
-    // Approve / Reject buttons must NOT be present for Proposed
-    expect(screen.queryByRole('button', { name: /Approve Transfer Plan/i })).not.toBeInTheDocument();
+    // Approve / Reject buttons must NOT be present for Requested (agent is planning)
+    expect(screen.queryByRole('button', { name: /Approve/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Reject Plan/i })).not.toBeInTheDocument();
 
-    // Read-only waiting note must be displayed
-    expect(screen.getAllByText(/Waiting for field officer to submit the request/i).length).toBeGreaterThan(0);
+    // AI planning note must be displayed
+    expect(screen.getAllByText(/AI Planning Agent in Progress/i).length).toBeGreaterThan(0);
 
     // Candidate Sources and Road Route buttons remain
     expect(screen.getByRole('button', { name: /Candidate Sources/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Road Route/i })).toBeInTheDocument();
   });
 
-  it('renders Requested transfer with Approve and Reject action buttons', async () => {
-    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockRequestedTransfer);
+  it('renders Proposed transfer with Approve and Reject action buttons for manager decision', async () => {
+    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockProposedTransfer);
     vi.spyOn(workflowApi, 'getWorkflowRun').mockResolvedValue({
       id: 'wf-run-001',
       workflowType: 'RedistributionPlanning',
@@ -139,7 +139,7 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     });
 
     render(
-      <MemoryRouter initialEntries={['/transfers/tr-requested-003']}>
+      <MemoryRouter initialEntries={['/transfers/tr-proposed-002']}>
         <Routes>
           <Route path="/transfers/:id" element={<TransferDetail />} />
         </Routes>
@@ -147,17 +147,17 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Transfer TR-2026-REQ')).toBeInTheDocument();
+      expect(screen.getByText('Transfer TR-2026-PROP')).toBeInTheDocument();
     });
 
     // Submit Request button must NOT be present
     expect(screen.queryByRole('button', { name: /Submit Request/i })).not.toBeInTheDocument();
 
-    // Waiting note must NOT be displayed for Requested status
+    // Waiting note must NOT be displayed for Proposed status
     expect(screen.queryByText(/Waiting for field officer to submit the request/i)).not.toBeInTheDocument();
 
-    // Approve and Reject buttons must be present
-    expect(screen.getByRole('button', { name: /Approve Transfer Plan/i })).toBeInTheDocument();
+    // Approve and Reject buttons must be present when Proposed
+    expect(screen.getByRole('button', { name: /Approve Plan/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Reject Plan/i }).length).toBeGreaterThan(0);
 
     // Candidate Sources and Road Route buttons remain
