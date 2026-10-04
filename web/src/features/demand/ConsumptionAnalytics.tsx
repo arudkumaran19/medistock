@@ -28,7 +28,7 @@ import { MetricCard } from './components/MetricCard';
 import { PageHeader, Panel } from './components/Panel';
 import { SkeletonChart, SkeletonMetrics, SkeletonRegion, SkeletonTable } from './components/Skeleton';
 import { formatDate, formatNumber } from './format';
-import { KNOWN_MEDICINES, facilityName, medicineName } from './reference';
+import { facilityName, knownFacilities, knownMedicines, medicineName, optionLabel } from './reference';
 import {
   DEMO_FACILITY_ID,
   useConsumption,
@@ -38,10 +38,18 @@ import {
 
 const PAGE_SIZE = 10;
 
-export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facilityId?: string }) {
-  // Medicine and facility names come from the Inventory API.
+export function ConsumptionAnalytics({
+  facilityId: initialFacilityId = DEMO_FACILITY_ID,
+}: {
+  facilityId?: string;
+}) {
+  // Medicine and facility names come from the Inventory API. Re-renders when they
+  // arrive, which is what lets the dropdowns below list the full catalogue.
   useReferenceData();
 
+  // Starts on the demonstration facility, where the seeded history lives, but any
+  // facility can be chosen. An empty value means every facility.
+  const [facilityId, setFacilityId] = useState(initialFacilityId);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [medicineId, setMedicineId] = useState('');
@@ -60,7 +68,7 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
 
   const query = useMemo(
     () => ({
-      facilityId,
+      facilityId: facilityId || undefined,
       medicineId: medicineId || undefined,
       fromDate: fromDate || undefined,
       toDate: toDate || undefined,
@@ -221,7 +229,7 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
             icon="inbox"
             label="Records shown"
             value={items.length}
-            note={`Of ${data.total} recorded for this facility`}
+            note={`Of ${data.total} recorded ${facilityId ? 'for this facility' : 'across all facilities'}`}
           />
           <MetricCard
             index={1}
@@ -259,6 +267,25 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
               />
 
               <label className="field">
+                Facility
+                <select
+                  value={facilityId}
+                  aria-label="Filter by facility"
+                  onChange={(event) => {
+                    setFacilityId(event.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">All facilities</option>
+                  {knownFacilities().map((facility) => (
+                    <option key={facility.id} value={facility.id}>
+                      {optionLabel(facility)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
                 Medicine
                 <select
                   value={medicineId}
@@ -269,9 +296,9 @@ export function ConsumptionAnalytics({ facilityId = DEMO_FACILITY_ID }: { facili
                   }}
                 >
                   <option value="">All medicines</option>
-                  {KNOWN_MEDICINES.map((medicine) => (
+                  {knownMedicines().map((medicine) => (
                     <option key={medicine.id} value={medicine.id}>
-                      {medicine.name}
+                      {optionLabel(medicine)}
                     </option>
                   ))}
                 </select>
