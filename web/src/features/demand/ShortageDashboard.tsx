@@ -28,20 +28,23 @@ import { RiskDistribution } from './components/RiskDistribution';
 import { SeverityBadge, StatusChip } from './components/SeverityBadge';
 import { SkeletonMetrics, SkeletonRegion, SkeletonTable } from './components/Skeleton';
 import { formatDate, formatDaysRemaining, formatNumber } from './format';
-import { facilityName, medicineName } from './reference';
-import {
-  DEMO_FACILITY_ID,
-  useDeleteShortage,
-  useResolveShortage,
-  useShortages,
-} from './hooks';
+import { facilityName, knownFacilities, medicineName, optionLabel } from './reference';
+import { useDeleteShortage, useResolveShortage, useShortages } from './hooks';
 
 const PAGE_SIZE = 10;
 
-export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityId?: string }) {
-  // Medicine and facility names come from the Inventory API.
+export function ShortageDashboard({
+  facilityId: initialFacilityId = '',
+}: {
+  facilityId?: string;
+}) {
+  // Medicine and facility names come from the Inventory API. Re-renders when they
+  // arrive, which is what lets the facility dropdown list every facility.
   useReferenceData();
 
+  // Every facility by default. This page used to be pinned to the demonstration
+  // facility, so an alert raised anywhere else was saved but never shown here.
+  const [facilityId, setFacilityId] = useState(initialFacilityId);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [riskLevel, setRiskLevel] = useState<ShortageRiskLevel | ''>('');
@@ -53,7 +56,7 @@ export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityI
 
   const query = useMemo(
     () => ({
-      facilityId,
+      facilityId: facilityId || undefined,
       page,
       pageSize: PAGE_SIZE,
       search: search || undefined,
@@ -252,6 +255,25 @@ export function ShortageDashboard({ facilityId = DEMO_FACILITY_ID }: { facilityI
                   label="Search shortage alerts"
                   placeholder="Search by risk or status"
                 />
+
+                <label className="field">
+                  Facility
+                  <select
+                    value={facilityId}
+                    aria-label="Filter by facility"
+                    onChange={(event) => {
+                      setFacilityId(event.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">All facilities</option>
+                    {knownFacilities().map((facility) => (
+                      <option key={facility.id} value={facility.id}>
+                        {optionLabel(facility)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <label className="field">
                   Risk level

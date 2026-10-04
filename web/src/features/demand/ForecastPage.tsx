@@ -39,7 +39,7 @@ import { MetricCard } from './components/MetricCard';
 import { PageHeader, Panel } from './components/Panel';
 import { SkeletonChart, SkeletonRegion, SkeletonTable } from './components/Skeleton';
 import { formatDate, formatNumber, formatPercent } from './format';
-import { KNOWN_MEDICINES, medicineName } from './reference';
+import { knownFacilities, knownMedicines, medicineName, optionLabel } from './reference';
 import { DEMO_FACILITY_ID, useCreateForecast, useDeleteForecast, useForecasts } from './hooks';
 
 const PAGE_SIZE = 10;
@@ -51,15 +51,20 @@ function methodLabel(method: string): string {
 }
 
 export function ForecastPage({
-  facilityId = DEMO_FACILITY_ID,
+  facilityId: initialFacilityId = DEMO_FACILITY_ID,
   medicineId: initialMedicineId = DEMO_MEDICINE_ID,
 }: {
   facilityId?: string;
   medicineId?: string;
 }) {
-  // Medicine and facility names come from the Inventory API.
+  // Medicine and facility names come from the Inventory API. Re-renders when they
+  // arrive, which is what lets the dropdowns below list the full catalogue.
   useReferenceData();
 
+  // Starts on the demonstration facility, where the seeded history lives. Unlike the
+  // consumption page there is no "all facilities" here: a forecast is always for one
+  // facility and one medicine, and the backend rejects a request without them.
+  const [facilityId, setFacilityId] = useState(initialFacilityId);
   const [page, setPage] = useState(1);
   const [medicineId, setMedicineId] = useState(initialMedicineId);
   const [methodFilter, setMethodFilter] = useState<ForecastMethod | ''>('');
@@ -183,6 +188,24 @@ export function ForecastPage({
         <form onSubmit={handleGenerate} aria-label="Generate forecast" noValidate>
           <div className="toolbar">
             <label className="field">
+              Facility
+              <select
+                value={facilityId}
+                aria-label="Facility"
+                onChange={(event) => {
+                  setFacilityId(event.target.value);
+                  setPage(1);
+                }}
+              >
+                {knownFacilities().map((facility) => (
+                  <option key={facility.id} value={facility.id}>
+                    {optionLabel(facility)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
               Medicine
               <select
                 value={medicineId}
@@ -192,9 +215,9 @@ export function ForecastPage({
                   setPage(1);
                 }}
               >
-                {KNOWN_MEDICINES.map((medicine) => (
+                {knownMedicines().map((medicine) => (
                   <option key={medicine.id} value={medicine.id}>
-                    {medicine.name}
+                    {optionLabel(medicine)}
                   </option>
                 ))}
               </select>
