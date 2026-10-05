@@ -4,6 +4,8 @@ using MediStock.Api.Domain.Entities;
 using MediStock.Api.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+
 namespace MediStock.Api.Infrastructure.Persistence.Seed;
 
 public static class SeedData
