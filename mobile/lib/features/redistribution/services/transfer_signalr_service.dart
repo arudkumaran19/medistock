@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:signalr_netcore/signalr_client.dart';
+import 'package:signalr_core/signalr_core.dart';
 import '../../../core/constants/app_constants.dart';
 import '../models/transfer_models.dart';
 
@@ -41,20 +41,20 @@ class TransferSignalRService {
     try {
       _hubConnection = HubConnectionBuilder()
           .withUrl(_hubUrl)
-          .withAutomaticReconnect(retryDelays: [0, 2000, 5000, 10000, 30000])
+          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
           .build();
 
       _hubConnection!.on('TransferStatusChanged', _handleTransferStatusChanged);
       _hubConnection!.on('TransferLocationUpdated', _handleTransferLocationUpdated);
       _hubConnection!.on('NotificationCreated', _handleNotificationCreated);
 
-      _hubConnection!.onreconnecting(({error}) {
+      _hubConnection!.onreconnecting((error) {
         _isConnected = false;
         _connectionStateController.add(false);
         debugPrint('SignalR Reconnecting: $error');
       });
 
-      _hubConnection!.onreconnected(({connectionId}) {
+      _hubConnection!.onreconnected((connectionId) {
         _isConnected = true;
         _connectionStateController.add(true);
         debugPrint('SignalR Reconnected with ID: $connectionId');
@@ -63,7 +63,7 @@ class TransferSignalRService {
         }
       });
 
-      _hubConnection!.onclose(({error}) {
+      _hubConnection!.onclose((error) {
         _isConnected = false;
         _connectionStateController.add(false);
         debugPrint('SignalR Closed: $error');
