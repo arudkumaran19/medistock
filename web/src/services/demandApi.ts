@@ -12,6 +12,11 @@
  *   GET    /api/shortages/{id}
  *   POST   /api/shortages/recalculate
  *
+ * Added outside the frozen contract (automatic shortage detection):
+ *
+ *   GET    /api/shortages/current-stock
+ *   POST   /api/shortages/scan
+ *
  * Integration note
  * ----------------
  * This vertical originally shipped an axios placeholder at services/apiClient. The
@@ -25,6 +30,7 @@ import type {
   AgentRunResult,
   ConsumptionQuery,
   ConsumptionRecord,
+  CurrentStock,
   DemandForecast,
   ForecastQuery,
   ForecastRequest,
@@ -33,6 +39,7 @@ import type {
   ShortageCreateRequest,
   ShortageQuery,
   ShortageRecalculateRequest,
+  ShortageScanResult,
   ShortageUpdateRequest,
 } from '@/types/demand';
 
@@ -152,6 +159,31 @@ export async function resolveShortage(id: string): Promise<ShortageAlert> {
 
 export async function deleteShortage(id: string): Promise<void> {
   await apiRequest<void>(`/api/shortages/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Stock for a facility and medicine from the Inventory balance. Resolves to null
+ * when Inventory holds no balance (404), so the caller can ask for a typed figure.
+ */
+export async function getCurrentStock(
+  facilityId: string,
+  medicineId: string,
+): Promise<CurrentStock | null> {
+  try {
+    return await apiRequest<CurrentStock>(
+      `/api/shortages/current-stock${qs({ facilityId, medicineId })}`,
+    );
+  } catch (cause) {
+    if ((cause as { status?: number }).status === 404) {
+      return null;
+    }
+    throw cause;
+  }
+}
+
+/** Re-evaluates every facility and medicine with history and a reorder rule. */
+export async function scanShortages(): Promise<ShortageScanResult> {
+  return apiRequest<ShortageScanResult>('/api/shortages/scan', { method: 'POST' });
 }
 
 // ---------------------------------------------------------------------------

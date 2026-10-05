@@ -37,6 +37,7 @@ public class DemandValidator
     public const string ThresholdNotFoundCode = "DEMAND_THRESHOLD_NOT_FOUND";
     public const string NotFoundCode = "DEMAND_NOT_FOUND";
     public const string UnsupportedStatusCode = "DEMAND_UNSUPPORTED_STATUS";
+    public const string StockNotFoundCode = "DEMAND_STOCK_NOT_FOUND";
 
     /// <summary>
     /// Longest historical window and forward horizon accepted, so a single request

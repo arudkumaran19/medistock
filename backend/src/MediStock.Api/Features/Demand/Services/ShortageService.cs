@@ -132,15 +132,60 @@ public class ShortageService
     }
 
     /// <summary>
+    /// Stock available at a facility for a medicine, read-only from the Inventory
+    /// vertical's InventoryBalances table (owner: Vaisnavi L.). Available is on hand
+    /// minus reserved, floored at zero. Null when Inventory holds no balance row.
+    /// </summary>
+    public async Task<CurrentStockResponse?> GetCurrentStockAsync(
+        Guid facilityId,
+        Guid medicineId,
+        CancellationToken cancellationToken = default)
+    {
+        var balance = await _db.InventoryBalances
+            .AsNoTracking()
+            .Where(x => x.FacilityId == facilityId && x.MedicineId == medicineId)
+            .Select(x => new { x.QuantityOnHand, x.QuantityReserved })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (balance is null)
+        {
+            return null;
+        }
+
+        var available = Math.Max(0, balance.QuantityOnHand - balance.QuantityReserved);
+
+        return new CurrentStockResponse(
+            facilityId,
+            medicineId,
+            balance.QuantityOnHand,
+            balance.QuantityReserved,
+            available);
+    }
+
+    /// <summary>
     /// Raises a shortage alert directly, without waiting for a recalculation.
     ///
-    /// The caller supplies the observed stock; every derived figure is still computed
-    /// here, so a manually raised alert is arithmetically identical to a derived one.
+    /// The caller may supply the observed stock; when it does not, the Inventory
+    /// balance is used. Every derived figure is still computed here, so a manually
+    /// raised alert is arithmetically identical to a derived one.
+    ///
+    /// Only one OPEN or ACKNOWLEDGED alert is kept per facility and medicine. Raising
+    /// it again recalculates that alert and flags ExistingAlertUpdated instead of
+    /// creating a duplicate.
     /// </summary>
+    /// <exception cref="ShortageStockNotFoundException">
+    /// No stock was supplied and Inventory holds no balance for the pair.
+    /// </exception>
     public async Task<ShortageResponse> CreateShortageAsync(
         ShortageCreateRequest request,
         CancellationToken cancellationToken = default)
     {
+        var currentStock = await ResolveCurrentStockAsync(
+            request.CurrentStock,
+            request.FacilityId,
+            request.MedicineId,
+            cancellationToken);
+
         var averageDaily = request.AverageDailyConsumption
                            ?? await _consumptionService.GetAverageDailyConsumptionAsync(
                                request.FacilityId,
@@ -155,38 +200,158 @@ public class ShortageService
                                cancellationToken);
 
         var calculation = Calculate(
-            request.CurrentStock,
+            currentStock,
             averageDaily,
             leadTimeDays,
             DateTime.UtcNow.Date);
 
-        var alert = new ShortageAlert
-        {
-            Id = Guid.NewGuid(),
-            FacilityId = request.FacilityId,
-            MedicineId = request.MedicineId,
-            DemandForecastId = null,
-            CurrentStock = calculation.CurrentStock,
-            AverageDailyConsumption = calculation.AverageDailyConsumption,
-            DaysRemaining = calculation.DaysRemaining,
-            ProjectedStockoutDate = calculation.ProjectedStockoutDate,
-            LeadTimeDays = calculation.LeadTimeDays,
-            RiskLevel = calculation.RiskLevel,
-            RequiresTransfer = calculation.RequiresTransfer,
-            GeneratedAt = DateTime.UtcNow,
-            Status = ShortageAlertStatuses.Open
-        };
-
-        _db.ShortageAlerts.Add(alert);
-        await _db.SaveChangesAsync(cancellationToken);
+        var (alert, existingUpdated) = await UpsertActiveAlertAsync(
+            request.FacilityId,
+            request.MedicineId,
+            calculation,
+            demandForecastId: null,
+            cancellationToken);
 
         _logger.LogInformation(
-            "Shortage alert {AlertId} raised manually for facility {FacilityId} medicine {MedicineId}",
+            existingUpdated
+                ? "Shortage alert {AlertId} refreshed manually for facility {FacilityId} medicine {MedicineId}"
+                : "Shortage alert {AlertId} raised manually for facility {FacilityId} medicine {MedicineId}",
             alert.Id,
             alert.FacilityId,
             alert.MedicineId);
 
-        return ToResponse(alert);
+        var response = ToResponse(alert);
+        response.ExistingAlertUpdated = existingUpdated;
+
+        return response;
+    }
+
+    /// <summary>
+    /// Writes a calculation to the single active alert for a facility and medicine.
+    ///
+    /// When an OPEN or ACKNOWLEDGED alert already exists its figures are recalculated in
+    /// place and its status is kept, so a manager's acknowledgement is not lost. Otherwise
+    /// a new OPEN alert is raised. Returns the alert and whether it already existed.
+    /// </summary>
+    public async Task<(ShortageAlert Alert, bool ExistingUpdated)> UpsertActiveAlertAsync(
+        Guid facilityId,
+        Guid medicineId,
+        ShortageCalculation calculation,
+        Guid? demandForecastId,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await FindActiveAlertAsync(facilityId, medicineId, cancellationToken);
+
+        if (alert is not null)
+        {
+            ApplyCalculation(alert, calculation);
+
+            if (demandForecastId is not null)
+            {
+                alert.DemandForecastId = demandForecastId;
+            }
+
+            alert.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return (alert, true);
+        }
+
+        alert = new ShortageAlert
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = facilityId,
+            MedicineId = medicineId,
+            DemandForecastId = demandForecastId,
+            GeneratedAt = DateTime.UtcNow,
+            Status = ShortageAlertStatuses.Open
+        };
+        ApplyCalculation(alert, calculation);
+
+        _db.ShortageAlerts.Add(alert);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return (alert, false);
+    }
+
+    /// <summary>
+    /// Resolves the active alert for a facility and medicine with a recorded reason,
+    /// storing the figures that cleared it. Null when there is no active alert.
+    /// </summary>
+    public async Task<ShortageAlert?> AutoResolveActiveAlertAsync(
+        Guid facilityId,
+        Guid medicineId,
+        ShortageCalculation calculation,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await FindActiveAlertAsync(facilityId, medicineId, cancellationToken);
+
+        if (alert is null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+
+        ApplyCalculation(alert, calculation);
+        alert.Status = ShortageAlertStatuses.Resolved;
+        alert.ResolvedAt = now;
+        alert.ResolutionReason = reason;
+        alert.UpdatedAt = now;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Shortage alert {AlertId} auto-resolved: {Reason}",
+            alert.Id,
+            reason);
+
+        return alert;
+    }
+
+    /// <summary>
+    /// The newest OPEN or ACKNOWLEDGED alert for a facility and medicine, tracked.
+    /// </summary>
+    private Task<ShortageAlert?> FindActiveAlertAsync(
+        Guid facilityId,
+        Guid medicineId,
+        CancellationToken cancellationToken)
+    {
+        return _db.ShortageAlerts
+            .Where(x => x.FacilityId == facilityId
+                        && x.MedicineId == medicineId
+                        && ShortageAlertStatuses.Active.Contains(x.Status))
+            .OrderByDescending(x => x.GeneratedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<decimal> ResolveCurrentStockAsync(
+        decimal? suppliedStock,
+        Guid facilityId,
+        Guid medicineId,
+        CancellationToken cancellationToken)
+    {
+        if (suppliedStock is { } supplied)
+        {
+            return supplied;
+        }
+
+        var stock = await GetCurrentStockAsync(facilityId, medicineId, cancellationToken);
+
+        return stock?.AvailableQuantity
+               ?? throw new ShortageStockNotFoundException(facilityId, medicineId);
+    }
+
+    private static void ApplyCalculation(ShortageAlert alert, ShortageCalculation calculation)
+    {
+        alert.CurrentStock = calculation.CurrentStock;
+        alert.AverageDailyConsumption = calculation.AverageDailyConsumption;
+        alert.DaysRemaining = calculation.DaysRemaining;
+        alert.ProjectedStockoutDate = calculation.ProjectedStockoutDate;
+        alert.LeadTimeDays = calculation.LeadTimeDays;
+        alert.RiskLevel = calculation.RiskLevel;
+        alert.RequiresTransfer = calculation.RequiresTransfer;
     }
 
     /// <summary>
@@ -230,7 +395,20 @@ public class ShortageService
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
             alert.Status = request.Status.Trim().ToUpperInvariant();
+
+            if (alert.Status == ShortageAlertStatuses.Resolved)
+            {
+                alert.ResolvedAt ??= DateTime.UtcNow;
+            }
+            else
+            {
+                // Re-opened: it is no longer resolved, so neither is the reason.
+                alert.ResolvedAt = null;
+                alert.ResolutionReason = null;
+            }
         }
+
+        alert.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -263,6 +441,8 @@ public class ShortageService
         }
 
         alert.Status = ShortageAlertStatuses.Resolved;
+        alert.ResolvedAt ??= DateTime.UtcNow;
+        alert.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shortage alert {AlertId} resolved", alert.Id);
@@ -302,11 +482,24 @@ public class ShortageService
     /// not supply one, projects the stockout, classifies the risk and stores the alert.
     ///
     /// Backs the agent tools calculateProjectedStockout and getShortageThreshold.
+    ///
+    /// When no stock is supplied the Inventory balance is used. Unlike a manual raise,
+    /// every recalculation is stored as its own record: it is the auditable output of a
+    /// forecast run, and the frozen contract returns the newly stored alert.
     /// </summary>
+    /// <exception cref="ShortageStockNotFoundException">
+    /// No stock was supplied and Inventory holds no balance for the pair.
+    /// </exception>
     public async Task<ShortageResponse> RecalculateShortageAsync(
         ShortageRecalculateRequest request,
         CancellationToken cancellationToken = default)
     {
+        var currentStock = await ResolveCurrentStockAsync(
+            request.CurrentStock,
+            request.FacilityId,
+            request.MedicineId,
+            cancellationToken);
+
         decimal averageDailyConsumption;
         Guid? forecastId = null;
 
@@ -342,7 +535,7 @@ public class ShortageService
                                cancellationToken);
 
         var calculation = Calculate(
-            request.CurrentStock,
+            currentStock,
             averageDailyConsumption,
             leadTimeDays,
             DateTime.UtcNow.Date);
@@ -476,7 +669,7 @@ public class ShortageService
         };
     }
 
-    private static ShortageResponse ToResponse(ShortageAlert alert) => new()
+    public static ShortageResponse ToResponse(ShortageAlert alert) => new()
     {
         Id = alert.Id,
         FacilityId = alert.FacilityId,
@@ -490,6 +683,21 @@ public class ShortageService
         RiskLevel = alert.RiskLevel,
         RequiresTransfer = alert.RequiresTransfer,
         GeneratedAt = alert.GeneratedAt,
-        Status = alert.Status
+        Status = alert.Status,
+        UpdatedAt = alert.UpdatedAt,
+        ResolvedAt = alert.ResolvedAt,
+        ResolutionReason = alert.ResolutionReason
     };
+}
+
+/// <summary>
+/// No stock was supplied and the Inventory vertical holds no balance for the facility
+/// and medicine. Reported as DEMAND_STOCK_NOT_FOUND; zero is never assumed.
+/// </summary>
+public sealed class ShortageStockNotFoundException(Guid facilityId, Guid medicineId)
+    : Exception($"No inventory balance exists for medicine {medicineId} at facility {facilityId}. Supply currentStock.")
+{
+    public Guid FacilityId { get; } = facilityId;
+
+    public Guid MedicineId { get; } = medicineId;
 }

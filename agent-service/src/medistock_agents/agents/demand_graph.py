@@ -50,6 +50,7 @@ from medistock_agents.llm.provider import LLMProvider
 from medistock_agents.models.demand_models import Evidence, Finding
 from medistock_agents.tools.demand_tools import (
     DemandToolClient,
+    describe_lead_time,
     parse_consumption_history,
     parse_daily_consumption,
     parse_forecast,
@@ -474,7 +475,7 @@ def findings_from_results(
         findings.append(
             Finding(
                 code="LEAD_TIME",
-                summary=f"Replenishment lead time is {threshold.lead_time_days} days.",
+                summary=describe_lead_time(threshold),
                 value=float(threshold.lead_time_days),
                 unit="days",
             )

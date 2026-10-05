@@ -34,20 +34,28 @@ public class DemandController : ControllerBase
 {
     private readonly ConsumptionService _consumptionService;
     private readonly ForecastService _forecastService;
+    private readonly ShortageEvaluationService _shortageEvaluation;
     private readonly DemandValidator _validator;
     private readonly AgentServiceClient _agentService;
 
     public DemandController(
         ConsumptionService consumptionService,
         ForecastService forecastService,
+        ShortageEvaluationService shortageEvaluation,
         DemandValidator validator,
         AgentServiceClient agentService)
     {
         _consumptionService = consumptionService;
         _forecastService = forecastService;
+        _shortageEvaluation = shortageEvaluation;
         _validator = validator;
         _agentService = agentService;
     }
+
+    // The automatic shortage check runs here, after the consumption save has
+    // succeeded, rather than inside ConsumptionService: ShortageService already
+    // depends on ConsumptionService, so the reverse dependency would be circular.
+    // TryEvaluateAsync never throws, so a failed check cannot fail the save.
 
     // -----------------------------------------------------------------------
     // Consumption
@@ -95,6 +103,8 @@ public class DemandController : ControllerBase
         }
 
         var record = await _consumptionService.CreateConsumptionAsync(request, cancellationToken);
+
+        await _shortageEvaluation.TryEvaluateAsync(record.FacilityId, record.MedicineId, cancellationToken);
 
         return StatusCode(
             StatusCodes.Status201Created,
@@ -162,6 +172,10 @@ public class DemandController : ControllerBase
                               });
         }
 
+        // The pair before the correction, so moving a record to another facility or
+        // medicine re-checks the one it left as well as the one it joined.
+        var before = await _consumptionService.GetConsumptionByIdAsync(id, cancellationToken);
+
         var record = await _consumptionService.UpdateConsumptionAsync(id, request, cancellationToken);
 
         if (record is null)
@@ -177,6 +191,14 @@ public class DemandController : ControllerBase
                             });
         }
 
+        await _shortageEvaluation.TryEvaluateAsync(record.FacilityId, record.MedicineId, cancellationToken);
+
+        if (before is not null
+            && (before.FacilityId != record.FacilityId || before.MedicineId != record.MedicineId))
+        {
+            await _shortageEvaluation.TryEvaluateAsync(before.FacilityId, before.MedicineId, cancellationToken);
+        }
+
         return Ok(new ApiResponse<ConsumptionResponse>(record));
     }
 
@@ -189,6 +211,8 @@ public class DemandController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteConsumption(Guid id, CancellationToken cancellationToken)
     {
+        var existing = await _consumptionService.GetConsumptionByIdAsync(id, cancellationToken);
+
         var deleted = await _consumptionService.DeleteConsumptionAsync(id, cancellationToken);
 
         if (!deleted)
@@ -202,6 +226,11 @@ public class DemandController : ControllerBase
                                     TraceId = HttpContext.TraceIdentifier,
                                 },
                             });
+        }
+
+        if (existing is not null)
+        {
+            await _shortageEvaluation.TryEvaluateAsync(existing.FacilityId, existing.MedicineId, cancellationToken);
         }
 
         return NoContent();
@@ -400,8 +429,9 @@ public sealed record DemandAgentRequest
     public string? Objective { get; init; }
 
     /// <summary>
-    /// Stock on hand. Owned by the Inventory vertical, so the caller supplies it.
-    /// Without it the agent reports what it still needs instead of guessing.
+    /// Stock on hand. Optional: when omitted, the backend tool reads the Inventory
+    /// balance (on hand - reserved). Only when Inventory has no balance either does
+    /// the agent report what it still needs instead of guessing.
     /// </summary>
     public decimal? CurrentStock { get; init; }
 

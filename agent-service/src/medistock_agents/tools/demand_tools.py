@@ -147,12 +147,17 @@ class DemandToolClient:
         self,
         facility_id: str,
         medicine_id: str,
-        current_stock: float,
+        current_stock: float | None,
         average_daily_consumption: float | None = None,
         lead_time_days: int | None = None,
         window_days: int = 30,
     ) -> ToolResult:
-        """Days of stock, projected stockout date and shortage risk."""
+        """Days of stock, projected stockout date and shortage risk.
+
+        When ``current_stock`` is None the backend reads it from the Inventory
+        balance (on hand - reserved). If Inventory has no balance either, the call
+        fails with the backend's DEMAND_STOCK_NOT_FOUND rather than assuming zero.
+        """
         return self._call(
             tool="calculateProjectedStockout",
             endpoint=FORECAST_ENDPOINT,
@@ -292,3 +297,16 @@ def parse_projected_stockout(result: ToolResult) -> ProjectedStockoutResult:
 
 def parse_shortage_threshold(result: ToolResult) -> ShortageThresholdResult:
     return ShortageThresholdResult.model_validate(result.data or {})
+
+
+def describe_lead_time(threshold: ShortageThresholdResult) -> str:
+    """The LEAD_TIME finding text, saying so when the backend used its default rule."""
+    summary = f"Replenishment lead time is {threshold.lead_time_days} days."
+
+    if threshold.source == "DEFAULT":
+        summary += (
+            " No reorder rule is configured for this medicine here, so the backend's "
+            "default lead time was used."
+        )
+
+    return summary

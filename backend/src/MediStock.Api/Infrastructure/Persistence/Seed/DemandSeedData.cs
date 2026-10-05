@@ -69,19 +69,56 @@ public static class DemandSeedData
         }
 
         await SeedReorderRulesAsync(db, cancellationToken);
+        await SeedRealFacilityReorderRulesAsync(db, cancellationToken);
         await SeedConsumptionAsync(db, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Default lead time for the real facilities' reorder rules.
+    ///
+    /// Not specified in the final blueprint: real lead times, minimum stock, reorder
+    /// points and safety stock per facility and medicine. These defaults exist only so
+    /// real medicines stop failing with DEMAND_THRESHOLD_NOT_FOUND. Do not assume or
+    /// introduce a new decision without team-level confirmation.
+    /// </summary>
+    public const int DefaultLeadTimeDays = ReorderRuleDefaults.LeadTimeDays;
+
+    /// <summary>Minimum stock used when a medicine has no MinimumStockLevel of its own.</summary>
+    public const decimal DefaultMinimumStock = ReorderRuleDefaults.MinimumStock;
+
+    /// <summary>
+    /// develop's real facilities, from the Inventory owners' SeedData (read, not changed).
+    /// </summary>
+    public static readonly Guid[] RealFacilityIds =
+    [
+        SeedData.CentralFacilityId,
+        SeedData.EastHospitalFacilityId,
+        SeedData.NorthClinicFacilityId,
+        SeedData.WestDispensaryFacilityId
+    ];
+
+    /// <summary>develop's real medicines, from the Inventory owners' SeedData.</summary>
+    public static readonly Guid[] RealMedicineIds =
+    [
+        SeedData.ParacetamolId,
+        SeedData.AmoxicillinId,
+        SeedData.IbuprofenId,
+        SeedData.CetirizineId,
+        SeedData.OmeprazoleId,
+        SeedData.AzithromycinId,
+        SeedData.VitaminCId
+    ];
+
+    /// <summary>
+    /// The blueprint demo rules. Each rule is checked on its own, so the seed is
+    /// idempotent and never overwrites a rule that already exists.
+    /// </summary>
     private static async Task SeedReorderRulesAsync(ApplicationDbContext db, CancellationToken cancellationToken)
     {
-        if (await db.ReorderRules.AnyAsync(cancellationToken))
+        var demoRules = new[]
         {
-            return;
-        }
-
-        db.ReorderRules.AddRange(
             new ReorderRule
             {
                 Id = Guid.Parse("d1000000-0000-0000-0000-000000000001"),
@@ -114,7 +151,78 @@ public static class DemandSeedData
                 SafetyStock = 60m,
                 LeadTimeDays = DemoLeadTimeDays,
                 CreatedAt = DateTime.UtcNow
-            });
+            }
+        };
+
+        var existing = await ExistingRulePairsAsync(db, cancellationToken);
+        var existingIds = (await db.ReorderRules.AsNoTracking().Select(x => x.Id).ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        db.ReorderRules.AddRange(demoRules.Where(rule =>
+            !existing.Contains((rule.FacilityId, rule.MedicineId)) && !existingIds.Contains(rule.Id)));
+    }
+
+    /// <summary>
+    /// Reorder rules for develop's real facilities and medicines, so the shortage
+    /// check and the agent's getShortageThreshold work for real stock.
+    ///
+    /// Minimum stock comes from the medicine's own MinimumStockLevel (Inventory
+    /// vertical, read-only); reorder point is twice that, safety stock half of it.
+    /// A facility or medicine missing from the database is skipped, and an existing
+    /// rule is never touched, so this is safe to run on every startup.
+    /// </summary>
+    public static async Task SeedRealFacilityReorderRulesAsync(
+        ApplicationDbContext db,
+        CancellationToken cancellationToken = default)
+    {
+        var facilityIds = await db.Facilities
+            .AsNoTracking()
+            .Where(x => RealFacilityIds.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var medicines = await db.Medicines
+            .AsNoTracking()
+            .Where(x => RealMedicineIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.MinimumStockLevel })
+            .ToListAsync(cancellationToken);
+
+        var existing = await ExistingRulePairsAsync(db, cancellationToken);
+        var now = DateTime.UtcNow;
+
+        foreach (var facilityId in facilityIds.OrderBy(x => x))
+        {
+            foreach (var medicine in medicines.OrderBy(x => x.Id))
+            {
+                if (!existing.Add((facilityId, medicine.Id)))
+                {
+                    continue;
+                }
+
+                var rule = ReorderRuleDefaults.For(facilityId, medicine.Id, medicine.MinimumStockLevel);
+                rule.CreatedAt = now;
+
+                db.ReorderRules.Add(rule);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Facility and medicine pairs that already have a rule, saved or pending.
+    /// </summary>
+    private static async Task<HashSet<(Guid FacilityId, Guid MedicineId)>> ExistingRulePairsAsync(
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var saved = await db.ReorderRules
+            .AsNoTracking()
+            .Select(x => new { x.FacilityId, x.MedicineId })
+            .ToListAsync(cancellationToken);
+
+        return saved
+            .Select(x => (x.FacilityId, x.MedicineId))
+            .Concat(db.ReorderRules.Local.Select(x => (x.FacilityId, x.MedicineId)))
+            .ToHashSet();
     }
 
     private static async Task SeedConsumptionAsync(ApplicationDbContext db, CancellationToken cancellationToken)

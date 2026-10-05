@@ -55,6 +55,21 @@ public class ShortageAlert
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 
     public string Status { get; set; } = ShortageAlertStatuses.Open;
+
+    /// <summary>
+    /// Last time the figures were refreshed, for example when an existing open alert is
+    /// recalculated instead of a duplicate being raised. Null until first refreshed.
+    /// </summary>
+    public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>When the alert moved to RESOLVED. Null while it is still active.</summary>
+    public DateTime? ResolvedAt { get; set; }
+
+    /// <summary>
+    /// Why the alert was resolved automatically, for example "Stock now covers lead time".
+    /// Null for a manual resolve and for an active alert.
+    /// </summary>
+    public string? ResolutionReason { get; set; }
 }
 
 /// <summary>
@@ -87,6 +102,15 @@ public static class ShortageAlertStatuses
     public const string Resolved = "RESOLVED";
 
     public static readonly string[] All = [Open, Acknowledged, Resolved];
+
+    /// <summary>
+    /// Statuses that still need attention. Only one alert in these statuses is kept per
+    /// facility and medicine; raising it again refreshes the existing one.
+    /// </summary>
+    public static readonly string[] Active = [Open, Acknowledged];
+
+    /// <summary>Reason recorded when re-evaluation finds the shortage has cleared.</summary>
+    public const string StockCoversLeadTimeReason = "Stock now covers lead time";
 
     public static bool IsSupported(string? status) =>
         status is not null && All.Contains(status, StringComparer.OrdinalIgnoreCase);

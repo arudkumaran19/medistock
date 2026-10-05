@@ -199,21 +199,59 @@ public class ForecastService
     }
 
     /// <summary>
-    /// Lead time from the facility's reorder rule.
-    /// Backs the agent tool getShortageThreshold.
+    /// Lead time from the facility's reorder rule, or the default lead time when the
+    /// medicine and facility exist but no rule is configured. Zero only when neither a
+    /// rule nor the medicine and facility are known.
     /// </summary>
     public async Task<int> GetLeadTimeDaysAsync(
         Guid facilityId,
         Guid medicineId,
         CancellationToken cancellationToken = default)
     {
-        var rule = await _db.ReorderRules
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x => x.FacilityId == facilityId && x.MedicineId == medicineId,
-                cancellationToken);
+        var effective = await GetEffectiveReorderRuleAsync(facilityId, medicineId, cancellationToken);
 
-        return rule?.LeadTimeDays ?? 0;
+        return effective?.Rule.LeadTimeDays ?? 0;
+    }
+
+    /// <summary>
+    /// The reorder rule that applies: the configured rule, or a default derived from
+    /// the medicine's MinimumStockLevel (Inventory vertical, read-only) when the
+    /// medicine and facility both exist but no rule is configured. The default is not
+    /// stored. Null when there is no rule and the medicine or facility is unknown.
+    /// Backs the agent tool getShortageThreshold and the automatic shortage check.
+    /// </summary>
+    public async Task<EffectiveReorderRule?> GetEffectiveReorderRuleAsync(
+        Guid facilityId,
+        Guid medicineId,
+        CancellationToken cancellationToken = default)
+    {
+        var configured = await GetReorderRuleAsync(facilityId, medicineId, cancellationToken);
+
+        if (configured is not null)
+        {
+            return new EffectiveReorderRule(configured, IsDefault: false);
+        }
+
+        var facilityExists = await _db.Facilities
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == facilityId, cancellationToken);
+
+        if (!facilityExists)
+        {
+            return null;
+        }
+
+        var medicine = await _db.Medicines
+            .AsNoTracking()
+            .Where(x => x.Id == medicineId)
+            .Select(x => new { x.MinimumStockLevel })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return medicine is null
+            ? null
+            : new EffectiveReorderRule(
+                ReorderRuleDefaults.For(facilityId, medicineId, medicine.MinimumStockLevel),
+                IsDefault: true);
     }
 
     public async Task<ReorderRule?> GetReorderRuleAsync(

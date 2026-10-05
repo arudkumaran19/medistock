@@ -7,7 +7,7 @@
  * lays the arithmetic out as an equation, because "6 < 10" is the whole argument.
  */
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ErrorState } from '@/components/ErrorState';
 import { toErrorMessage } from './errors';
@@ -30,6 +30,8 @@ export function ShortageDetail({ shortageId }: { shortageId?: string }) {
   const params = useParams<{ id: string }>();
   const id = shortageId ?? params.id;
   const navigate = useNavigate();
+  // Set by the Raise alert form when it refreshed an existing alert.
+  const notice = (useLocation().state as { notice?: string } | null)?.notice;
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const resolveShortage = useResolveShortage();
@@ -101,9 +103,22 @@ export function ShortageDetail({ shortageId }: { shortageId?: string }) {
           <StatusChip status={alert.status} />
         </p>
 
+        {notice && (
+          <p className="card__hint" role="status" data-testid="alert-notice">
+            {notice}
+          </p>
+        )}
+
         <p className="page-head__subtitle" data-testid="risk-explanation">
           {explainRisk(alert)}
         </p>
+
+        {alert.resolutionReason && (
+          <p className="card__hint" data-testid="resolution-reason">
+            Resolved automatically: {alert.resolutionReason}
+            {alert.resolvedAt ? ` (${formatDate(alert.resolvedAt)})` : ''}.
+          </p>
+        )}
 
         <p className="card__hint" style={{ marginTop: 'var(--space-3)' }}>
           <Link to="/demand/shortages">← Back to shortage dashboard</Link>
@@ -174,6 +189,20 @@ export function ShortageDetail({ shortageId }: { shortageId?: string }) {
 
             <dt>Generated</dt>
             <dd>{formatDate(alert.generatedAt)}</dd>
+
+            {alert.updatedAt && (
+              <>
+                <dt>Last updated</dt>
+                <dd>{formatDate(alert.updatedAt)}</dd>
+              </>
+            )}
+
+            {alert.resolvedAt && (
+              <>
+                <dt>Resolved</dt>
+                <dd>{formatDate(alert.resolvedAt)}</dd>
+              </>
+            )}
           </dl>
         </Panel>
 

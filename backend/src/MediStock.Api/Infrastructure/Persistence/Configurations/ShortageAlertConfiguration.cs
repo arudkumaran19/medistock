@@ -32,6 +32,9 @@ public class ShortageAlertConfiguration : IEntityTypeConfiguration<ShortageAlert
             .IsRequired()
             .HasMaxLength(32);
 
+        builder.Property(x => x.ResolutionReason)
+            .HasMaxLength(256);
+
         // The forecast an alert was derived from. Left as a plain nullable key rather
         // than a required relationship so an alert recalculated from a caller-supplied
         // stock figure is still valid.

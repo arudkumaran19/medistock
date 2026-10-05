@@ -18,10 +18,12 @@ vi.mock('@/services/demandApi', () => ({
   getShortageById: vi.fn(),
   createForecast: vi.fn(),
   recalculateShortage: vi.fn(),
+  scanShortages: vi.fn(),
 }));
 
-const { getShortages } = await import('@/services/demandApi');
+const { getShortages, scanShortages } = await import('@/services/demandApi');
 const mockGetShortages = vi.mocked(getShortages);
+const mockScanShortages = vi.mocked(scanShortages);
 
 describe('ShortageDashboard', () => {
   beforeEach(() => {
@@ -182,6 +184,46 @@ describe('ShortageDashboard', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByText('HIGH')).toBeInTheDocument();
+  });
+
+  it('runs a scan and reports what changed', async () => {
+    const user = userEvent.setup();
+    mockGetShortages.mockResolvedValue(page([shortageAlert()]));
+    mockScanShortages.mockResolvedValue({
+      evaluated: 3,
+      created: 1,
+      updated: 1,
+      resolved: 1,
+      unchanged: 0,
+      skipped: 0,
+      failed: 0,
+      results: [],
+    });
+
+    renderWithProviders(<ShortageDashboard />);
+    await screen.findByText('HIGH');
+
+    await user.click(screen.getByRole('button', { name: 'Scan now' }));
+
+    expect(await screen.findByTestId('scan-result')).toHaveTextContent(
+      'Scan complete: 3 checked, 1 new, 1 updated, 1 resolved.',
+    );
+    expect(mockScanShortages).toHaveBeenCalledTimes(1);
+    // The list is refetched so the new and resolved alerts show up.
+    await waitFor(() => expect(mockGetShortages.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it('shows why a scan failed, for example a store officer without permission', async () => {
+    const user = userEvent.setup();
+    mockGetShortages.mockResolvedValue(page([shortageAlert()]));
+    mockScanShortages.mockRejectedValue(new Error('Forbidden'));
+
+    renderWithProviders(<ShortageDashboard />);
+    await screen.findByText('HIGH');
+
+    await user.click(screen.getByRole('button', { name: 'Scan now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Forbidden');
   });
 
   it('links each alert to its detail view', async () => {

@@ -12,11 +12,13 @@ import {
   deleteForecast,
   deleteShortage,
   getConsumption,
+  getCurrentStock,
   getForecasts,
   getShortageById,
   getShortages,
   recalculateShortage,
   resolveShortage,
+  scanShortages,
   updateConsumption,
   updateShortage,
 } from '@/services/demandApi';
@@ -37,7 +39,21 @@ export const demandKeys = {
   forecasts: (query: ForecastQuery) => ['demand', 'forecasts', query] as const,
   shortages: (query: ShortageQuery) => ['demand', 'shortages', query] as const,
   shortage: (id: string) => ['demand', 'shortage', id] as const,
+  currentStock: (facilityId: string, medicineId: string) =>
+    ['demand', 'current-stock', facilityId, medicineId] as const,
 };
+
+/**
+ * Inventory stock for a facility and medicine. Only runs once both are chosen.
+ * Data is null when Inventory holds no balance.
+ */
+export function useCurrentStock(facilityId: string, medicineId: string, enabled = true) {
+  return useQuery({
+    queryKey: demandKeys.currentStock(facilityId, medicineId),
+    queryFn: () => getCurrentStock(facilityId, medicineId),
+    enabled: enabled && Boolean(facilityId) && Boolean(medicineId),
+  });
+}
 
 export function useConsumption(query: ConsumptionQuery) {
   return useQuery({
@@ -128,6 +144,10 @@ export function useResolveShortage() {
 
 export function useDeleteShortage() {
   return useDemandMutation((id: string) => deleteShortage(id));
+}
+
+export function useScanShortages() {
+  return useDemandMutation(() => scanShortages());
 }
 
 export function useUpdateConsumption() {

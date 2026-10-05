@@ -37,7 +37,32 @@ public class ShortageResponse
     public DateTime GeneratedAt { get; set; }
 
     public string Status { get; set; } = string.Empty;
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public DateTime? ResolvedAt { get; set; }
+
+    /// <summary>Set when the alert was resolved automatically, for example
+    /// "Stock now covers lead time".</summary>
+    public string? ResolutionReason { get; set; }
+
+    /// <summary>
+    /// True when raising this alert refreshed an existing OPEN or ACKNOWLEDGED alert
+    /// for the same facility and medicine instead of creating a duplicate.
+    /// </summary>
+    public bool ExistingAlertUpdated { get; set; }
 }
+
+/// <summary>
+/// Stock on hand from the Inventory vertical's InventoryBalances table, read-only.
+/// Available = on hand - reserved, which is the figure the shortage calculation uses.
+/// </summary>
+public sealed record CurrentStockResponse(
+    Guid FacilityId,
+    Guid MedicineId,
+    decimal QuantityOnHand,
+    decimal QuantityReserved,
+    decimal AvailableQuantity);
 
 /// <summary>
 /// Body of POST /api/shortages/recalculate.
@@ -51,10 +76,10 @@ public class ShortageRecalculateRequest
     public Guid MedicineId { get; set; }
 
     /// <summary>
-    /// Stock on hand at the facility. Supplied by the caller because inventory balances
-    /// are owned by the Inventory vertical, not by Demand.
+    /// Stock on hand at the facility. When omitted it is read from the Inventory
+    /// vertical's balance (on hand - reserved).
     /// </summary>
-    public decimal CurrentStock { get; set; }
+    public decimal? CurrentStock { get; set; }
 
     /// <summary>
     /// Average daily consumption. When omitted it is derived from the stored
@@ -87,7 +112,11 @@ public class ShortageCreateRequest
 
     public Guid MedicineId { get; set; }
 
-    public decimal CurrentStock { get; set; }
+    /// <summary>
+    /// Observed stock. When omitted it is read from the Inventory vertical's balance
+    /// (on hand - reserved), so the alert does not depend on a typed-in number.
+    /// </summary>
+    public decimal? CurrentStock { get; set; }
 
     /// <summary>
     /// When omitted it is derived from the stored consumption history.
