@@ -38,10 +38,14 @@ class FakeBackend:
         average_daily_consumption: float = 20.0,
         lead_time_days: int = 10,
         minimum_stock: float = 150.0,
+        inventory_stock: float | None = None,
     ) -> None:
         self.average_daily_consumption = average_daily_consumption
         self.lead_time_days = lead_time_days
         self.minimum_stock = minimum_stock
+        # Available stock (on hand - reserved) the backend reads from Inventory when
+        # the agent omits currentStock. None means Inventory holds no balance.
+        self.inventory_stock = inventory_stock
         self.calls: list[tuple[str, str]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
@@ -56,7 +60,12 @@ class FakeBackend:
         if builder is None:
             return httpx.Response(400, json={"success": False})
 
-        return httpx.Response(200, json={"success": True, "data": builder(arguments)})
+        data = builder(arguments)
+
+        if isinstance(data, httpx.Response):
+            return data
+
+        return httpx.Response(200, json={"success": True, "data": data})
 
     # -- operations -----------------------------------------------------
 
@@ -101,8 +110,27 @@ class FakeBackend:
             "leadTimeDays": self.lead_time_days,
         }
 
-    def _projected_stockout(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        current_stock = arguments["currentStock"]
+    def _projected_stockout(self, arguments: dict[str, Any]) -> dict[str, Any] | httpx.Response:
+        current_stock = arguments.get("currentStock")
+        stock_source = "REQUEST"
+
+        if current_stock is None:
+            # Mirrors InternalToolsController: read Inventory, never assume zero.
+            if self.inventory_stock is None:
+                return httpx.Response(
+                    400,
+                    json={
+                        "success": False,
+                        "error": {
+                            "code": "DEMAND_STOCK_NOT_FOUND",
+                            "message": "currentStock was not supplied and Inventory holds no balance.",
+                        },
+                    },
+                )
+
+            current_stock = self.inventory_stock
+            stock_source = "INVENTORY"
+
         average = arguments.get("averageDailyConsumption") or self.average_daily_consumption
         lead_time = arguments.get("leadTimeDays")
         lead_time = self.lead_time_days if lead_time is None else lead_time
@@ -129,6 +157,7 @@ class FakeBackend:
             "leadTimeDays": lead_time,
             "riskLevel": "HIGH" if requires_transfer else "MEDIUM",
             "requiresTransfer": requires_transfer,
+            "stockSource": stock_source,
         }
 
     def _shortage_threshold(self, arguments: dict[str, Any]) -> dict[str, Any]:

@@ -9,6 +9,10 @@
  * time. Days of cover, the projected stockout date and the risk level are derived by
  * the backend and are deliberately not editable: letting a manager type "6 days" while
  * stock says otherwise would make the alert unreproducible.
+ *
+ * Stock on hand is pre-filled from the Inventory balance (on hand - reserved) once a
+ * facility and medicine are chosen, and stays editable for a physical count. Raising
+ * an alert that is already active updates it instead of creating a duplicate.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,7 +21,8 @@ import { LoadingState } from '@/components/LoadingState';
 import { toErrorMessage } from './errors';
 import { SHORTAGE_STATUSES, type ShortageStatus } from '@/types/demand';
 import { DemandChain } from './DemandChain';
-import { useCreateShortage, useShortage, useUpdateShortage } from './hooks';
+import { EXISTING_ALERT_UPDATED_NOTICE, formatNumber } from './format';
+import { useCreateShortage, useCurrentStock, useShortage, useUpdateShortage } from './hooks';
 import { isGuid, useFacilities, useMedicines } from './referenceApi';
 
 export function ShortageForm({ shortageId }: { shortageId?: string }) {
@@ -41,6 +46,27 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
   const [leadTimeDays, setLeadTimeDays] = useState('');
   const [status, setStatus] = useState<ShortageStatus>('OPEN');
   const [formError, setFormError] = useState<string | null>(null);
+  // Once the user types a stock figure, an Inventory pre-fill must not overwrite it.
+  const [stockEdited, setStockEdited] = useState(false);
+
+  const { data: inventoryStock, isFetching: stockLoading } = useCurrentStock(
+    facilityId,
+    medicineId,
+    !isEdit && isGuid(facilityId) && isGuid(medicineId),
+  );
+
+  useEffect(() => {
+    if (!isEdit && !stockEdited && inventoryStock) {
+      setCurrentStock(String(inventoryStock.availableQuantity));
+    }
+  }, [isEdit, stockEdited, inventoryStock, facilityId, medicineId]);
+
+  function selectTarget(update: () => void) {
+    update();
+    // A new facility or medicine means a new Inventory figure.
+    setStockEdited(false);
+    setCurrentStock('');
+  }
 
   // Populate from the stored alert once it loads.
   useEffect(() => {
@@ -113,7 +139,9 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
           averageDailyConsumption: averageDaily === '' ? undefined : Number(averageDaily),
           leadTimeDays: leadTimeDays === '' ? undefined : Number(leadTimeDays),
         });
-        navigate(`/demand/shortages/${created.id}`);
+        navigate(`/demand/shortages/${created.id}`, {
+          state: created.existingAlertUpdated ? { notice: EXISTING_ALERT_UPDATED_NOTICE } : undefined,
+        });
       }
     } catch (cause) {
       setFormError(toErrorMessage(cause));
@@ -151,7 +179,7 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
                   aria-label="Facility"
                   value={facilityId}
                   disabled={isEdit || facilitiesLoading}
-                  onChange={(event) => setFacilityId(event.target.value)}
+                  onChange={(event) => selectTarget(() => setFacilityId(event.target.value))}
                 >
                   <option value="">
                     {facilitiesLoading ? 'Loading facilities…' : 'Select a facility'}
@@ -175,7 +203,7 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
                   aria-label="Medicine"
                   value={medicineId}
                   disabled={isEdit || medicinesLoading}
-                  onChange={(event) => setMedicineId(event.target.value)}
+                  onChange={(event) => selectTarget(() => setMedicineId(event.target.value))}
                 >
                   <option value="">
                     {medicinesLoading ? 'Loading medicines…' : 'Select a medicine'}
@@ -198,8 +226,23 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
                   aria-label="Stock on hand"
                   value={currentStock}
                   min={0}
-                  onChange={(event) => setCurrentStock(event.target.value)}
+                  onChange={(event) => {
+                    setStockEdited(true);
+                    setCurrentStock(event.target.value);
+                  }}
                 />
+                {!isEdit && facilityId && medicineId && (
+                  <span className="card__hint" data-testid="stock-source">
+                    {stockLoading
+                      ? 'Reading Inventory…'
+                      : inventoryStock
+                        ? `From Inventory: ${formatNumber(inventoryStock.quantityOnHand)} on hand − ` +
+                          `${formatNumber(inventoryStock.quantityReserved)} reserved. You can change it.`
+                        : inventoryStock === null
+                          ? 'Inventory has no balance for this medicine here. Enter the stock on hand.'
+                          : null}
+                  </span>
+                )}
               </label>
 
               <label className="field">

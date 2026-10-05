@@ -49,6 +49,7 @@ public class InternalToolsController : ControllerBase
 
     private readonly ConsumptionService _consumptionService;
     private readonly ForecastService _forecastService;
+    private readonly ShortageService _shortageService;
     private readonly DemandValidator _validator;
     private readonly IConfiguration _configuration;
     private readonly ILogger<InternalToolsController> _logger;
@@ -56,12 +57,14 @@ public class InternalToolsController : ControllerBase
     public InternalToolsController(
         ConsumptionService consumptionService,
         ForecastService forecastService,
+        ShortageService shortageService,
         DemandValidator validator,
         IConfiguration configuration,
         ILogger<InternalToolsController> logger)
     {
         _consumptionService = consumptionService;
         _forecastService = forecastService;
+        _shortageService = shortageService;
         _validator = validator;
         _configuration = configuration;
         _logger = logger;
@@ -218,18 +221,34 @@ public class InternalToolsController : ControllerBase
             case "projectedStockout":
             {
                 var currentStock = ReadDecimal(arguments, "currentStock");
+                var stockSource = ProjectedStockoutToolResult.StockSourceRequest;
 
                 if (currentStock is null)
                 {
-                    return BadRequest(new ErrorResponse
-                                      {
-                                          Error = new ErrorDetail
+                    // Not supplied by the agent: read it from the Inventory vertical's
+                    // balance (on hand - reserved), read-only. A missing balance is
+                    // reported, never assumed to be zero.
+                    var stock = await _shortageService.GetCurrentStockAsync(
+                        facilityId,
+                        medicineId,
+                        cancellationToken);
+
+                    if (stock is null)
+                    {
+                        return BadRequest(new ErrorResponse
                                           {
-                                              Code = DemandValidator.ValidationErrorCode,
-                                              Message = "currentStock is required.",
-                                              TraceId = HttpContext.TraceIdentifier,
-                                          },
-                                      });
+                                              Error = new ErrorDetail
+                                              {
+                                                  Code = DemandValidator.StockNotFoundCode,
+                                                  Message = "currentStock was not supplied and Inventory holds no balance "
+                                                            + $"for medicine {medicineId} at facility {facilityId}.",
+                                                  TraceId = HttpContext.TraceIdentifier,
+                                              },
+                                          });
+                    }
+
+                    currentStock = stock.AvailableQuantity;
+                    stockSource = ProjectedStockoutToolResult.StockSourceInventory;
                 }
 
                 if (currentStock < 0)
@@ -310,17 +329,20 @@ public class InternalToolsController : ControllerBase
                         calculation.ProjectedStockoutDate,
                         calculation.LeadTimeDays,
                         calculation.RiskLevel,
-                        calculation.RequiresTransfer)));
+                        calculation.RequiresTransfer,
+                        stockSource)));
             }
 
             case "shortageThreshold":
             {
-                var rule = await _forecastService.GetReorderRuleAsync(
+                // The configured rule, or the default for a medicine and facility that
+                // exist in Inventory. Still refused for an unknown medicine or facility.
+                var effective = await _forecastService.GetEffectiveReorderRuleAsync(
                     facilityId,
                     medicineId,
                     cancellationToken);
 
-                if (rule is null)
+                if (effective is null)
                 {
                     return BadRequest(new ErrorResponse
                                       {
@@ -333,13 +355,16 @@ public class InternalToolsController : ControllerBase
                                       });
                 }
 
+                var rule = effective.Rule;
+
                 return Ok(new ApiResponse<ShortageThresholdToolResult>(new ShortageThresholdToolResult(
                         rule.FacilityId,
                         rule.MedicineId,
                         rule.MinimumStock,
                         rule.ReorderPoint,
                         rule.SafetyStock,
-                        rule.LeadTimeDays)));
+                        rule.LeadTimeDays,
+                        effective.Source)));
             }
 
             default:
@@ -569,7 +594,15 @@ public sealed record ProjectedStockoutToolResult(
     DateTime? ProjectedStockoutDate,
     int LeadTimeDays,
     string RiskLevel,
-    bool RequiresTransfer);
+    bool RequiresTransfer,
+    string StockSource)
+{
+    /// <summary>The agent supplied currentStock.</summary>
+    public const string StockSourceRequest = "REQUEST";
+
+    /// <summary>currentStock was read from the Inventory balance.</summary>
+    public const string StockSourceInventory = "INVENTORY";
+}
 
 /// <summary>Result of getShortageThreshold.</summary>
 public sealed record ShortageThresholdToolResult(
@@ -578,4 +611,7 @@ public sealed record ShortageThresholdToolResult(
     decimal MinimumStock,
     decimal ReorderPoint,
     decimal SafetyStock,
-    int LeadTimeDays);
+    int LeadTimeDays,
+    // CONFIGURED for a stored reorder rule, DEFAULT when none is configured and
+    // ReorderRuleDefaults applies.
+    string Source);

@@ -38,7 +38,7 @@ does not import LangGraph so the specialist stays independently testable.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from medistock_agents.agents.demand_graph import DemandPlanner, build_demand_graph
@@ -54,6 +54,7 @@ from medistock_agents.safety.input_guard import InputGuard
 from medistock_agents.safety.output_guard import OutputGuard
 from medistock_agents.tools.demand_tools import (
     DemandToolClient,
+    describe_lead_time,
     parse_daily_consumption,
     parse_projected_stockout,
     parse_shortage_threshold,
@@ -79,6 +80,8 @@ class DemandShortageRequest:
     current_stock: float | None = None
     window_days: int = DEFAULT_WINDOW_DAYS
     objective: str | None = None
+    # Set to "INVENTORY" when current_stock was read from the Inventory balance.
+    stock_source: str | None = None
 
 
 class DemandShortageAgent:
@@ -111,6 +114,37 @@ class DemandShortageAgent:
     # Entry point
     # ------------------------------------------------------------------
 
+    def _with_inventory_stock(self, request: DemandShortageRequest) -> DemandShortageRequest:
+        """Fill in current stock from the Inventory balance when none was supplied.
+
+        The backend tool reads it (on hand - reserved); the agent never guesses it.
+        When Inventory has no balance, or the call fails, the request is returned
+        unchanged and the existing STOCK_REQUIRED path reports what is missing.
+        """
+        if request.current_stock is not None:
+            return request
+
+        result = self._tools.calculate_projected_stockout(
+            request.facility_id,
+            request.medicine_id,
+            current_stock=None,
+            window_days=request.window_days or DEFAULT_WINDOW_DAYS,
+        )
+
+        if not result.succeeded:
+            logger.info(
+                "No inventory stock for facility %s medicine %s: %s",
+                request.facility_id,
+                request.medicine_id,
+                result.error_message,
+            )
+            return request
+
+        stock = parse_projected_stockout(result).current_stock
+        logger.info("Current stock %s read from the Inventory balance.", stock)
+
+        return replace(request, current_stock=stock, stock_source="INVENTORY")
+
     def analyze(self, request: DemandShortageRequest) -> AgentResult:
         """Assess shortage risk and return a schema-validated result.
 
@@ -131,6 +165,9 @@ class DemandShortageAgent:
                     "OBJECTIVE_REFUSED",
                     screened.refusal_reason,
                 )
+
+        # Stock not supplied: the backend reads it from the Inventory balance.
+        request = self._with_inventory_stock(request)
 
         window_days = request.window_days or DEFAULT_WINDOW_DAYS
 
@@ -169,7 +206,7 @@ class DemandShortageAgent:
             ),
             Finding(
                 code="LEAD_TIME",
-                summary=f"Replenishment lead time is {threshold.lead_time_days} days.",
+                summary=describe_lead_time(threshold),
                 value=float(threshold.lead_time_days),
                 unit="days",
             ),
@@ -188,9 +225,18 @@ class DemandShortageAgent:
             ),
         ]
 
+        if request.stock_source == "INVENTORY":
+            evidence.append(
+                Evidence(
+                    source="calculateProjectedStockout",
+                    detail="Current stock read from the Inventory balance (on hand - reserved)",
+                    value=request.current_stock,
+                )
+            )
+
         # Without stock on hand there is nothing to project a stockout against.
-        # Inventory balances belong to the Inventory vertical, so the coordinator is
-        # told what it still needs rather than the agent guessing.
+        # Neither the caller nor the Inventory balance supplied one, so the
+        # coordinator is told what it still needs rather than the agent guessing.
         if request.current_stock is None:
             return self._validated(
                 AgentResult(
@@ -333,6 +379,10 @@ class DemandShortageAgent:
                     screened.refusal_reason,
                 )
                 return self._safe_failure("OBJECTIVE_REFUSED", screened.refusal_reason)
+
+        # Resolve stock once, before planning, so the planner is told stock is
+        # available and the fallback path reuses the same figure.
+        request = self._with_inventory_stock(request)
 
         if self._graph is not None:
             agentic = await self._run_graph(request)

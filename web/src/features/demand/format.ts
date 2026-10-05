@@ -4,7 +4,7 @@
  *
  * Formatting only. Every number displayed is produced by the backend.
  */
-import type { ShortageAlert } from '@/types/demand';
+import type { ShortageAlert, ShortageScanResult } from '@/types/demand';
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -64,4 +64,24 @@ export function explainRisk(alert: ShortageAlert): string {
     `${alert.daysRemaining} days of cover meets the ${alert.leadTimeDays} day lead time, ` +
     'so stock is projected to last until replenishment arrives.'
   );
+}
+
+/** Shown on the detail page when raising refreshed an existing alert. */
+export const EXISTING_ALERT_UPDATED_NOTICE =
+  'Existing alert updated: an open alert for this medicine and facility already existed, ' +
+  'so it was recalculated instead of creating a duplicate.';
+
+/** One line a manager can read at a glance after "Scan now". */
+export function describeScan(result: ShortageScanResult): string {
+  const parts = [
+    `${result.evaluated} checked`,
+    `${result.created} new`,
+    `${result.updated} updated`,
+    `${result.resolved} resolved`,
+  ];
+
+  if (result.skipped > 0) parts.push(`${result.skipped} skipped`);
+  if (result.failed > 0) parts.push(`${result.failed} failed`);
+
+  return `Scan complete: ${parts.join(', ')}.`;
 }
