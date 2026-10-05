@@ -19,10 +19,12 @@ import { apiRequest } from '@/services/apiClient';
 import {
   createForecast,
   getConsumption,
+  getCurrentStock,
   getForecasts,
   getShortageById,
   getShortages,
   recalculateShortage,
+  scanShortages,
 } from '@/services/demandApi';
 import { consumptionRecord, demandForecast, page, shortageAlert } from './testUtils';
 
@@ -123,5 +125,43 @@ describe('demandApi', () => {
       }),
     });
     expect(result.daysRemaining).toBe(6);
+  });
+
+  it('reads current stock from the Inventory balance endpoint', async () => {
+    const stock = {
+      facilityId: 'facility-1',
+      medicineId: 'medicine-1',
+      quantityOnHand: 150,
+      quantityReserved: 30,
+      availableQuantity: 120,
+    };
+    request.mockResolvedValue(stock);
+
+    const result = await getCurrentStock('facility-1', 'medicine-1');
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/shortages/current-stock?facilityId=facility-1&medicineId=medicine-1',
+    );
+    expect(result).toEqual(stock);
+  });
+
+  it('returns null rather than throwing when Inventory has no balance', async () => {
+    request.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+
+    await expect(getCurrentStock('facility-1', 'medicine-1')).resolves.toBeNull();
+  });
+
+  it('still throws other current stock failures', async () => {
+    request.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }));
+
+    await expect(getCurrentStock('facility-1', 'medicine-1')).rejects.toThrow('boom');
+  });
+
+  it('posts a scan to the scan endpoint', async () => {
+    request.mockResolvedValue({ evaluated: 0, results: [] });
+
+    await scanShortages();
+
+    expect(request).toHaveBeenCalledWith('/api/shortages/scan', { method: 'POST' });
   });
 });

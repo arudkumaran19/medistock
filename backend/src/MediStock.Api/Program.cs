@@ -253,6 +253,7 @@ builder.Services.AddScoped<MedicineService>();
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
+builder.Services.AddScoped<ShortageEvaluationService>();
 builder.Services.AddScoped<DemandValidator>();
 
 // ---------------------------------------------------------------------------
