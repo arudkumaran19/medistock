@@ -39,6 +39,11 @@ public sealed class ApplicationDbContext
     public DbSet<ReorderRule> ReorderRules => Set<ReorderRule>();
     public DbSet<ShortageAlert> ShortageAlerts => Set<ShortageAlert>();
 
+    // Redistribution vertical (Member 3). Additive: two tables, configured in
+    // TransferRequestConfiguration.cs.
+    public DbSet<Features.Redistribution.Models.TransferRequest> TransferRequests => Set<Features.Redistribution.Models.TransferRequest>();
+    public DbSet<Features.Redistribution.Models.TransferStatusHistory> TransferStatusHistory => Set<Features.Redistribution.Models.TransferStatusHistory>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

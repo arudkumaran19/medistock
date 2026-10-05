@@ -33,8 +33,22 @@ DEMAND_SHORTAGE_TOOLS: frozenset[str] = frozenset(
 
 # Registry consulted by the guard. Other specialist agents are registered here by
 # their owners through this same boundary.
+# Redistribution vertical (Member 3). Read-only tools served by
+# /internal/tools/redistribution; calculateTransferQuantity is local arithmetic.
+REDISTRIBUTION_TOOLS: frozenset[str] = frozenset(
+    {
+        "getTransferRequest",
+        "getCandidateFacilities",
+        "getFacilityLocation",
+        "getFacilityInventory",
+        "calculateDistance",
+        "calculateTransferQuantity",
+    }
+)
+
 AGENT_TOOL_ALLOW_LIST: dict[str, frozenset[str]] = {
     "demand_shortage": DEMAND_SHORTAGE_TOOLS,
+    "redistribution_planning": REDISTRIBUTION_TOOLS,
 }
 
 

@@ -255,6 +255,13 @@ builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
 builder.Services.AddScoped<DemandValidator>();
 
+// ---------------------------------------------------------------------------
+// Redistribution vertical (Member 3). Additive registrations only.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<MediStock.Api.Features.Redistribution.Services.RoutingService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.CandidateFacilityService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.TransferService>();
+
 // Internal agent service (blueprint section 37). Infrastructure/AI has no assigned
 // owner in the blueprint; added so the Demand & Shortage Agent is reachable from
 // ASP.NET Core rather than being a library nothing can invoke.
