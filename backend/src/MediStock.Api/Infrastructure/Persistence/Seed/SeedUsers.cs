@@ -29,7 +29,8 @@ public static class SeedUsers
             "OperationalStaff", "STORE_OFFICER",
             "FacilityManager", "FACILITY_MANAGER",
             "SupplierOfficer", "SUPPLIER_OFFICER",
-            "Administrator", "ADMIN"
+            "Administrator", "ADMIN",
+            "FieldOfficer", "FIELD_OFFICER"
         };
 
         foreach (var roleName in roles)
@@ -57,6 +58,8 @@ public static class SeedUsers
         var defaultUsers = new[]
         {
             (Email: "manager@medistock.com", Roles: new[] { "FacilityManager", "FACILITY_MANAGER" }),
+            (Email: "user@medistock.com", Roles: new[] { "FacilityManager", "FACILITY_MANAGER" }),
+            (Email: "officer@medistock.com", Roles: new[] { "FieldOfficer", "FIELD_OFFICER" }),
             (Email: "store@medistock.com", Roles: new[] { "OperationalStaff", "STORE_OFFICER" }),
             (Email: "supplier@medistock.com", Roles: new[] { "SupplierOfficer", "SUPPLIER_OFFICER" }),
             (Email: "admin@medistock.com", Roles: new[] { "Administrator", "ADMIN" }),
