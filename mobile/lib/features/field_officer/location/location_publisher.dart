@@ -40,7 +40,11 @@ class LocationPublisher {
         if (kDebugMode) {
           debugPrint('🛰️ [GPS Publisher] Lat: ${position.latitude}, Lng: ${position.longitude}');
         }
-        // Publish through SignalR or POST /api/transfers/{id}/location
+        await _signalRClient.sendLocationUpdate(
+          activeTransferId,
+          position.latitude,
+          position.longitude,
+        );
       } catch (e) {
         if (kDebugMode) {
           debugPrint('⚠️ [GPS Publisher Error] $e');

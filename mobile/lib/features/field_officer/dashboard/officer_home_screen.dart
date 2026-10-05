@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -16,8 +18,36 @@ class OfficerHomeScreen extends ConsumerStatefulWidget {
 class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
   bool _isOnline = true;
   int _currentIndex = 0;
+  StreamSubscription<Map<String, dynamic>>? _taskSubscription;
+  final SignalRClient _signalRClient = SignalRClient();
 
-  void _showIncomingModal() {
+  @override
+  void initState() {
+    super.initState();
+    _initSignalR();
+  }
+
+  Future<void> _initSignalR() async {
+    await _signalRClient.connect();
+    if (_isOnline) {
+      await _signalRClient.joinOfficerGroup();
+    }
+    _taskSubscription = _signalRClient.onTaskAssigned.listen((data) {
+      if (mounted) {
+        _showIncomingModal(taskData: data);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _taskSubscription?.cancel();
+    _signalRClient.leaveOfficerGroup();
+    super.dispose();
+  }
+
+  void _showIncomingModal({Map<String, dynamic>? taskData}) {
+    final transferId = taskData?['id']?.toString() ?? taskData?['transferId']?.toString() ?? 'req-8842';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -25,7 +55,7 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
       builder: (context) => IncomingTaskModal(
         onAccept: () {
           Navigator.pop(context);
-          context.push('/officer/active/req-8842');
+          context.push('/officer/active/$transferId');
         },
         onDecline: () {
           Navigator.pop(context);
@@ -111,7 +141,14 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
                   Switch.adaptive(
                     value: _isOnline,
                     activeColor: AppColors.secondary,
-                    onChanged: (val) => setState(() => _isOnline = val),
+                    onChanged: (val) {
+                      setState(() => _isOnline = val);
+                      if (val) {
+                        _signalRClient.joinOfficerGroup();
+                      } else {
+                        _signalRClient.leaveOfficerGroup();
+                      }
+                    },
                   ),
                 ],
               ),
