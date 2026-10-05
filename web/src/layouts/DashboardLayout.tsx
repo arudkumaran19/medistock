@@ -693,7 +693,7 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Loader2 size={15} className="spin" style={{ color: "#2dd4bf" }} />
               <span>
-                <strong>Procurement AI Agent working ({agentElapsedSecs}s):</strong> {getAgentPhase().label}
+                <strong>Procurement AI Agent working ({agentElapsedSecs}s):</strong> {getAgentPhase?.()?.label ?? 'Working...'}
               </span>
             </div>
             <Link

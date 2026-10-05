@@ -3,17 +3,62 @@ services:
     image: ${POSTGRES_IMAGE:-postgres:17}
     container_name: medistock-postgres
     restart: unless-stopped
-
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the environment}
-      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the environment}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the environment}
-
+      POSTGRES_DB: ${POSTGRES_DB:-medistock}
+      POSTGRES_USER: ${POSTGRES_USER:-medistock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medistock_dev_password}
     ports:
       - "${POSTGRES_PORT:-5430}:5432"
-
     volumes:
       - medistock-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medistock}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: medistock-backend
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-medistock};Username=${POSTGRES_USER:-medistock};Password=${POSTGRES_PASSWORD:-medistock_dev_password}
+      - JWT_ISSUER=${JWT_ISSUER:-MediStock.Api}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-MediStock.Client}
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-HoOeYL3F2xPhZY+Px4gWS3zfbtnreq4o69ivATfKCB2lab2GSOq9PaNPcbD7VyY4vdHonz9ecREeDXh92nBYtQ==}
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  agent-service:
+    build:
+      context: ./agent-service
+      dockerfile: Dockerfile
+    container_name: medistock-agent-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - MEDISTOCK_API_BASE_URL=http://backend:5050
+    depends_on:
+      - backend
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: medistock-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
 
 volumes:
   medistock-postgres:

@@ -5,6 +5,8 @@ using MediStock.Api.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+
 namespace MediStock.Api.Tests;
 
 public sealed class SeedDataTests

@@ -22,10 +22,12 @@ export interface AgentPhase {
 interface ProcurementAgentContextType {
   result: ProcurementAgentResponse | null;
   isLoading: boolean;
+  isAgentLoading?: boolean;
   error: string;
   prompt: string;
   lastPrompt: string;
   elapsedSecs: number;
+  agentElapsedSecs?: number;
   setPrompt: (value: string) => void;
   runAction: (
     actionType: ProcurementActionType,
@@ -35,6 +37,7 @@ interface ProcurementAgentContextType {
   ) => Promise<void>;
   clearResult: () => void;
   getPhase: () => AgentPhase;
+  getAgentPhase?: () => AgentPhase;
 }
 
 const STORAGE_RESULT_KEY = "medistock_agent_last_result";
@@ -188,14 +191,17 @@ export function ProcurementAgentProvider({ children }: { children: ReactNode }) 
       value={{
         result,
         isLoading,
+        isAgentLoading: isLoading,
         error,
         prompt,
         lastPrompt,
         elapsedSecs,
+        agentElapsedSecs: elapsedSecs,
         setPrompt,
         runAction,
         clearResult,
         getPhase,
+        getAgentPhase: getPhase,
       }}
     >
       {children}
@@ -206,14 +212,17 @@ export function ProcurementAgentProvider({ children }: { children: ReactNode }) 
 const defaultContextValue: ProcurementAgentContextType = {
   result: null,
   isLoading: false,
+  isAgentLoading: false,
   error: "",
   prompt: "",
   lastPrompt: "",
   elapsedSecs: 0,
+  agentElapsedSecs: 0,
   setPrompt: () => {},
   runAction: async () => {},
   clearResult: () => {},
   getPhase: () => ({ stage: "analyzing", label: "Ready" }),
+  getAgentPhase: () => ({ stage: "analyzing", label: "Ready" }),
 };
 
 export function useProcurementAgent() {

@@ -106,6 +106,7 @@ builder.Services
 // Database Contexts
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     if (builder.Environment.IsEnvironment("Testing") ||
         builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
     {

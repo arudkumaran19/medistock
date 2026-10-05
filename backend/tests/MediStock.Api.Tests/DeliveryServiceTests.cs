@@ -10,6 +10,8 @@ using Xunit;
 using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement;
 
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+
 namespace MediStock.Api.Tests;
 
 public sealed class DeliveryServiceTests
