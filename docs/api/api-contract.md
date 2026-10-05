@@ -114,6 +114,9 @@ Successful stock movements update the relevant balance and record a stock transa
 - `GET /api/medicine-batches/lookup` requires the `batchNumber` query parameter.
   `GET /api/medicine-batches/{id}` retrieves by batch GUID. Both return 404 with code
   `BATCH_NOT_FOUND` when no matching batch is found.
+- Batch lookup filters on `batchNumber` alone. Because batch identity is scoped by
+  medicine and facility, the same batch number may exist in more than one scope; this
+  endpoint has no medicine or facility parameter to disambiguate such matches.
 - Batch results contain `id`, `medicineId`, `medicineName`, `facilityId`,
   `batchNumber`, `quantityOnHand`, `expiryDateUtc`, and `manufacturingDateUtc`.
 - `GET /api/inventory/expiring` accepts `days` (default `90`; negative values are
