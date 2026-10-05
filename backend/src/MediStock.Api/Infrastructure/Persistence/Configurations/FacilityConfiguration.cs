@@ -31,5 +31,14 @@ public sealed class FacilityConfiguration
         builder.Property(facility => facility.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
+
+        builder.Ignore(facility => facility.City);
+        builder.Ignore(facility => facility.FacilityCode);
+        builder.Ignore(facility => facility.FacilityType);
+        builder.Ignore(facility => facility.Latitude);
+        builder.Ignore(facility => facility.Longitude);
+        builder.Ignore(facility => facility.ContactPhone);
+        builder.Ignore(facility => facility.ContactPerson);
+        builder.Ignore(facility => facility.Inventories);
     }
 }
