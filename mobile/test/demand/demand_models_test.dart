@@ -103,6 +103,20 @@ void main() {
       expect(json['quantityUsed'], 20);
     });
 
+    test('sends the chosen calendar day, not local midnight shifted to UTC', () {
+      // What the date picker returns: local midnight on the chosen day. Converting
+      // that with toUtc() moved it to the previous day anywhere east of UTC.
+      final ConsumptionEntry entry = ConsumptionEntry(
+        facilityId: 'f',
+        medicineId: 'm',
+        quantityUsed: 5,
+        consumptionDate: DateTime(2026, 10, 5),
+        source: 'FLUTTER_CONSUMPTION_ENTRY',
+      );
+
+      expect(entry.toJson()['consumptionDate'], '2026-10-05T00:00:00.000Z');
+    });
+
     test('omits empty notes rather than sending a blank string', () {
       final ConsumptionEntry entry = ConsumptionEntry(
         facilityId: 'f1',
