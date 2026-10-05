@@ -44,6 +44,24 @@ Records stock movements.
 
 Defines required storage conditions.
 
+#### Inventory record structure
+
+- `Medicines` stores `Id`, unique `Code`, `Name`, `Unit`,
+  `MinimumStockLevel`, and `IsActive`.
+- `MedicineBatches` stores `Id`, `MedicineId`, `FacilityId`, `BatchNumber`,
+  manufacturing and expiry dates in UTC, and `QuantityOnHand`. Its unique key is
+  `(MedicineId, FacilityId, BatchNumber)`.
+- `InventoryBalances` stores `Id`, `MedicineId`, `FacilityId`, on-hand and reserved
+  quantities, and `UpdatedAtUtc`. Its unique key is `(MedicineId, FacilityId)`;
+  available quantity is derived as on-hand minus reserved.
+- `StockTransactions` stores medicine and facility IDs, an optional batch ID,
+  movement type, quantity, resulting balance, reason, optional actor ID, and UTC
+  creation time.
+
+Medicine batches and inventory balances have restrictive foreign keys to medicines
+and facilities. A stock transaction's optional batch relationship is also restrictive,
+so deleting a referenced batch does not cascade-delete its linked stock transactions.
+
 ## Demand
 
 ### ConsumptionRecords
