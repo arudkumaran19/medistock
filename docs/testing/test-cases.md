@@ -8,10 +8,10 @@ that every inventory behavior has a test at every layer.
 `backend/tests/MediStock.Api.Tests/InventoryServiceTests.cs` exercises services with
 EF Core's in-memory database. Coverage includes:
 
-- Receipt creation and increments, persisted batch/balance values, and receipt
-  transaction history.
-- Positive quantity, batch-number and date validation, and rejection of conflicting
-  dates for an existing batch.
+- Successful receipt creation and increments, persisted batch/balance values, and
+  receipt transaction history.
+- Batch-number and date validation, and rejection of conflicting dates for an
+  existing batch.
 - Reservation limits and the distinction between on-hand, reserved, and available
   quantities.
 - Negative adjustment limits, successful balance updates, audit transactions, and
@@ -23,10 +23,16 @@ EF Core's in-memory database. Coverage includes:
   transaction-history preservation and reason validation.
 - Read-only transaction history contents and ordering.
 
+`backend/tests/MediStock.Api.Tests/MedicineValidationTests.cs` separately covers
+medicine-code formats, medicine name and unit validation, non-negative minimum-stock
+values, and accepted/rejected batch-number formats. These files do not directly test
+rejection of duplicate medicine codes or zero and negative receipt or reservation
+quantities.
+
 Run from the repository root:
 
 ```bash
-dotnet test backend/MediStock.sln --filter FullyQualifiedName~InventoryServiceTests
+dotnet test backend/MediStock.sln --filter "FullyQualifiedName~InventoryServiceTests|FullyQualifiedName~MedicineValidationTests"
 ```
 
 ## Agent tests
