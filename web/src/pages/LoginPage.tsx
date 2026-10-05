@@ -102,7 +102,7 @@ export function LoginPage() {
                 type="email"
                 required
                 className={styles.formInput}
-                style={{ width: "100%", paddingLeft: 38 }}
+                style={{ width: "100%", paddingLeft: 38, color: "#0f172a", backgroundColor: "#ffffff" }}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="manager@medistock.com"
@@ -121,7 +121,7 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 required
                 className={styles.formInput}
-                style={{ width: "100%", paddingLeft: 38, paddingRight: 40 }}
+                style={{ width: "100%", paddingLeft: 38, paddingRight: 40, color: "#0f172a", backgroundColor: "#ffffff" }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

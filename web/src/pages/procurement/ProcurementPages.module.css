@@ -288,6 +288,7 @@
   color: #ffffff;
   border: 1px solid var(--color-primary-700, #0d9488);
 }
+
 .actionBtnPrimary:hover:not(:disabled) {
   background-color: var(--color-primary-700, #0d9488);
   color: #ffffff;
@@ -299,6 +300,7 @@
   color: var(--text-secondary, #334155);
   border: 1px solid var(--border-color, #cbd5e1);
 }
+
 .actionBtnSecondary:hover:not(:disabled) {
   background-color: var(--bg-subtle, #f8fafc);
   border-color: var(--border-hover, #94a3b8);
@@ -310,6 +312,7 @@
   color: #ffffff;
   border: 1px solid #b45309;
 }
+
 .actionBtnWarning:hover:not(:disabled) {
   background-color: #b45309;
   color: #ffffff;
@@ -321,6 +324,7 @@
   color: #ffffff;
   border: 1px solid var(--color-danger-700, #b91c1c);
 }
+
 .actionBtnDanger:hover:not(:disabled) {
   background-color: var(--color-danger-700, #b91c1c);
   color: #ffffff;
@@ -590,6 +594,11 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
