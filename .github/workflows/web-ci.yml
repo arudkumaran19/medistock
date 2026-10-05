@@ -5,12 +5,14 @@ on:
     branches:
       - main
       - 'feature/**'
+      - develop
     paths:
       - 'web/**'
       - '.github/workflows/web-ci.yml'
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - 'web/**'
       - '.github/workflows/web-ci.yml'
@@ -20,6 +22,9 @@ jobs:
   build-and-test:
     name: Build & Test React Web
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
     defaults:
       run:
         working-directory: web
@@ -31,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
@@ -40,6 +45,9 @@ jobs:
 
       - name: Run Vitest Suite
         run: npm run test
+
+      - name: Lint
+        run: npm run lint
 
       - name: Build Web Application
         run: npm run build

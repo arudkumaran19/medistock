@@ -53,3 +53,182 @@
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
 }
+
+/* Scoped to .demand-vertical so these tokens cannot override develop's
+   design system. 21 token names collide with design-system.css; before
+   scoping, this file won the cascade on every page in the app. */
+.demand-vertical {
+  color-scheme: light;
+
+  /* Typeface ------------------------------------------------------------- */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* A restrained type scale. Headings are weight, not size, led. */
+  --text-xs: 0.72rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.875rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.45rem;
+  --text-display: 2rem;
+
+  /* Planes and ink ------------------------------------------------------- */
+  --plane: #f6f7f8;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f2f4f5;
+  --text-primary: #0e1417;
+  --text-secondary: #4a5459;
+  --text-muted: #79858b;
+
+  /* Lines ---------------------------------------------------------------- */
+  --border: rgba(14, 20, 23, 0.09);
+  --border-strong: #d6dbde;
+  --gridline: #e8ebed;
+
+  /* Brand accent — deep teal, the clinical end of the spectrum ------------ */
+  --accent: #0f6d72;
+  --accent-hover: #0b585c;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(15, 109, 114, 0.07);
+  --accent-ring: rgba(15, 109, 114, 0.22);
+
+  /* Chart series (validated against both surfaces) ------------------------ */
+  --series-1: #2a78d6;
+  --series-1-soft: rgba(42, 120, 214, 0.14);
+
+  /* Status — fixed, never themed. Always paired with icon + label. -------- */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* Severity chips -------------------------------------------------------- */
+  --sev-high-bg: rgba(208, 59, 59, 0.09);
+  --sev-high-border: rgba(208, 59, 59, 0.3);
+  --sev-high-ink: #9b2226;
+
+  --sev-medium-bg: rgba(202, 138, 4, 0.11);
+  --sev-medium-border: rgba(202, 138, 4, 0.32);
+  --sev-medium-ink: #7a5300;
+
+  --neutral-bg: #eef1f2;
+  --neutral-ink: #4a5459;
+
+  /* Spacing — 4px base ---------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.75rem;
+
+  /* Shape ----------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  /* Elevation — low and diffuse, not drop-shadowed --------------------------*/
+  --shadow-sm: 0 1px 2px rgba(14, 20, 23, 0.04);
+  --shadow: 0 1px 2px rgba(14, 20, 23, 0.05), 0 8px 20px -12px rgba(14, 20, 23, 0.14);
+  --shadow-lg: 0 2px 4px rgba(14, 20, 23, 0.06), 0 20px 48px -20px rgba(14, 20, 23, 0.22);
+
+  /* Motion — fast and flat. Nothing bounces. ------------------------------ */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  --sidebar-width: 236px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .demand-vertical:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --plane: #0c0f10;
+    --surface: #15191b;
+    --surface-raised: #1c2123;
+    --surface-sunken: #111416;
+    --text-primary: #f2f5f6;
+    --text-secondary: #b3bdc2;
+    --text-muted: #7f8c92;
+
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: #2e3538;
+    --gridline: #232a2d;
+
+    --accent: #3fb0b6;
+    --accent-hover: #55c3c9;
+    --accent-ink: #06181a;
+    --accent-wash: rgba(63, 176, 182, 0.12);
+    --accent-ring: rgba(63, 176, 182, 0.32);
+
+    --series-1: #3987e5;
+    --series-1-soft: rgba(57, 135, 229, 0.2);
+
+    --sev-high-bg: rgba(230, 103, 103, 0.14);
+    --sev-high-border: rgba(230, 103, 103, 0.4);
+    --sev-high-ink: #f3a9a9;
+
+    --sev-medium-bg: rgba(250, 178, 25, 0.13);
+    --sev-medium-border: rgba(250, 178, 25, 0.38);
+    --sev-medium-ink: #f6c453;
+
+    --neutral-bg: #232a2d;
+    --neutral-ink: #b3bdc2;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px -12px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 20px 48px -20px rgba(0, 0, 0, 0.8);
+  }
+}
+
+.demand-vertical[data-theme='dark'] {
+  color-scheme: dark;
+
+  --plane: #0c0f10;
+  --surface: #15191b;
+  --surface-raised: #1c2123;
+  --surface-sunken: #111416;
+  --text-primary: #f2f5f6;
+  --text-secondary: #b3bdc2;
+  --text-muted: #7f8c92;
+
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: #2e3538;
+  --gridline: #232a2d;
+
+  --accent: #3fb0b6;
+  --accent-hover: #55c3c9;
+  --accent-ink: #06181a;
+  --accent-wash: rgba(63, 176, 182, 0.12);
+  --accent-ring: rgba(63, 176, 182, 0.32);
+
+  --series-1: #3987e5;
+  --series-1-soft: rgba(57, 135, 229, 0.2);
+
+  --sev-high-bg: rgba(230, 103, 103, 0.14);
+  --sev-high-border: rgba(230, 103, 103, 0.4);
+  --sev-high-ink: #f3a9a9;
+
+  --sev-medium-bg: rgba(250, 178, 25, 0.13);
+  --sev-medium-border: rgba(250, 178, 25, 0.38);
+  --sev-medium-ink: #f6c453;
+
+  --neutral-bg: #232a2d;
+  --neutral-ink: #b3bdc2;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px -12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 20px 48px -20px rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demand-vertical {
+    --dur-fast: 1ms;
+    --dur: 1ms;
+    --dur-slow: 1ms;
+  }
+}

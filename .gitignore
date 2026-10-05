@@ -10,6 +10,42 @@
 *.sln.docstates
 
 ## OS Generated Files
+
+# Node / React
+web/node_modules/
+web/dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Flutter / Dart
+mobile/build/
+mobile/.dart_tool/
+mobile/.packages/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# Python
+agent-service/.venv/
+**/*.egg-info/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Coverage
+coverage/
+
+# Performance results
+performance/results/*.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
 .DS_Store
 Thumbs.db
 ehthumbs.db
@@ -42,3 +78,18 @@ ENV/
 .packages
 *.apk
 *.aab
+
+# Local secrets / credentials
+*.pem
+*.key
+# Scratch / verification scripts
+agent-service/demonstration_runner.py
+agent-service/e2e_verification.py
+agent-service/edge_cases_test.py
+agent-service/notebooks/
+MediStock-Architecture-Blueprint-Final.md
+.fake
+
+# Local tooling
+.claude/
+*.tsbuildinfo

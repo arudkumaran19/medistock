@@ -10,6 +10,7 @@ public class ErrorResponse
     public string? ErrorCode { get; set; }
     public List<string> Errors { get; set; } = new();
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public ErrorDetail Error { get; set; } = new();
 
     public ErrorResponse() { }
 
@@ -17,6 +18,12 @@ public class ErrorResponse
     {
         Message = message;
         ErrorCode = errorCode;
+        Error = new ErrorDetail
+        {
+            Code = errorCode ?? string.Empty,
+            Message = message
+        };
+
         if (errors != null)
         {
             Errors.AddRange(errors);
@@ -26,4 +33,11 @@ public class ErrorResponse
             Errors.Add(message);
         }
     }
+}
+
+public sealed class ErrorDetail
+{
+    public string Code { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string TraceId { get; set; } = string.Empty;
 }

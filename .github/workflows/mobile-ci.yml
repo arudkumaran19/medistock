@@ -5,12 +5,14 @@ on:
     branches:
       - main
       - 'feature/**'
+      - develop
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
@@ -37,6 +39,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.47.5
           channel: 'stable'
           cache: true
 

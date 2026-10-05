@@ -9,8 +9,10 @@ public class PagedResponse<T>
     public string Message { get; set; } = "Operation succeeded";
     public IReadOnlyList<T> Items { get; set; } = Array.Empty<T>();
     public int PageNumber { get; set; }
+    public int Page { get => PageNumber; set => PageNumber = value; }
     public int PageSize { get; set; }
     public int TotalCount { get; set; }
+    public int Total { get => TotalCount; set => TotalCount = value; }
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / (PageSize > 0 ? PageSize : 1));
     public bool HasPreviousPage => PageNumber > 1;
     public bool HasNextPage => PageNumber < TotalPages;

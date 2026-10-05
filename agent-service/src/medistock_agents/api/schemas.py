@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict, field_validator
+from medistock_agents.models.agent_models import (
+    ActionType,
+    ProcurementActionType,
+    CoordinatorTaskRequest,
+    CoordinatorTaskResponse,
+)
 from medistock_agents.models.tool_models import ToolExecutionRecord
 
 
@@ -50,3 +56,56 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     service: str = "medistock-agent-service"
     version: str = "1.0.0"
+
+
+# ---------------------------------------------------------------------------
+# Inventory agent API schemas
+# ---------------------------------------------------------------------------
+
+class InventoryAgentRequest(BaseModel):
+	action_type: ActionType
+	payload: dict = Field(default_factory=dict)
+	approved: bool = False
+
+
+class InventoryAgentResponse(BaseModel):
+	plan: list[str]
+	insights: list[dict]
+	validation_errors: list[str]
+	approval_required: bool
+	executed: bool
+	backend_result: dict | None
+	answer: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Procurement & Policy Validation agent API schemas
+# ---------------------------------------------------------------------------
+
+class ProcurementAgentRequest(BaseModel):
+	action_type: ProcurementActionType
+	payload: dict = Field(default_factory=dict)
+	approved: bool = False
+
+
+class ProcurementAgentResponse(BaseModel):
+	plan: list[str]
+	insights: list[dict]
+	validation_errors: list[str]
+	approval_required: bool
+	executed: bool
+	backend_result: dict | None
+	answer: str | None = None
+
+
+__all__ = [
+    "HealthResponse",
+    "RedistributionPlanRequest",
+    "RedistributionPlanResponse",
+	"InventoryAgentRequest",
+	"InventoryAgentResponse",
+	"ProcurementAgentRequest",
+	"ProcurementAgentResponse",
+	"CoordinatorTaskRequest",
+	"CoordinatorTaskResponse",
+]

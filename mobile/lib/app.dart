@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/constants/app_constants.dart';
 import 'core/routing/app_router.dart';
-import 'features/redistribution/screens/transfer_list_screen.dart';
 
 class MediStockApp extends StatelessWidget {
   const MediStockApp({super.key});
@@ -12,23 +11,20 @@ class MediStockApp extends StatelessWidget {
       title: AppConstants.appTitle,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
-        primaryColor: AppColors.primary,
-        colorScheme: const ColorScheme.dark(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0F766E),
           primary: AppColors.primary,
           secondary: AppColors.secondary,
-          surface: AppColors.surface,
-          error: AppColors.statusRejected,
+          brightness: Brightness.light,
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          centerTitle: false,
+        useMaterial3: true,
+        fontFamily: 'Inter',
+        inputDecorationTheme: const InputDecorationTheme(
+          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
         cardTheme: CardThemeData(
-          color: AppColors.surface,
-          elevation: 0,
+          elevation: 2,
+          shadowColor: const Color(0x1A000000),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: AppColors.border),
@@ -44,10 +40,9 @@ class MediStockApp extends StatelessWidget {
             ),
           ),
         ),
-        fontFamily: 'Inter',
       ),
-      onGenerateRoute: AppRouter.generateRoute,
-      home: const TransferListScreen(),
+      initialRoute: AppRouter.login,
+      onGenerateRoute: AppRouter.generate,
     );
   }
 }

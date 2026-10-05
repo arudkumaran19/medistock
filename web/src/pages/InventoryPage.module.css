@@ -1,0 +1,414 @@
+/* MediStock - Inventory Page Module Styles */
+
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.subtitle {
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-base, 14px);
+  margin: 6px 0 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actions button,
+.primaryLink,
+.secondaryLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.actions button {
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #0f172a);
+}
+
+.actions button:hover {
+  background: var(--bg-subtle, #f8fafc);
+  border-color: var(--border-hover, #94a3b8);
+}
+
+.primaryLink {
+  background: var(--color-primary-600, #0f766e);
+  color: #ffffff;
+  border: 1px solid var(--color-primary-700, #0d9488);
+}
+
+.primaryLink:hover {
+  background: var(--color-primary-700, #0d9488);
+}
+
+.secondaryLink {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #cbd5e1);
+  color: var(--text-secondary, #475569);
+}
+
+.secondaryLink:hover {
+  background: var(--bg-subtle, #f8fafc);
+  color: var(--text-primary, #0f172a);
+}
+
+/* Metrics Grid */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 28px;
+}
+
+.metrics article {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg-card, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
+  transition: transform var(--transition-fast, 150ms ease), box-shadow var(--transition-fast, 150ms ease);
+}
+
+.metrics article:hover {
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.06));
+}
+
+.metrics article span {
+  display: block;
+  min-height: 28px;
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metrics article strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
+  font-size: var(--text-2xl, 24px);
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.15;
+}
+
+.metrics .warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.metrics .warning strong {
+  color: #b45309;
+}
+
+.metrics .danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.metrics .danger strong {
+  color: #b91c1c;
+}
+
+/* Panels */
+.createPanel,
+.inventorySection {
+  margin: 0 0 28px;
+  padding: 24px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-xl, 12px);
+  background: var(--bg-card, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
+}
+
+.createPanel h2,
+.sectionHeading h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
+  font-size: var(--text-lg, 18px);
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.createPanel p {
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-sm, 13px);
+  margin: 0 0 16px;
+}
+
+.createForm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.createForm button {
+  height: 42px;
+  padding: 0 20px;
+  background: var(--color-primary-600, #0f766e);
+  color: #ffffff;
+  border: 1px solid var(--color-primary-700, #0d9488);
+  border-radius: var(--radius-md, 8px);
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast, 150ms ease);
+}
+
+.createForm button:hover:not(:disabled) {
+  background: var(--color-primary-700, #0d9488);
+}
+
+.createForm button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fieldError {
+  color: var(--color-danger-600, #dc2626);
+  font-size: var(--text-xs, 12px);
+  font-weight: 500;
+  margin-top: 4px;
+  display: block;
+}
+
+.notice {
+  padding: 12px 18px;
+  border-radius: var(--radius-lg, 10px);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.sectionHeading > span {
+  color: var(--text-muted, #94a3b8);
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+}
+
+/* Filters */
+.filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.filters label,
+.createForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary, #475569);
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filters input,
+.filters select,
+.createForm input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: var(--radius-md, 7px);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #0f172a);
+  font-size: var(--text-sm, 13px);
+  font-family: inherit;
+  transition: border-color var(--transition-fast, 150ms ease), box-shadow var(--transition-fast, 150ms ease);
+}
+
+.filters input:focus,
+.filters select:focus,
+.createForm input:focus {
+  outline: none;
+  border-color: var(--color-primary-600, #0f766e);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+/* Table */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-lg, 10px);
+}
+
+.tableWrap table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  font-size: var(--text-sm, 13px);
+}
+
+.tableWrap th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tableWrap td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.tableWrap tr:last-child td {
+  border-bottom: none;
+}
+
+.tableWrap tr:hover td {
+  background: #f8fafc;
+}
+
+.tableWrap td small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.tableWrap a {
+  color: var(--color-primary-700, #0f766e);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.tableWrap a:hover {
+  text-decoration: underline;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.good {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.muted {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.state {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-secondary, #64748b);
+  font-size: var(--text-sm, 14px);
+}
+
+.error {
+  padding: 14px 18px;
+  border-radius: var(--radius-lg, 10px);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: var(--text-sm, 13px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.error button {
+  margin-left: auto;
+  padding: 5px 12px;
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-md, 6px);
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .createForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+  }
+  .header {
+    display: block;
+  }
+  .actions {
+    margin-top: 16px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .createForm,
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .createPanel,
+  .inventorySection {
+    padding: 16px;
+  }
+}

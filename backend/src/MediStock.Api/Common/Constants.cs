@@ -9,15 +9,18 @@ public static class Constants
     public const string OpenRouteServiceProvider = "OpenRouteService";
 
     public const double DefaultAverageTransitSpeedKmh = 45.0; // 45 km/h urban/rural road average
+    public const int DefaultPage = 1;
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
     public static class Roles
     {
-        public const string Admin = "Admin";
-        public const string FacilityManager = "FacilityManager";
-        public const string FieldOfficer = "FieldOfficer";
-        public const string Pharmacist = "Pharmacist";
+        public const string Admin = "ADMIN";
+        public const string FacilityManager = "FACILITY_MANAGER";
+        public const string StoreOfficer = "STORE_OFFICER";
+        public const string SupplierOfficer = "SUPPLIER_OFFICER";
+        public const string FieldOfficer = "FIELD_OFFICER";
+        public const string Pharmacist = "PHARMACIST";
     }
 
     public static class SystemUsers
