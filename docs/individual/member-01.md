@@ -37,7 +37,7 @@ Responses use `{ "data": ... }`; business failures return a stable `code` and me
 
 ## React Flow
 
-`InventoryPage` loads real balances. `InventoryDetailPage` shows a balance. `ReceiveStockPage` posts a receipt. `ExpiryPage` lists the 90-day risk window and links to `BatchDetailPage`. The API base URL is configured with `VITE_API_URL` and defaults to local API port 5000.
+`InventoryPage` loads real balances. `InventoryDetailPage` shows a balance. `ReceiveStockPage` posts a receipt. `ExpiryPage` lists the 90-day risk window and links to `BatchDetailPage`. The API base URL is configured with `VITE_API_URL` and defaults to `http://localhost:5050`.
 
 ## Flutter Flow and DataMatrix Demo
 
