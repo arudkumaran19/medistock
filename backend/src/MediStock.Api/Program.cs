@@ -299,6 +299,13 @@ builder.Services.AddProblemDetails();
 // CORS
 // ============================================================
 
+// Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
+// Localhost stays allowed for local development, exactly as before.
+var deployedOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Select(origin => origin.TrimEnd('/'))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("LocalWeb", policy =>
@@ -307,6 +314,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(origin =>
             {
                 if (string.IsNullOrEmpty(origin)) return false;
+                if (deployedOrigins.Contains(origin.TrimEnd('/'))) return true;
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
                     return uri.Host == "localhost" || uri.Host == "127.0.0.1";
@@ -401,7 +409,9 @@ app.UseExceptionHandler();
 
 app.UseCors("LocalWeb");
 
-if (app.Environment.IsDevelopment())
+// Swagger stays on in deployed builds: the assignment requires a working Swagger URL
+// for evaluators. Set Swagger__Enabled=false to switch it off.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

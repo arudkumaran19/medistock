@@ -7,6 +7,8 @@ load_dotenv(_current_dir.parent.parent / ".env")
 load_dotenv(_current_dir.parent.parent.parent / ".env")
 load_dotenv()
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,12 +26,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+LOCAL_WEB_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
+# The local origins above stay allowed exactly as before.
+DEPLOYED_WEB_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=LOCAL_WEB_ORIGINS + DEPLOYED_WEB_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
