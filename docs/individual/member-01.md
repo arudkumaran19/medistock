@@ -28,6 +28,13 @@ Responses use `{ "data": ... }`; business failures return a stable `code` and me
 - Expiry queries only return batches with remaining stock.
 - Minimum stock is exposed as `isBelowMinimum`; the backend remains authoritative.
 
+## CRUD and Lifecycle
+
+- Create: receive stock and create medicine batches.
+- Read: retrieve inventory balances, medicine details, batch details, and expiring stock.
+- Update: adjust stock and update medicine master data.
+- Delete-equivalent: archive medicines and retire batches while preserving transaction history.
+
 ## React Flow
 
 `InventoryPage` loads real balances. `InventoryDetailPage` shows a balance. `ReceiveStockPage` posts a receipt. `ExpiryPage` lists the 90-day risk window and links to `BatchDetailPage`. The API base URL is configured with `VITE_API_URL` and defaults to local API port 5000.
