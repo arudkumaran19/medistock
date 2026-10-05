@@ -47,3 +47,12 @@ its own stock rules and records the movement.
 The response contains the plan, insights, validation errors, approval requirement,
 execution status, optional backend result, and optional answer. Backend connectivity
 errors are returned as validation errors rather than a successful execution result.
+
+## Local API address
+
+`InventoryBackend` defaults to `http://localhost:5182`, as do the agent service
+environment examples. The ASP.NET Core `http` and `https` launch profiles in
+`backend/src/MediStock.Api/Properties/launchSettings.json` listen on
+`http://localhost:5050`. When running the API with those profiles, set
+`MEDISTOCK_API_BASE_URL=http://localhost:5050` in the agent service environment so
+the adapter targets the active API listener.
