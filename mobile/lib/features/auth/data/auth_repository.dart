@@ -44,21 +44,6 @@ class AuthRepository {
 
       return user;
     } catch (e) {
-      // Fallback for offline/demo presentation if backend unreachable
-      if (email.contains('demo') || email == 'user@medistock.com' || email == 'officer@medistock.com') {
-        final mockUser = UserModel(
-          id: 'demo-user-123',
-          email: email,
-          name: expectedRole == 'FIELD_OFFICER' ? 'Rajesh Kumar' : 'Dr. Kavitha Raman',
-          role: expectedRole,
-          facilityId: 'fac-1',
-          facilityName: 'Apollo Pharmacy, Anna Nagar Hub',
-        );
-        await _storage.saveToken('demo-jwt-token-xyz');
-        await _storage.saveUser(mockUser.toJson());
-        await _storage.saveSelectedRole(expectedRole);
-        return mockUser;
-      }
       rethrow;
     }
   }

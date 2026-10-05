@@ -1,11 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AppConstants {
   static const String appTitle = 'MediStock Field Ops';
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:5000',
-  );
+  static String get apiBaseUrl {
+    const envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5050';
+    }
+    return 'http://localhost:5050';
+  }
 
   // Default Test User for Field Technician / Logistics Officer
   static const String defaultFieldUserId = '00000000-0000-0000-0000-000000000002';

@@ -42,6 +42,8 @@ public static class DbInitializer
                 }
 
                 await context.Database.ExecuteSqlRawAsync(@"
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""Latitude"" double precision DEFAULT 0;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""Longitude"" double precision DEFAULT 0;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLatitude"" double precision;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLongitude"" double precision;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLocationAt"" timestamp with time zone;

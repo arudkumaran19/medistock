@@ -38,7 +38,7 @@ public class MediStockDbContext : DbContext
         // Facility
         modelBuilder.Entity<Facility>(entity =>
         {
-            entity.ToTable("facilities");
+            entity.ToTable("Facilities");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.FacilityCode).IsRequired().HasMaxLength(50);
@@ -48,6 +48,8 @@ public class MediStockDbContext : DbContext
             entity.Property(e => e.City).HasMaxLength(100);
             entity.Property(e => e.ContactPhone).HasMaxLength(50);
             entity.Property(e => e.ContactPerson).HasMaxLength(150);
+            entity.Property(e => e.Latitude).HasColumnType("double precision");
+            entity.Property(e => e.Longitude).HasColumnType("double precision");
         });
 
         // Medicine
