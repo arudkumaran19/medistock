@@ -9,6 +9,10 @@
 
 ## Query Conventions
 
+The following are examples of query parameters used by endpoints that explicitly
+support them; they are not universal parameters available on every resource. Consult
+each endpoint's contract below or in its owning feature documentation.
+
 ### Pagination
 
 `?page=1&pageSize=20`
