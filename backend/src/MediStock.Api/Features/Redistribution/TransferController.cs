@@ -274,6 +274,55 @@ public class TransferController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// POST /api/transfers/{id}/accept - Officer accepts assigned transfer task
+    /// </summary>
+    [HttpPost("{id:guid}/accept")]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AcceptTransfer([FromRoute] Guid id, CancellationToken ct = default)
+    {
+        var officerId = GetCurrentUserId();
+        var result = await _transferService.AcceptTransferAsync(id, officerId, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "ACCEPT_FAILED", result.Errors));
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/transfers/{id}/decline - Officer declines assigned transfer task
+    /// </summary>
+    [HttpPost("{id:guid}/decline")]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DeclineTransfer([FromRoute] Guid id, [FromBody] SubmitTransferNotesDto? body = null, CancellationToken ct = default)
+    {
+        var officerId = GetCurrentUserId();
+        var result = await _transferService.DeclineTransferAsync(id, officerId, body?.Notes, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "DECLINE_FAILED", result.Errors));
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// GET /api/transfers/assigned-to-me - List tasks assigned to current field officer
+    /// </summary>
+    [HttpGet("assigned-to-me")]
+    [ProducesResponseType(typeof(PagedResponse<TransferResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAssignedTransfers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var officerId = GetCurrentUserId();
+        var result = await _transferService.GetAssignedTransfersAsync(officerId, page, pageSize, ct);
+        return Ok(result);
+    }
+
     private Guid GetCurrentUserId()
     {
         // Extract from claims if present; fallback to standard test user ID

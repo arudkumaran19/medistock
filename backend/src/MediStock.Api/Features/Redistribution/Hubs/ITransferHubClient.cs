@@ -21,4 +21,9 @@ public interface ITransferHubClient
     /// Broadcast when a new in-app notification is created for a transfer.
     /// </summary>
     Task NotificationCreated(TransferNotificationResponse notification);
+
+    /// <summary>
+    /// Broadcast when a transfer assignment is pushed to a specific field officer.
+    /// </summary>
+    Task TaskAssigned(TransferResponse transfer);
 }

@@ -23,4 +23,9 @@ public interface ITransferNotificationService
     /// Broadcast newly created in-app notification to the specific transfer group and managers
     /// </summary>
     Task BroadcastNotificationCreatedAsync(TransferNotificationResponse notification, CancellationToken ct = default);
+
+    /// <summary>
+    /// Broadcast task assignment to a specific officer group
+    /// </summary>
+    Task BroadcastTaskAssignedAsync(string officerId, TransferResponse transfer, CancellationToken ct = default);
 }

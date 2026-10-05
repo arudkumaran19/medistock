@@ -106,7 +106,6 @@ builder.Services
 // Database Contexts
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     if (builder.Environment.IsEnvironment("Testing") ||
         builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
     {
@@ -220,6 +219,20 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfiguration.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -379,7 +392,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers");
+app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers").RequireAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 

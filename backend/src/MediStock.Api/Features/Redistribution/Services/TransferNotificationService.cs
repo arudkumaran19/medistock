@@ -85,4 +85,21 @@ public class TransferNotificationService : ITransferNotificationService
             _logger.LogError(ex, "Failed to broadcast NotificationCreated for transfer {TransferId} over SignalR", notification.TransferId);
         }
     }
+
+    public async Task BroadcastTaskAssignedAsync(string officerId, TransferResponse transfer, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(officerId) || transfer == null) return;
+
+        var officerGroup = TransferHub.GetOfficerGroupName(officerId);
+
+        try
+        {
+            _logger.LogInformation("Broadcasting TaskAssigned to officer {OfficerId} for transfer {TransferId}", officerId, transfer.Id);
+            await _hubContext.Clients.Group(officerGroup).TaskAssigned(transfer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to broadcast TaskAssigned to officer {OfficerId} over SignalR", officerId);
+        }
+    }
 }

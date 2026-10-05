@@ -47,4 +47,10 @@ public interface ITransferService
     Task AttachWorkflowRunInternalAsync(Guid transferId, Guid workflowRunId, CancellationToken ct = default);
 
     Task<ApiResponse<TransferResponse>> UpdateTransferLocationAsync(Guid transferId, UpdateTransferLocationRequest request, CancellationToken ct = default);
+
+    Task<ApiResponse<TransferResponse>> AcceptTransferAsync(Guid transferId, Guid officerId, CancellationToken ct = default);
+
+    Task<ApiResponse<TransferResponse>> DeclineTransferAsync(Guid transferId, Guid officerId, string? reason = null, CancellationToken ct = default);
+
+    Task<PagedResponse<TransferResponse>> GetAssignedTransfersAsync(Guid officerId, int page = 1, int pageSize = 20, CancellationToken ct = default);
 }

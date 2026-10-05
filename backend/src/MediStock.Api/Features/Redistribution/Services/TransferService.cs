@@ -1169,4 +1169,50 @@ public class TransferService : ITransferService
             _logger.LogError(ex, "Failed to create/broadcast notifications for transfer {TransferId}", transfer.Id);
         }
     }
+
+    public async Task<ApiResponse<TransferResponse>> AcceptTransferAsync(Guid transferId, Guid officerId, CancellationToken ct = default)
+    {
+        var transfer = await _dbContext.TransferRequests
+            .Include(t => t.SourceFacility)
+            .Include(t => t.DestinationFacility)
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == transferId, ct);
+        if (transfer == null)
+        {
+            return ApiResponse<TransferResponse>.Fail("Transfer not found");
+        }
+
+        transfer.Status = TransferStatus.InTransit;
+        transfer.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(ct);
+
+        var response = MapToResponse(transfer);
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(response, ct);
+        }
+
+        return ApiResponse<TransferResponse>.Ok(response, "Transfer accepted successfully.");
+    }
+
+    public async Task<ApiResponse<TransferResponse>> DeclineTransferAsync(Guid transferId, Guid officerId, string? reason = null, CancellationToken ct = default)
+    {
+        var transfer = await _dbContext.TransferRequests
+            .Include(t => t.SourceFacility)
+            .Include(t => t.DestinationFacility)
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == transferId, ct);
+        if (transfer == null)
+        {
+            return ApiResponse<TransferResponse>.Fail("Transfer not found");
+        }
+
+        var response = MapToResponse(transfer);
+        return ApiResponse<TransferResponse>.Ok(response, "Transfer declined.");
+    }
+
+    public async Task<PagedResponse<TransferResponse>> GetAssignedTransfersAsync(Guid officerId, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    {
+        return await GetTransfersAsync(page, pageSize, null, "createdAt", "desc", null, null, ct);
+    }
 }
