@@ -77,7 +77,7 @@ Request and response JSON uses camelCase.
 
 #### Stock mutations
 
-All mutation request fields are required by the corresponding request DTO:
+The request fields defined by each endpoint DTO are:
 
 | Endpoint | Request JSON fields | Successful result |
 |---|---|---|
