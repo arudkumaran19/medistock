@@ -87,7 +87,7 @@ class FakeTrackingApiService extends Fake implements TransferApiService {
   }
 
   @override
-  Future<RouteDetails> getRouteForTransfer(String id) async {
+  Future<RouteDetails> getRoute(String id) async {
     return RouteDetails(
       sourceFacilityId: 'f-1',
       sourceFacilityName: 'National Hospital Colombo',
@@ -420,4 +420,3 @@ void main() {
     });
   });
 }
-

@@ -33,218 +33,79 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
 
-  // Root layout with nested redistribution routes and direct routes
+  // All protected application routes wrapped in single DashboardLayout
   {
     path: "/",
-    element: <DashboardLayout />,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: "dashboard", element: <DashboardPage /> },
+
+      // Inventory
+      { path: "inventory", element: <InventoryPage /> },
+      { path: "inventory/:id", element: <InventoryDetailPage /> },
+      { path: "batches/:id", element: <BatchDetailPage /> },
+      { path: "inventory/receive", element: <ReceiveStockPage /> },
+      { path: "inventory/expiry", element: <ExpiryPage /> },
+
+      // Redistribution
       { path: "transfers", element: <TransferDashboard /> },
       { path: "transfers/:id", element: <TransferDetail /> },
       { path: "transfers/:id/candidates", element: <CandidateFacilities /> },
       { path: "transfers/:id/route", element: <RouteComparison /> },
       { path: "history", element: <TransferHistory /> },
+
+      // Procurement
+      { path: "procurement/suppliers", element: <SupplierDashboard /> },
+      { path: "procurement/suppliers/:id", element: <SupplierDetail /> },
+      { path: "procurement/orders", element: <PurchaseOrders /> },
+      { path: "procurement/priorities", element: <ProcurementPriority /> },
+      {
+        path: "procurement/approvals",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ApprovalConsole />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "procurement/workflow", element: <WorkflowMonitor /> },
+
+      // Demand & Shortage
+      { path: "demand/shortages", element: <ShortageDashboard /> },
+      {
+        path: "demand/shortages/new",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ShortageForm />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "demand/shortages/:id", element: <ShortageDetail /> },
+      {
+        path: "demand/shortages/:id/edit",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ShortageForm />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "demand/forecasts", element: <ForecastPage /> },
+      { path: "demand/consumption", element: <ConsumptionAnalytics /> },
+
+      // Admin
+      {
+        path: "admin/users",
+        element: (
+          <ProtectedRoute requiredRole="Administrator">
+            <AdminPage />
+          </ProtectedRoute>
+        ),
+      },
     ],
-  },
-
-  // Role-based dashboard
-  {
-    path: "/dashboard",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <DashboardPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-
-  // Inventory routes
-  {
-    path: "/inventory",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <InventoryPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/inventory/:id",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <InventoryDetailPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/batches/:id",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <BatchDetailPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/inventory/receive",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ReceiveStockPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/inventory/expiry",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ExpiryPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-
-  // Procurement routes
-  {
-    path: "/procurement/suppliers",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <SupplierDashboard />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/procurement/suppliers/:id",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <SupplierDetail />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/procurement/orders",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <PurchaseOrders />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/procurement/priorities",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ProcurementPriority />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/procurement/approvals",
-    element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <DashboardLayout>
-          <ApprovalConsole />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/procurement/workflow",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <WorkflowMonitor />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-
-  // Demand & Shortage routes
-  {
-    path: "/demand/shortages",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ShortageDashboard />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/shortages/new",
-    element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <DashboardLayout>
-          <ShortageForm />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/shortages/:id",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ShortageDetail />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/shortages/:id/edit",
-    element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <DashboardLayout>
-          <ShortageForm />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/forecasts",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ForecastPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/consumption",
-    element: (
-      <ProtectedRoute>
-        <DashboardLayout>
-          <ConsumptionAnalytics />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-
-  // Admin routes
-  {
-    path: "/admin/users",
-    element: (
-      <ProtectedRoute requiredRole="Administrator">
-        <DashboardLayout>
-          <AdminPage />
-        </DashboardLayout>
-      </ProtectedRoute>
-    ),
   },
 
   // Fallback

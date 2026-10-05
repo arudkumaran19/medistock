@@ -466,7 +466,7 @@ export const TransferDetail: React.FC = () => {
 
       {/* Progression Pipeline Timeline */}
       <div className="glass-panel" style={{ padding: '24px' }}>
-        <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+        <h3 style={{ fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', fontWeight: 700, marginBottom: '20px' }}>
           Transfer Status Progression Pipeline
         </h3>
 
@@ -493,19 +493,21 @@ export const TransferDetail: React.FC = () => {
                     height: '36px',
                     borderRadius: '50%',
                     backgroundColor: isCompleted
-                      ? 'var(--color-primary)'
-                      : 'var(--bg-tertiary)',
+                      ? '#0d9488'
+                      : '#f1f5f9',
                     border: isCurrent
-                      ? '3px solid #ffffff'
+                      ? '3px solid #0f766e'
                       : isCompleted
-                      ? '2px solid var(--color-primary)'
-                      : '1px solid var(--border-subtle)',
+                      ? '2px solid #0d9488'
+                      : '1px solid #cbd5e1',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: isCompleted ? '#ffffff' : 'var(--text-muted)',
-                    boxShadow: isCurrent ? '0 0 16px var(--color-primary-glow)' : 'none',
-                    transition: 'all var(--transition-normal)',
+                    color: isCompleted ? '#ffffff' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    boxShadow: isCurrent ? '0 0 0 4px rgba(13, 148, 136, 0.15)' : 'none',
+                    transition: 'all 150ms ease',
                   }}
                 >
                   {isCompleted ? <CheckCircle size={18} /> : <span>{idx + 1}</span>}
@@ -514,7 +516,7 @@ export const TransferDetail: React.FC = () => {
                   style={{
                     fontSize: '0.8rem',
                     fontWeight: isCurrent ? 700 : 500,
-                    color: isCompleted ? 'var(--text-primary)' : 'var(--text-muted)',
+                    color: isCompleted ? '#0f172a' : '#64748b',
                   }}
                 >
                   {st}
@@ -542,26 +544,26 @@ export const TransferDetail: React.FC = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Medicine Name:</span>
-              <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Medicine Name:</span>
+              <div style={{ fontWeight: 600, fontSize: '1rem', color: '#0f172a', marginTop: '2px' }}>
                 {transfer.medicineName}
               </div>
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Allocated / Requested Quantity:</span>
-              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--color-primary)' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Allocated / Requested Quantity:</span>
+              <div style={{ fontWeight: 700, fontSize: '1.2rem', color: '#0f766e', marginTop: '2px' }}>
                 {transfer.allocatedQuantity > 0 ? transfer.allocatedQuantity : transfer.requestedQuantity} units
               </div>
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Batch / Lot Number:</span>
-              <div style={{ fontWeight: 500 }}>{transfer.medicineBatchNumber || 'Unassigned (Auto-Allocated)'}</div>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Batch / Lot Number:</span>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>{transfer.medicineBatchNumber || 'Unassigned (Auto-Allocated)'}</div>
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Priority Level:</span>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Priority Level:</span>
               <div style={{ marginTop: '4px' }}>
                 <PriorityBadge priority={transfer.priority} />
               </div>
@@ -572,28 +574,28 @@ export const TransferDetail: React.FC = () => {
         {/* Facilities & Route Details */}
         <div className="glass-panel" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <Building2 size={20} color="var(--color-primary)" />
-            <h3 style={{ fontSize: '1.1rem' }}>Hospital Facilities</h3>
+            <Building2 size={20} color="#0f766e" />
+            <h3 style={{ fontSize: '1.1rem', color: '#0f172a', margin: 0 }}>Hospital Facilities</h3>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.9rem' }}>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Source Facility (Sender):</span>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Source Facility (Sender):</span>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
                 {transfer.sourceFacilityName || 'Not yet assigned (Pending Candidate Selection)'}
               </div>
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Destination Facility (Shortage Center):</span>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Destination Facility (Shortage Center):</span>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
                 {transfer.destinationFacilityName}
               </div>
             </div>
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Estimated Road Transit:</span>
-              <div style={{ fontWeight: 600 }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Estimated Road Transit:</span>
+              <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
                 {transfer.distanceKm > 0 ? `${transfer.distanceKm} km (~${transfer.estimatedDurationMinutes} mins)` : 'Awaiting candidate selection'}
               </div>
             </div>
@@ -616,12 +618,12 @@ export const TransferDetail: React.FC = () => {
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
                     Live Field Officer GPS
                   </div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '2px', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '2px', fontFamily: 'monospace', color: '#0f172a' }}>
                     {transfer.lastLatitude.toFixed(5)}, {transfer.lastLongitude?.toFixed(5)}
                   </div>
                 </div>
                 {transfer.lastLocationAt && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                     {new Date(transfer.lastLocationAt).toLocaleTimeString()}
                   </div>
                 )}
@@ -629,8 +631,8 @@ export const TransferDetail: React.FC = () => {
             )}
 
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Request Notes:</span>
-              <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+              <span style={{ color: '#64748b', fontSize: '0.8125rem', fontWeight: 500 }}>Request Notes:</span>
+              <div style={{ fontStyle: 'italic', color: '#334155', marginTop: '2px' }}>
                 {transfer.notes || 'No supplementary request notes recorded.'}
               </div>
             </div>
@@ -1014,9 +1016,9 @@ export const TransferDetail: React.FC = () => {
               width: '100%',
               padding: '8px 12px',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-tertiary)',
-              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default, #cbd5e1)',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
               fontSize: '0.875rem',
               resize: 'vertical',
             }}

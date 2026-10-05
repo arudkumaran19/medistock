@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
-import { DashboardLayout } from "../../layouts/DashboardLayout";
 import { procurementApi, type SupplierItem, type PurchaseOrder, type SupplierRequest } from "../../services/procurementApi";
 import { PageHeader } from "../../components/ui";
 import styles from "./ProcurementPages.module.css";
@@ -77,28 +76,26 @@ export function SupplierDetail() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className={styles.emptyState}>
-          <div className="spinner mb-2" style={{ margin: "0 auto" }} />
-          <p>Loading supplier profile…</p>
-        </div>
-      </DashboardLayout>
+      <div className={styles.emptyState}>
+        <div className="spinner mb-2" style={{ margin: "0 auto" }} />
+        <p>Loading supplier profile…</p>
+      </div>
     );
   }
 
   if (!supplier) {
     return (
-      <DashboardLayout>
+      <>
         <div className={styles.errorBanner}>Supplier not found.</div>
         <Link to="/procurement/suppliers" className={styles.primaryButton}>
           <ArrowLeft size={16} /> Back to Directory
         </Link>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div style={{ marginBottom: 16 }}>
         <Link
           to="/procurement/suppliers"
@@ -371,6 +368,6 @@ export function SupplierDetail() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

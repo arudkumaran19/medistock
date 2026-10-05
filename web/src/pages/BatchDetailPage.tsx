@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { PageHeader } from "../components/ui";
 import { inventoryApi } from "../services/inventoryApi";
 import type { Batch, Facility, Inventory } from "../types/inventory";
@@ -149,7 +148,7 @@ export function BatchDetailPage() {
   );
 
   return (
-    <DashboardLayout>
+    <>
       <div className="page-container">
         {/* Back link */}
         <div style={{ marginBottom: 8 }}>
@@ -565,6 +564,6 @@ export function BatchDetailPage() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

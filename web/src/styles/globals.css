@@ -36,19 +36,19 @@ input, select, textarea {
   color: #0f172a;
 }
 
-/* Glassmorphism panel helper */
+/* Glassmorphism / Clean Card panel helper */
 .glass-panel {
-  background: var(--bg-surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
   transition: all var(--transition-normal);
 }
 
 .glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
 }
 
 /* ─── Accessibility ──────────────────────────────────────── */

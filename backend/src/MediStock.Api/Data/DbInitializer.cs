@@ -16,11 +16,31 @@ public static class DbInitializer
     {
         try
         {
-            // Ensure database schema is created
-            await context.Database.EnsureCreatedAsync();
-
+            // Ensure database schema is created for MediStockDbContext entities
             if (!context.Database.IsInMemory())
             {
+                var script = context.Database.GenerateCreateScript();
+                var statements = script.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var statement in statements)
+                {
+                    var trimmed = statement.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
+
+                    var safeSql = trimmed
+                        .Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
+                        .Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
+                        .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ");
+
+                    try
+                    {
+                        await context.Database.ExecuteSqlRawAsync(safeSql);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Schema statement skipped during MediStockDbContext initialization.");
+                    }
+                }
+
                 await context.Database.ExecuteSqlRawAsync(@"
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLatitude"" double precision;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLongitude"" double precision;
@@ -45,6 +65,10 @@ public static class DbInitializer
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_IsRead"" ON transfer_notifications (""IsRead"");
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_CreatedAt"" ON transfer_notifications (""CreatedAt"");
                 ");
+            }
+            else
+            {
+                await context.Database.EnsureCreatedAsync();
             }
 
             if (!await context.Facilities.AnyAsync())

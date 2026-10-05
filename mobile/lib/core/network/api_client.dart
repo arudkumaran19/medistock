@@ -1,23 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../constants/app_constants.dart';
+import '../config/app_config.dart';
+import '../storage/secure_storage.dart';
+import 'api_exceptions.dart';
 import 'auth_interceptor.dart';
-
-class ApiException implements Exception {
-  final int statusCode;
-  final String message;
-  final dynamic details;
-
-  ApiException({
-    required this.statusCode,
-    required this.message,
-    this.details,
-  });
-
-  @override
-  String toString() => 'ApiException: $statusCode - $message';
-}
 
 class ApiClient {
   ApiClient({
@@ -25,29 +11,33 @@ class ApiClient {
     http.Client? httpClient,
     AuthInterceptor? authInterceptor,
     String? authToken,
-  })  : baseUrl = baseUrl ?? _resolveDefaultBaseUrl(),
+  })  : baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
         _httpClient = httpClient ?? http.Client(),
         _authInterceptor = authInterceptor ?? AuthInterceptor(),
         _instanceAuthToken = authToken;
 
   final String baseUrl;
-  static String? globalAuthToken;
-  final String? _instanceAuthToken;
   final http.Client _httpClient;
   final AuthInterceptor _authInterceptor;
+  final SecureStorageService _storage = SecureStorageService();
+
+  static String? globalAuthToken;
+  final String? _instanceAuthToken;
 
   String? get authToken => _instanceAuthToken ?? globalAuthToken;
   set authToken(String? token) {
     globalAuthToken = token;
+    if (token != null) {
+      _storage.saveToken(token);
+    }
   }
 
-  static String _resolveDefaultBaseUrl() {
-    const envUrl = String.fromEnvironment('API_URL');
-    if (envUrl.isNotEmpty) return envUrl;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5050';
+  Future<String?> _getOrRequireToken({bool requireAuth = true}) async {
+    final token = await _storage.getToken() ?? authToken;
+    if (requireAuth && (token == null || token.isEmpty)) {
+      throw AuthException('No authentication token found. Please log in.');
     }
-    return AppConstants.apiBaseUrl;
+    return token;
   }
 
   Uri _buildUri(String path, [Map<String, dynamic>? queryParameters]) {
@@ -64,27 +54,33 @@ class ApiClient {
     return uri;
   }
 
+  Future<Map<String, String>> _getHeaders({bool requireAuth = true, Map<String, String>? extraHeaders}) async {
+    final token = await _getOrRequireToken(requireAuth: requireAuth);
+    final headers = await _authInterceptor.getHeaders(extraHeaders: extraHeaders);
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   Future<dynamic> request(
     String path, {
     String method = 'GET',
-    Map<String, dynamic>? body,
+    dynamic body,
     Map<String, String>? extraHeaders,
   }) async {
-    final cleanPath = path.startsWith('/') ? path : '/$path';
-    final uri = Uri.parse('$baseUrl$cleanPath');
-    final token = authToken;
-    final headers = await _authInterceptor.getHeaders(extraHeaders: {
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-      if (extraHeaders != null) ...extraHeaders,
-    });
+    final uri = _buildUri(path);
+    final headers = await _getHeaders(requireAuth: false, extraHeaders: extraHeaders);
 
     http.Response response;
+    final encodedBody = body != null ? jsonEncode(body) : null;
+
     switch (method.toUpperCase()) {
       case 'POST':
-        response = await _httpClient.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        response = await _httpClient.post(uri, headers: headers, body: encodedBody);
         break;
       case 'PUT':
-        response = await _httpClient.put(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        response = await _httpClient.put(uri, headers: headers, body: encodedBody);
         break;
       case 'DELETE':
         response = await _httpClient.delete(uri, headers: headers);
@@ -98,16 +94,24 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<dynamic> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    bool requireAuth = true,
+  }) async {
     final uri = _buildUri(path, queryParameters);
-    final headers = await _authInterceptor.getHeaders();
+    final headers = await _getHeaders(requireAuth: requireAuth);
     final response = await _httpClient.get(uri, headers: headers);
     return _handleResponse(response);
   }
 
-  Future<dynamic> post(String path, {dynamic body}) async {
+  Future<dynamic> post(
+    String path, {
+    dynamic body,
+    bool requireAuth = true,
+  }) async {
     final uri = _buildUri(path);
-    final headers = await _authInterceptor.getHeaders();
+    final headers = await _getHeaders(requireAuth: requireAuth);
     final response = await _httpClient.post(
       uri,
       headers: headers,
@@ -116,14 +120,28 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  Future<dynamic> put(String path, {dynamic body}) async {
+  Future<dynamic> put(
+    String path, {
+    dynamic body,
+    bool requireAuth = true,
+  }) async {
     final uri = _buildUri(path);
-    final headers = await _authInterceptor.getHeaders();
+    final headers = await _getHeaders(requireAuth: requireAuth);
     final response = await _httpClient.put(
       uri,
       headers: headers,
       body: body != null ? jsonEncode(body) : null,
     );
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> delete(
+    String path, {
+    bool requireAuth = true,
+  }) async {
+    final uri = _buildUri(path);
+    final headers = await _getHeaders(requireAuth: requireAuth);
+    final response = await _httpClient.delete(uri, headers: headers);
     return _handleResponse(response);
   }
 

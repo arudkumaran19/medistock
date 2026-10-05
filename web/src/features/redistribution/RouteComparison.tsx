@@ -317,8 +317,8 @@ export const RouteComparison: React.FC = () => {
                   gap: '16px',
                   padding: '12px 16px',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--border-default, #e2e8f0)',
                 }}
               >
                 <div
@@ -326,11 +326,11 @@ export const RouteComparison: React.FC = () => {
                     width: '32px',
                     height: '32px',
                     borderRadius: '50%',
-                    backgroundColor: index === 0 ? 'var(--color-primary)' : index === route.waypoints.length - 1 ? 'var(--color-cyan)' : 'var(--bg-tertiary)',
+                    backgroundColor: index === 0 ? 'var(--color-primary)' : index === route.waypoints.length - 1 ? 'var(--color-cyan)' : '#e2e8f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#ffffff',
+                    color: index === 0 || index === route.waypoints.length - 1 ? '#ffffff' : '#0f172a',
                     fontWeight: 700,
                     fontSize: '0.8rem',
                   }}

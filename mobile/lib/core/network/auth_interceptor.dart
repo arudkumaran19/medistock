@@ -9,13 +9,13 @@ class AuthInterceptor extends Interceptor {
 
   final Future<String?> Function()? _readToken;
   final Future<void> Function()? onUnauthorized;
-  final SecureStorage _storage = SecureStorage();
+  final SecureStorageService _storage = SecureStorageService();
 
   Future<String?> _getToken() async {
     if (_readToken != null) {
       return await _readToken!();
     }
-    return await _storage.read(key: 'auth_token');
+    return await _storage.getToken();
   }
 
   /// For http-based API calls (Redistribution Slice)

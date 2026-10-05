@@ -1,5 +1,6 @@
 import '../../../core/constants/app_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exceptions.dart';
 import '../models/transfer_models.dart';
 
 class TransferApiService {

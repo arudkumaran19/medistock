@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { DashboardLayout } from "../../layouts/DashboardLayout";
 import {
   procurementApi,
   type PurchaseOrder,
@@ -133,7 +132,7 @@ export function WorkflowMonitor() {
   const receivedCount = orders.filter((o) => o.status === "Received").length;
 
   return (
-    <DashboardLayout>
+    <>
       <PageHeader
         eyebrow="Real-Time Traceability"
         title="Procurement Workflow Monitor"
@@ -434,6 +433,6 @@ export function WorkflowMonitor() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

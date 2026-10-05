@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { DashboardLayout } from "../../layouts/DashboardLayout";
 import { ProcurementAgentPanel } from "../../components/ProcurementAgentPanel";
 import { procurementApi, type SupplierItem, type SupplierRequest } from "../../services/procurementApi";
 import { PageHeader, KPICard } from "../../components/ui";
@@ -105,7 +104,7 @@ export function SupplierDashboard() {
   const inactiveCount = totalCount - activeCount;
 
   return (
-    <DashboardLayout>
+    <>
       <PageHeader
         eyebrow="Procurement Logistics"
         title="Supplier Directory"
@@ -358,6 +357,6 @@ export function SupplierDashboard() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

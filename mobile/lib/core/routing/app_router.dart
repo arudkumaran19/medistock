@@ -83,7 +83,7 @@ class AppRouter {
     switch (settings.name) {
       // ─── Auth ────────────────────────────────────────────────────────
       case login:
-        page = const LoginScreen();
+        page = const LoginScreen(roleType: 'user');
         break;
 
       case register:
@@ -93,7 +93,7 @@ class AppRouter {
       case dashboard:
         final user = (settings.arguments as AuthUser?) ?? _authService.currentUser;
         if (user == null) {
-          page = const LoginScreen();
+          page = const LoginScreen(roleType: 'user');
         } else {
           page = DashboardScreen(user: user, authService: _authService);
         }
@@ -103,7 +103,7 @@ class AppRouter {
         final user = _authService.currentUser;
         page = user != null && user.isAdmin
             ? UserManagementScreen(currentUser: user)
-            : const LoginScreen();
+            : const LoginScreen(roleType: 'user');
         break;
 
       // ─── Root: guard → dashboard or login ────────────────────────────
@@ -114,7 +114,7 @@ class AppRouter {
             authService: _authService,
           );
         } else {
-          page = const LoginScreen();
+          page = const LoginScreen(roleType: 'user');
         }
         break;
 
@@ -208,7 +208,7 @@ class AppRouter {
         break;
 
       default:
-        page = const LoginScreen();
+        page = const LoginScreen(roleType: 'user');
     }
 
     return MaterialPageRoute<void>(settings: settings, builder: (_) => page);

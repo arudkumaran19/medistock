@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { apiRequest } from "../services/apiClient";
 import { useAuth } from "../features/auth/AuthContext";
 import {
@@ -464,30 +463,28 @@ export function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <DashboardLayout>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 400,
-            gap: 16,
-            color: "#64748b",
-          }}
-        >
-          <ShieldCheck size={48} style={{ color: "#334155" }} />
-          <h2 style={{ margin: 0, color: "#94a3b8", fontWeight: 700 }}>Access Denied</h2>
-          <p style={{ margin: 0, fontSize: "0.9rem" }}>
-            You must be an Administrator to access User Management.
-          </p>
-        </div>
-      </DashboardLayout>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 400,
+          gap: 16,
+          color: "#64748b",
+        }}
+      >
+        <ShieldCheck size={48} style={{ color: "#334155" }} />
+        <h2 style={{ margin: 0, color: "#0f172a", fontWeight: 700 }}>Access Denied</h2>
+        <p style={{ margin: 0, fontSize: "0.9rem" }}>
+          You must be an Administrator to access User Management.
+        </p>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <ToastList toasts={toasts} dismiss={dismissToast} />
       {confirm && (
         <ConfirmModal
@@ -926,6 +923,6 @@ export function AdminPage() {
           to   { opacity: 1; transform: translateX(0); }
         }
       `}</style>
-    </DashboardLayout>
+    </>
   );
 }
