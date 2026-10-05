@@ -11,12 +11,53 @@ import '../domain/demand_models.dart';
 ///
 /// See docs/adr/ADR-003-flutter-state.md for why Riverpod is used.
 
-/// Facility the signed-in officer works at.
+/// Facility the demand screens are currently showing.
 ///
-/// Overridden at app start from the authenticated session. The seeded demonstration
-/// facility is the default so the feature is runnable before authentication lands.
-final Provider<String> currentFacilityIdProvider = Provider<String>(
+/// Starts on the seeded demonstration facility, where the seeded history lives, and
+/// follows whatever facility consumption was last recorded against - so after an
+/// officer records at Central Facility, the history screen shows Central Facility.
+///
+/// This used to be a fixed Provider. With no way to change it, every entry was saved
+/// against the demonstration facility whatever the officer was actually working at.
+final StateProvider<String> currentFacilityIdProvider = StateProvider<String>(
   (Ref ref) => 'b1000000-0000-0000-0000-000000000002',
+);
+
+/// A medicine or facility an officer can pick, from the Inventory catalogue.
+class ReferenceOption {
+  const ReferenceOption({required this.id, required this.name});
+
+  final String id;
+  final String name;
+}
+
+List<ReferenceOption> _toOptions(dynamic payload) {
+  final List<ReferenceOption> options = (payload as List<dynamic>? ?? <dynamic>[])
+      .whereType<Map<String, dynamic>>()
+      .where((Map<String, dynamic> row) => row['isActive'] != false)
+      .map((Map<String, dynamic> row) =>
+          ReferenceOption(id: '${row['id']}', name: '${row['name']}'))
+      .toList()
+    ..sort((ReferenceOption a, ReferenceOption b) =>
+        a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  return options;
+}
+
+/// Active medicines, from GET /api/medicines (Inventory, Vaisnavi L.). Read-only.
+///
+/// The entry form used to take the medicine as free text, which the backend tried
+/// to bind to a GUID: typing "Betaleb" produced a bare 400, and the only way to
+/// record anything was to type the medicine's id by hand.
+final FutureProvider<List<ReferenceOption>> medicineOptionsProvider =
+    FutureProvider<List<ReferenceOption>>(
+  (Ref ref) async => _toOptions(await ref.watch(apiClientProvider).request('/api/medicines')),
+);
+
+/// Active facilities, from GET /api/facilities (Inventory, Vaisnavi L.). Read-only.
+final FutureProvider<List<ReferenceOption>> facilityOptionsProvider =
+    FutureProvider<List<ReferenceOption>>(
+  (Ref ref) async => _toOptions(await ref.watch(apiClientProvider).request('/api/facilities')),
 );
 
 /// Shared HTTP client for this vertical.
@@ -104,6 +145,7 @@ class ConsumptionEntryController extends StateNotifier<ConsumptionEntryState> {
     required String medicineId,
     required double quantityUsed,
     required DateTime consumptionDate,
+    String? facilityId,
     String source = 'FLUTTER_CONSUMPTION_ENTRY',
     String? notes,
   }) async {
@@ -112,7 +154,9 @@ class ConsumptionEntryController extends StateNotifier<ConsumptionEntryState> {
     try {
       final ConsumptionRecord record = await _repository.recordConsumption(
         ConsumptionEntry(
-          facilityId: _facilityId,
+          // The facility the officer picked on the form; the screen's current
+          // facility only when none was chosen.
+          facilityId: facilityId ?? _facilityId,
           medicineId: medicineId,
           quantityUsed: quantityUsed,
           consumptionDate: consumptionDate,
@@ -230,6 +274,14 @@ class ConsumptionEntryValidator {
   static String? validateMedicineId(String? raw) {
     if (raw == null || raw.trim().isEmpty) {
       return 'Select a medicine.';
+    }
+
+    return null;
+  }
+
+  static String? validateFacilityId(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return 'Select a facility.';
     }
 
     return null;

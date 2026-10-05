@@ -247,7 +247,11 @@ class _ManagerPanel extends StatelessWidget {
           // Demand & Shortage - Sathurstiga S. (IT24103156).
           const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          _DemandActions(onAction: onAction),
+          _DemandActions(
+            onAction: onAction,
+            canRecordConsumption: false,
+            canRunAgent: true,
+          ),
         ],
       ),
     );
@@ -256,11 +260,26 @@ class _ManagerPanel extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────
 // Demand & Shortage quick actions - Sathurstiga S. (IT24103156).
-// Shared by the manager and staff panels so both reach the same screens.
+//
+// Shown per role, matching the backend's [Authorize] rules in DemandController.
+// Every action used to be offered to every role, so a manager could open Record
+// Consumption (POST is store officer and admin only) and a store officer could open
+// the agent (manager and admin only), and both failed with an unexplained error.
 // ─────────────────────────────────────────────────────────────────────
 class _DemandActions extends StatelessWidget {
-  const _DemandActions({required this.onAction});
+  const _DemandActions({
+    required this.onAction,
+    required this.canRecordConsumption,
+    required this.canRunAgent,
+  });
+
   final void Function(String route) onAction;
+
+  /// Store officers record what was dispensed.
+  final bool canRecordConsumption;
+
+  /// Managers ask the agent to assess risk.
+  final bool canRunAgent;
 
   @override
   Widget build(BuildContext context) {
@@ -279,13 +298,15 @@ class _DemandActions extends StatelessWidget {
           subtitle: 'Projected demand and days of cover',
           onTap: () => onAction(AppRouter.demandForecasts),
         ),
-        const SizedBox(height: 10),
-        _QuickAction(
-          icon: Icons.edit_note_outlined,
-          title: 'Record Consumption',
-          subtitle: 'Log what was dispensed today',
-          onTap: () => onAction(AppRouter.demandConsumption),
-        ),
+        if (canRecordConsumption) ...[
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.edit_note_outlined,
+            title: 'Record Consumption',
+            subtitle: 'Log what was dispensed today',
+            onTap: () => onAction(AppRouter.demandConsumption),
+          ),
+        ],
         const SizedBox(height: 10),
         _QuickAction(
           icon: Icons.history,
@@ -293,13 +314,15 @@ class _DemandActions extends StatelessWidget {
           subtitle: 'Review and correct recorded usage',
           onTap: () => onAction(AppRouter.demandHistory),
         ),
-        const SizedBox(height: 10),
-        _QuickAction(
-          icon: Icons.auto_awesome,
-          title: 'Demand Agent',
-          subtitle: 'Ask the AI agent to assess shortage risk',
-          onTap: () => onAction(AppRouter.demandAgent),
-        ),
+        if (canRunAgent) ...[
+          const SizedBox(height: 10),
+          _QuickAction(
+            icon: Icons.auto_awesome,
+            title: 'Demand Agent',
+            subtitle: 'Ask the AI agent to assess shortage risk',
+            onTap: () => onAction(AppRouter.demandAgent),
+          ),
+        ],
       ],
     );
   }
@@ -442,10 +465,14 @@ class _StaffPanel extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           // Demand & Shortage - Sathurstiga S. (IT24103156). Store keepers are
-          // the ones recording what was dispensed, so they get these too.
+          // the ones recording what was dispensed; the agent is a manager tool.
           const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          _DemandActions(onAction: onAction),
+          _DemandActions(
+            onAction: onAction,
+            canRecordConsumption: true,
+            canRunAgent: false,
+          ),
         ],
       ),
     );

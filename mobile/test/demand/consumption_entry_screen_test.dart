@@ -10,27 +10,54 @@ import 'fakes.dart';
 /// Consumption entry screen widget and form tests.
 /// Sathurstiga S. (IT24103156).
 void main() {
+  const String centralId = '11111111-1111-1111-1111-111111111111';
+  const String amoxicillinId = '33333333-3333-3333-3333-333333333333';
+
   Widget wrap(FakeDemandRepository repository) {
     return ProviderScope(
       overrides: <Override>[
         demandRepositoryProvider.overrideWithValue(repository),
+        // The catalogue the dropdowns offer, in place of GET /api/facilities and
+        // GET /api/medicines.
+        facilityOptionsProvider.overrideWith(
+          (Ref ref) async => const <ReferenceOption>[
+            ReferenceOption(id: centralId, name: 'Central Facility'),
+          ],
+        ),
+        medicineOptionsProvider.overrideWith(
+          (Ref ref) async => const <ReferenceOption>[
+            ReferenceOption(id: amoxicillinId, name: 'Amoxicillin 250 mg'),
+          ],
+        ),
       ],
       child: const MaterialApp(home: ConsumptionEntryScreen()),
     );
   }
 
+  Future<void> choose(WidgetTester tester, String fieldKey, String optionText) async {
+    await tester.tap(find.byKey(Key(fieldKey)));
+    await tester.pumpAndSettle();
+    // The open menu renders the option again above the field; the last is the menu's.
+    await tester.tap(find.text(optionText).last);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> fillForm(
     WidgetTester tester, {
-    String medicine = 'amoxicillin',
+    bool facility = true,
+    bool medicine = true,
     String quantity = '20',
   }) async {
-    await tester.enterText(find.byKey(const Key('medicine-field')), medicine);
+    await tester.pumpAndSettle();
+    if (facility) await choose(tester, 'facility-field', 'Central Facility');
+    if (medicine) await choose(tester, 'medicine-field', 'Amoxicillin 250 mg');
     await tester.enterText(find.byKey(const Key('quantity-field')), quantity);
   }
 
   testWidgets('renders the entry form', (WidgetTester tester) async {
     await tester.pumpWidget(wrap(FakeDemandRepository()));
 
+    expect(find.byKey(const Key('facility-field')), findsOneWidget);
     expect(find.byKey(const Key('medicine-field')), findsOneWidget);
     expect(find.byKey(const Key('quantity-field')), findsOneWidget);
     expect(find.byKey(const Key('submit-button')), findsOneWidget);
@@ -55,12 +82,26 @@ void main() {
     final FakeDemandRepository repository = FakeDemandRepository();
 
     await tester.pumpWidget(wrap(repository));
-    await fillForm(tester, medicine: '');
+    await fillForm(tester, medicine: false);
 
     await tester.tap(find.byKey(const Key('submit-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Select a medicine.'), findsOneWidget);
+    expect(repository.lastEntry, isNull);
+  });
+
+  testWidgets('blocks submission when the facility is missing',
+      (WidgetTester tester) async {
+    final FakeDemandRepository repository = FakeDemandRepository();
+
+    await tester.pumpWidget(wrap(repository));
+    await fillForm(tester, facility: false);
+
+    await tester.tap(find.byKey(const Key('submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select a facility.'), findsOneWidget);
     expect(repository.lastEntry, isNull);
   });
 
@@ -75,7 +116,9 @@ void main() {
 
     expect(repository.lastEntry, isNotNull);
     expect(repository.lastEntry!.quantityUsed, 20);
-    expect(repository.lastEntry!.medicineId, 'amoxicillin');
+    // The ids of the chosen options are sent, never the names typed or shown.
+    expect(repository.lastEntry!.medicineId, amoxicillinId);
+    expect(repository.lastEntry!.facilityId, centralId);
     expect(repository.lastEntry!.source, 'FLUTTER_CONSUMPTION_ENTRY');
   });
 
