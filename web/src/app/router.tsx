@@ -22,6 +22,10 @@ import { ShortageDetail } from "../features/demand/ShortageDetail";
 import { ShortageForm } from "../features/demand/ShortageForm";
 import { ForecastPage } from "../features/demand/ForecastPage";
 import { ConsumptionAnalytics } from "../features/demand/ConsumptionAnalytics";
+// Redistribution vertical (Member 3).
+import { TransferDashboard } from "../features/redistribution/TransferDashboard";
+import { TransferDetail } from "../features/redistribution/TransferDetail";
+import { TransferForm } from "../features/redistribution/TransferForm";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -106,6 +110,24 @@ export const router = createBrowserRouter([
   {
     path: "/demand/consumption",
     element: <ProtectedRoute><DashboardLayout><ConsumptionAnalytics /></DashboardLayout></ProtectedRoute>,
+  },
+
+  // Redistribution routes (Member 3). Additive.
+  {
+    path: "/redistribution/transfers",
+    element: <ProtectedRoute><DashboardLayout><TransferDashboard /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/redistribution/transfers/new",
+    element: <ProtectedRoute><DashboardLayout><TransferForm /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/redistribution/transfers/:id",
+    element: <ProtectedRoute><DashboardLayout><TransferDetail /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/redistribution/transfers/:id/edit",
+    element: <ProtectedRoute><DashboardLayout><TransferForm /></DashboardLayout></ProtectedRoute>,
   },
 
   // Admin routes

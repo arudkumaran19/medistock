@@ -14,6 +14,8 @@ from medistock_agents.api.routes import router, procurement_router
 # Demand & Shortage vertical (Sathurstiga S., IT24103156) - own module, so
 # api/routes.py is untouched.
 from medistock_agents.api.demand_routes import demand_router
+# Redistribution vertical (Member 3) - own module, additive.
+from medistock_agents.api.redistribution_routes import redistribution_router
 
 
 app = FastAPI(
@@ -36,6 +38,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(procurement_router)
 app.include_router(demand_router)
+app.include_router(redistribution_router)
 
 
 @app.get("/health")

@@ -24,6 +24,7 @@ import {
   Sparkles,
   ShieldCheck,
   Loader2,
+  Truck,
 } from "lucide-react";
 import { useProcurementAgent } from "../context/ProcurementAgentContext";
 
@@ -101,6 +102,19 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Consumption",
         path: "/demand/consumption",
         icon: <LineChart size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+    ],
+  },
+  {
+    // Redistribution vertical (Member 3). Store officers raise, dispatch and
+    // receive transfers; managers approve. Mirrors TransferController roles.
+    group: "Redistribution",
+    items: [
+      {
+        label: "Transfers",
+        path: "/redistribution/transfers",
+        icon: <Truck size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
         roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
       },
     ],
