@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using MediStock.Api.Common;
 using MediStock.Api.Data;
 using MediStock.Api.Domain.Enums;
+using MediStock.Api.Features.Procurement.Services;
 using MediStock.Api.Features.Redistribution.Services;
 using MediStock.Api.Features.Workflow.DTOs;
 using MediStock.Api.Features.Workflow.Models;
@@ -19,18 +20,24 @@ public class ApprovalService : IApprovalService
     private readonly MediStockDbContext _dbContext;
     private readonly ITransferService _transferService;
     private readonly IWorkflowStateService _workflowStateService;
+    private readonly IOfficerAssignmentService? _officerAssignmentService;
+    private readonly IProcurementBridgeService? _procurementBridgeService;
     private readonly ILogger<ApprovalService> _logger;
 
     public ApprovalService(
         MediStockDbContext dbContext,
         ITransferService transferService,
         IWorkflowStateService workflowStateService,
-        ILogger<ApprovalService> logger)
+        ILogger<ApprovalService> logger,
+        IOfficerAssignmentService? officerAssignmentService = null,
+        IProcurementBridgeService? procurementBridgeService = null)
     {
         _dbContext = dbContext;
         _transferService = transferService;
         _workflowStateService = workflowStateService;
         _logger = logger;
+        _officerAssignmentService = officerAssignmentService;
+        _procurementBridgeService = procurementBridgeService;
     }
 
     public async Task<ApiResponse<WorkflowResponse>> ApproveAsync(
@@ -157,7 +164,15 @@ public class ApprovalService : IApprovalService
                 request.DecisionNotes ?? "Rejected by manager",
                 ct);
 
-            if (!transferResult.Success)
+            if (transferResult.Success && _procurementBridgeService != null)
+            {
+                await _procurementBridgeService.CreateReplenishmentRequestFromTransferAsync(
+                    transfer.Id,
+                    approval.ApproverUserId,
+                    request.DecisionNotes ?? "Rejected by manager",
+                    ct);
+            }
+            else if (!transferResult.Success)
             {
                 _logger.LogWarning("Transfer rejection transition warning: {Message}", transferResult.Message);
             }

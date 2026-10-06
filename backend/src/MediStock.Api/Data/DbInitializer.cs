@@ -44,13 +44,30 @@ public static class DbInitializer
                 await context.Database.ExecuteSqlRawAsync(@"
                     ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""Latitude"" double precision DEFAULT 0;
                     ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""Longitude"" double precision DEFAULT 0;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""FacilityCode"" text;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""FacilityType"" text;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""Address"" text;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""City"" text;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""ContactPhone"" text;
+                    ALTER TABLE ""Facilities"" ADD COLUMN IF NOT EXISTS ""ContactPerson"" text;
+                    UPDATE ""Facilities"" SET ""FacilityCode"" = ""Code"" WHERE ""FacilityCode"" IS NULL OR ""FacilityCode"" = '';
+                    UPDATE ""Facilities"" SET ""City"" = '' WHERE ""City"" IS NULL;
+                    UPDATE ""Facilities"" SET ""ContactPhone"" = '' WHERE ""ContactPhone"" IS NULL;
+                    UPDATE ""Facilities"" SET ""ContactPerson"" = '' WHERE ""ContactPerson"" IS NULL;
+                    UPDATE ""Facilities"" SET ""Address"" = '' WHERE ""Address"" IS NULL;
+                    UPDATE ""Facilities"" SET ""FacilityType"" = '' WHERE ""FacilityType"" IS NULL;
+                    ALTER TABLE ""ShortageAlerts"" ADD COLUMN IF NOT EXISTS ""RelatedTransferId"" uuid;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLatitude"" double precision;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLongitude"" double precision;
                     ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""LastLocationAt"" timestamp with time zone;
+                    ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""AssignedOfficerId"" uuid;
+                    ALTER TABLE transfer_requests ADD COLUMN IF NOT EXISTS ""AssignedAt"" timestamp with time zone;
+
+                    ALTER TABLE transfer_notifications ALTER COLUMN ""TransferId"" DROP NOT NULL;
 
                     CREATE TABLE IF NOT EXISTS transfer_notifications (
                         ""Id"" uuid NOT NULL PRIMARY KEY,
-                        ""TransferId"" uuid NOT NULL,
+                        ""TransferId"" uuid NULL,
                         ""Audience"" character varying(50) NOT NULL,
                         ""RecipientUserId"" uuid NULL,
                         ""Title"" character varying(200) NOT NULL,
@@ -61,11 +78,28 @@ public static class DbInitializer
                             FOREIGN KEY (""TransferId"") REFERENCES transfer_requests (""Id"") ON DELETE CASCADE
                     );
 
+                    CREATE TABLE IF NOT EXISTS replenishment_requests (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""SourceTransferId"" uuid NULL,
+                        ""FacilityId"" uuid NOT NULL,
+                        ""MedicineId"" uuid NOT NULL,
+                        ""RequestedQuantity"" integer NOT NULL,
+                        ""Reason"" character varying(500) NOT NULL,
+                        ""Priority"" character varying(50) NOT NULL,
+                        ""CreatedByUserId"" uuid NOT NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL,
+                        ""Status"" character varying(50) NOT NULL,
+                        ""PurchaseOrderId"" uuid NULL
+                    );
+
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_TransferId"" ON transfer_notifications (""TransferId"");
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_Audience"" ON transfer_notifications (""Audience"");
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_RecipientUserId"" ON transfer_notifications (""RecipientUserId"");
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_IsRead"" ON transfer_notifications (""IsRead"");
                     CREATE INDEX IF NOT EXISTS ""IX_transfer_notifications_CreatedAt"" ON transfer_notifications (""CreatedAt"");
+
+                    ALTER TABLE replenishment_requests DROP CONSTRAINT IF EXISTS ""FK_replenishment_requests_PurchaseOrder_PurchaseOrderId"";
+                    ALTER TABLE replenishment_requests DROP CONSTRAINT IF EXISTS ""FK_replenishment_requests_purchase_orders_PurchaseOrderId"";
                 ");
             }
             else
@@ -73,7 +107,7 @@ public static class DbInitializer
                 await context.Database.EnsureCreatedAsync();
             }
 
-            if (!await context.Facilities.AnyAsync())
+            if (!await context.Facilities.AnyAsync(f => f.Id == Guid.Parse("a0000000-0000-0000-0000-000000000001")))
             {
                 logger.LogInformation("Seeding initial facilities, medicines, and inventories...");
 
@@ -182,7 +216,14 @@ public static class DbInitializer
                     IsActive = true
                 };
 
-                await context.Facilities.AddRangeAsync(facColombo, facGalle, facKandy, facNegombo, facColomboAlt, facGalleAlt, facKandyAlt);
+                var allFacilities = new[] { facColombo, facGalle, facKandy, facNegombo, facColomboAlt, facGalleAlt, facKandyAlt };
+                foreach (var fac in allFacilities)
+                {
+                    if (!await context.Facilities.AnyAsync(f => f.Id == fac.Id))
+                    {
+                        await context.Facilities.AddAsync(fac);
+                    }
+                }
 
                 var medAmox = new Medicine
                 {
@@ -256,7 +297,14 @@ public static class DbInitializer
                     IsActive = true
                 };
 
-                await context.Medicines.AddRangeAsync(medAmox, medPara, medInsulin, medMetformin, medCeftriaxone, medCeftriaxoneAlt);
+                var allMedicines = new[] { medAmox, medPara, medInsulin, medMetformin, medCeftriaxone, medCeftriaxoneAlt };
+                foreach (var med in allMedicines)
+                {
+                    if (!await context.Medicines.AnyAsync(m => m.Id == med.Id))
+                    {
+                        await context.Medicines.AddAsync(med);
+                    }
+                }
 
                 // Inventories:
                 // Colombo: Surplus 700 Amoxicillin (1200 - 500 safety stock)
@@ -298,7 +346,14 @@ public static class DbInitializer
                     ExpiryDate = DateTime.UtcNow.AddMonths(4)
                 };
 
-                await context.FacilityInventories.AddRangeAsync(invColomboAmox, invNegomboAmox, invGalleAmox);
+                var allInventories = new[] { invColomboAmox, invNegomboAmox, invGalleAmox };
+                foreach (var inv in allInventories)
+                {
+                    if (!await context.FacilityInventories.AnyAsync(i => i.Id == inv.Id))
+                    {
+                        await context.FacilityInventories.AddAsync(inv);
+                    }
+                }
 
                 // Initial sample transfer proposal
                 var sampleTransfer = new TransferRequest
@@ -411,10 +466,18 @@ public static class DbInitializer
 
                 sampleTransfer.WorkflowRunId = sampleWorkflowRun.Id;
 
-                await context.WorkflowRuns.AddAsync(sampleWorkflowRun);
-                await context.TransferRequests.AddAsync(sampleTransfer);
+                if (!await context.WorkflowRuns.AnyAsync(w => w.Id == sampleWorkflowRun.Id))
+                {
+                    await context.WorkflowRuns.AddAsync(sampleWorkflowRun);
+                }
+
+                if (!await context.TransferRequests.AnyAsync(t => t.Id == sampleTransfer.Id))
+                {
+                    await context.TransferRequests.AddAsync(sampleTransfer);
+                }
 
                 await context.SaveChangesAsync();
+                logger.LogInformation("Database seeded successfully with initial facilities, medicines, sample transfer, and workflow run.");
                 logger.LogInformation("Database seeded successfully with initial facilities, medicines, sample transfer, and workflow run.");
             }
         }

@@ -13,6 +13,7 @@ using MediStock.Api.Features.Redistribution.DTOs;
 using MediStock.Api.Features.Redistribution.Models;
 using MediStock.Api.Features.Redistribution.Validators;
 using Microsoft.Extensions.DependencyInjection;
+using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Workflow.DTOs;
 using MediStock.Api.Features.Workflow.Models;
 using MediStock.Api.Features.Workflow.Services;
@@ -253,6 +254,15 @@ public class TransferService : ITransferService
         await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Created new TransferRequest {TransferNumber} (ID: {TransferId}) in Draft status", transfer.TransferNumber, transfer.Id);
+
+        if (request.SourceShortageAlertId.HasValue && request.SourceShortageAlertId.Value != Guid.Empty && _serviceProvider != null)
+        {
+            var bridge = (IShortageRedistributionBridge?)_serviceProvider.GetService(typeof(IShortageRedistributionBridge));
+            if (bridge != null)
+            {
+                await bridge.ProcessShortageTransferHandoffAsync(request.SourceShortageAlertId.Value, transfer.Id, ct);
+            }
+        }
 
         var createdResponse = MapToResponse(transfer);
         if (_notificationService != null)
@@ -801,29 +811,40 @@ public class TransferService : ITransferService
         }
 
         var previousStatus = transfer.Status;
-        transfer.Status = TransferStatus.Approved;
         transfer.ApprovedByUserId = approverUserId != Guid.Empty ? approverUserId : Constants.SystemUsers.DefaultTestUserId;
+        var officerId = Constants.SystemUsers.DefaultTestUserId;
+
+        transfer.AssignedOfficerId = officerId;
+        transfer.AssignedAt = DateTime.UtcNow;
+        transfer.Status = TransferStatus.Assigned;
         transfer.UpdatedAt = DateTime.UtcNow;
 
         AddStatusHistory(transfer, previousStatus, TransferStatus.Approved, transfer.ApprovedByUserId.Value, notes ?? "Transfer proposal approved via workflow approval decision.");
+        AddStatusHistory(transfer, TransferStatus.Approved, TransferStatus.Assigned, officerId, $"Assigned to field officer {officerId}");
 
         await _dbContext.SaveChangesAsync(ct);
 
+        var firstItemName = transfer.Items.FirstOrDefault()?.MedicineName ?? "Medicine";
+        var pickupName = transfer.SourceFacility?.Name ?? "Source Facility";
+        var deliveryName = transfer.DestinationFacility?.Name ?? "Destination Facility";
+        var distanceKm = transfer.EstimatedDistanceKm ?? 0m;
+
         await CreateAndBroadcastNotificationsAsync(
             transfer,
-            "Transfer approved",
-            $"Your transfer request {transfer.TransferNumber} was approved by management.",
-            "Transfer Approved",
-            $"Transfer {transfer.TransferNumber} was approved.",
+            "New delivery task",
+            $"{firstItemName} from {pickupName} to {deliveryName}, {distanceKm} km",
+            "Transfer Approved & Assigned",
+            $"Transfer {transfer.TransferNumber} was approved and assigned to officer.",
             ct);
 
-        _logger.LogInformation("Transfer {TransferNumber} approved internally via workflow approval", transfer.TransferNumber);
+        _logger.LogInformation("Transfer {TransferNumber} approved and assigned to officer {OfficerId}", transfer.TransferNumber, officerId);
         var approvedResponse = MapToResponse(transfer);
         if (_notificationService != null)
         {
             await _notificationService.BroadcastStatusChangedAsync(approvedResponse, ct);
+            await _notificationService.BroadcastTaskAssignedAsync(officerId.ToString(), approvedResponse, ct);
         }
-        return ApiResponse<TransferResponse>.Ok(approvedResponse, "Transfer proposal approved successfully.");
+        return ApiResponse<TransferResponse>.Ok(approvedResponse, "Transfer proposal approved and assigned successfully.");
     }
 
     public async Task<ApiResponse<TransferResponse>> RejectTransferInternalAsync(
@@ -1182,8 +1203,13 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail("Transfer not found");
         }
 
-        transfer.Status = TransferStatus.InTransit;
+        var previousStatus = transfer.Status;
+        transfer.Status = TransferStatus.Reserved;
+        transfer.AssignedOfficerId = officerId;
         transfer.UpdatedAt = DateTime.UtcNow;
+
+        AddStatusHistory(transfer, previousStatus, TransferStatus.Reserved, officerId, "Field officer accepted task assignment.");
+
         await _dbContext.SaveChangesAsync(ct);
 
         var response = MapToResponse(transfer);
@@ -1207,8 +1233,22 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail("Transfer not found");
         }
 
+        var previousStatus = transfer.Status;
+        transfer.Status = TransferStatus.PendingReassignment;
+        transfer.AssignedOfficerId = null;
+        transfer.UpdatedAt = DateTime.UtcNow;
+
+        AddStatusHistory(transfer, previousStatus, TransferStatus.PendingReassignment, officerId, reason ?? "Field officer declined task assignment.");
+
+        await _dbContext.SaveChangesAsync(ct);
+
         var response = MapToResponse(transfer);
-        return ApiResponse<TransferResponse>.Ok(response, "Transfer declined.");
+        if (_notificationService != null)
+        {
+            await _notificationService.BroadcastStatusChangedAsync(response, ct);
+        }
+
+        return ApiResponse<TransferResponse>.Ok(response, "Transfer declined and marked pending reassignment.");
     }
 
     public async Task<PagedResponse<TransferResponse>> GetAssignedTransfersAsync(Guid officerId, int page = 1, int pageSize = 20, CancellationToken ct = default)

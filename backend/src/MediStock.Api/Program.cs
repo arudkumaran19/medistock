@@ -283,6 +283,10 @@ builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ITrans
 builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IWorkflowStateService, MediStock.Api.Features.Workflow.Services.WorkflowStateService>();
 builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IApprovalService, MediStock.Api.Features.Workflow.Services.ApprovalService>();
 builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IWorkflowService, MediStock.Api.Features.Workflow.Services.WorkflowService>();
+builder.Services.AddScoped<MediStock.Api.Features.Demand.Services.ShortageNotificationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Demand.Services.IShortageRedistributionBridge, MediStock.Api.Features.Demand.Services.ShortageRedistributionBridge>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.IOfficerAssignmentService, MediStock.Api.Features.Redistribution.Services.OfficerAssignmentService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.IProcurementBridgeService, MediStock.Api.Features.Procurement.Services.ProcurementBridgeService>();
 
 // Error Handling
 builder.Services.AddExceptionHandler<MediStockExceptionHandler>();
@@ -350,23 +354,31 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     var appDb = services.GetRequiredService<ApplicationDbContext>();
 
     if (appDb.Database.IsRelational() && appDb.Database.GetMigrations().Any())
     {
-        appDb.Database.Migrate();
+        try
+        {
+            appDb.Database.Migrate();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to execute EF migrations automatically. Falling back to EnsureCreated.");
+            appDb.Database.EnsureCreated();
+        }
     }
     else
     {
         appDb.Database.EnsureCreated();
     }
 
-    SeedData.Apply(appDb);
-    DemandSeedData.Apply(appDb);
-
-    var logger = services.GetRequiredService<ILogger<Program>>();
     var mediStockDb = services.GetRequiredService<MediStockDbContext>();
     await DbInitializer.InitializeAsync(mediStockDb, logger);
+
+    SeedData.Apply(appDb);
+    DemandSeedData.Apply(appDb);
 }
 
 await SeedUsers.SeedAsync(app.Services);

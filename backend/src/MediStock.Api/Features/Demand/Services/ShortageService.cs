@@ -476,6 +476,29 @@ public class ShortageService
         };
     }
 
+    /// <summary>
+    /// Marks an alert acknowledged. Returns null when it does not exist.
+    /// </summary>
+    public async Task<ShortageResponse?> AcknowledgeShortageAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _db.ShortageAlerts
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (alert is null)
+        {
+            return null;
+        }
+
+        alert.Status = ShortageAlertStatuses.Acknowledged;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Shortage alert {AlertId} acknowledged", alert.Id);
+
+        return ToResponse(alert);
+    }
+
     private static ShortageResponse ToResponse(ShortageAlert alert) => new()
     {
         Id = alert.Id,
@@ -490,6 +513,7 @@ public class ShortageService
         RiskLevel = alert.RiskLevel,
         RequiresTransfer = alert.RequiresTransfer,
         GeneratedAt = alert.GeneratedAt,
+        RelatedTransferId = alert.RelatedTransferId,
         Status = alert.Status
     };
 }

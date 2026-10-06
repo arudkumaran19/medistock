@@ -5,7 +5,20 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 
 class NewRequestWizard extends StatefulWidget {
-  const NewRequestWizard({super.key});
+  final String? prefillMedicineName;
+  final int? prefillQuantity;
+  final String? prefillUrgency;
+  final String? prefillNotes;
+  final String? sourceShortageAlertId;
+
+  const NewRequestWizard({
+    super.key,
+    this.prefillMedicineName,
+    this.prefillQuantity,
+    this.prefillUrgency,
+    this.prefillNotes,
+    this.sourceShortageAlertId,
+  });
 
   @override
   State<NewRequestWizard> createState() => _NewRequestWizardState();
@@ -19,20 +32,29 @@ class _NewRequestWizardState extends State<NewRequestWizard> {
   bool _isSubmitting = false;
 
   // Step 1 State
-  String _selectedMedicine = 'Amoxicillin + Clavulanic Acid 625mg';
-  int _quantity = 50;
+  late String _selectedMedicine;
+  late int _quantity;
   bool _isColdChain = false;
 
   // Step 2 State
   String _sourceFacility = 'Tambaram Regional Medical Depot';
-  String _urgencyTier = 'Urgent'; // Normal, Urgent, Critical
+  late String _urgencyTier; // Normal, Urgent, Critical
   DateTime _requiredBy = DateTime.now().add(const Duration(hours: 4));
-  TextEditingController _notesController = TextEditingController(
-    text: 'Urgent replenishment for outpatient pediatric unit. Handover to Pharmacist on duty (Dr. Raman).',
-  );
+  late TextEditingController _notesController;
 
   // Step 4 State
   String _createdRequestId = 'REQ-2024-8845';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMedicine = widget.prefillMedicineName ?? 'Amoxicillin + Clavulanic Acid 625mg';
+    _quantity = widget.prefillQuantity ?? 50;
+    _urgencyTier = widget.prefillUrgency ?? 'Urgent';
+    _notesController = TextEditingController(
+      text: widget.prefillNotes ?? 'Urgent replenishment for outpatient pediatric unit. Handover to Pharmacist on duty (Dr. Raman).',
+    );
+  }
 
   @override
   void dispose() {
@@ -63,13 +85,16 @@ class _NewRequestWizardState extends State<NewRequestWizard> {
       final response = await _apiClient.post(
         '/api/transfers',
         body: {
-          'destinationFacilityId': 'fac-1',
-          'sourceFacilityId': 'fac-2',
+          'destinationFacilityId': 'a0000000-0000-0000-0000-000000000001',
+          'sourceFacilityId': 'a0000000-0000-0000-0000-000000000002',
           'priority': _urgencyTier,
           'notes': _notesController.text,
+          'sourceShortageAlertId': widget.sourceShortageAlertId,
+          'medicineName': _selectedMedicine,
+          'requestedQuantity': _quantity,
           'items': [
             {
-              'inventoryItemId': 'inv-1',
+              'medicineName': _selectedMedicine,
               'requestedQuantity': _quantity,
             }
           ]

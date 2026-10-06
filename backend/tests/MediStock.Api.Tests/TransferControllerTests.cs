@@ -35,7 +35,7 @@ public class TransferControllerTests
             .ToList();
 
         // Must have expected action methods
-        actionMethods.Should().HaveCount(11, "TransferController exposes the blueprint endpoints including dispatch, propose, and live location");
+        actionMethods.Should().HaveCount(14, "TransferController exposes the blueprint endpoints including dispatch, propose, live location, and field officer task management");
 
         var methodNames = actionMethods.Select(m => m.Name).ToList();
         methodNames.Should().Contain(nameof(TransferController.GetTransfers));

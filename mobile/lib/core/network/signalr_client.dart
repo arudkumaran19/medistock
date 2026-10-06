@@ -16,11 +16,13 @@ class SignalRClient {
   final _locationUpdateController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _taskAssignedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _shortageAlertController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTransferStatusChanged => _statusChangeController.stream;
   Stream<Map<String, dynamic>> get onTransferLocationUpdated => _locationUpdateController.stream;
   Stream<Map<String, dynamic>> get onNotificationCreated => _notificationController.stream;
   Stream<Map<String, dynamic>> get onTaskAssigned => _taskAssignedController.stream;
+  Stream<Map<String, dynamic>> get onShortageAlertCreated => _shortageAlertController.stream;
 
   bool get isConnected => _hubConnection?.state == HubConnectionState.connected;
 
@@ -49,6 +51,7 @@ class SignalRClient {
     _hubConnection?.on('TransferLocationUpdated', _handleLocationUpdated);
     _hubConnection?.on('NotificationCreated', _handleNotificationCreated);
     _hubConnection?.on('TaskAssigned', _handleTaskAssigned);
+    _hubConnection?.on('ShortageAlertCreated', _handleShortageAlertCreated);
 
     try {
       await _hubConnection?.start();
@@ -86,6 +89,12 @@ class SignalRClient {
     }
   }
 
+  void _handleShortageAlertCreated(List<Object?>? args) {
+    if (args != null && args.isNotEmpty && args[0] is Map) {
+      _shortageAlertController.add(Map<String, dynamic>.from(args[0] as Map));
+    }
+  }
+
   Future<void> joinTransferGroup(String transferId) async {
     if (isConnected) {
       await _hubConnection?.invoke('JoinTransferGroup', args: [transferId]);
@@ -95,6 +104,18 @@ class SignalRClient {
   Future<void> leaveTransferGroup(String transferId) async {
     if (isConnected) {
       await _hubConnection?.invoke('LeaveTransferGroup', args: [transferId]);
+    }
+  }
+
+  Future<void> joinFacilityGroup(String facilityId) async {
+    if (isConnected) {
+      await _hubConnection?.invoke('JoinFacilityGroup', args: [facilityId]);
+    }
+  }
+
+  Future<void> leaveFacilityGroup(String facilityId) async {
+    if (isConnected) {
+      await _hubConnection?.invoke('LeaveFacilityGroup', args: [facilityId]);
     }
   }
 
@@ -129,5 +150,6 @@ class SignalRClient {
     _locationUpdateController.close();
     _notificationController.close();
     _taskAssignedController.close();
+    _shortageAlertController.close();
   }
 }

@@ -6,7 +6,7 @@ public class TransferNotification
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     
-    public Guid TransferId { get; set; }
+    public Guid? TransferId { get; set; }
     public TransferRequest? TransferRequest { get; set; }
 
     public string Audience { get; set; } = string.Empty; // "FieldOfficer" or "Manager"

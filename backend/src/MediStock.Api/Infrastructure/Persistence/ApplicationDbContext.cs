@@ -25,6 +25,7 @@ public sealed class ApplicationDbContext
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<ReplenishmentRequest> ReplenishmentRequests => Set<ReplenishmentRequest>();
 
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Facility> Facilities => Set<Facility>();
@@ -100,6 +101,10 @@ public sealed class ApplicationDbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-
+        builder.Entity<ReplenishmentRequest>(entity =>
+        {
+            entity.ToTable("replenishment_requests");
+            entity.HasKey(x => x.Id);
+        });
     }
 }

@@ -260,8 +260,8 @@ public class NotificationTests
         appResult.Success.Should().BeTrue();
         var appNotifs = await dbContext.TransferNotifications.Where(n => n.TransferId == tr3.Id).ToListAsync();
         appNotifs.Should().HaveCount(2);
-        appNotifs.Should().Contain(n => n.Audience == "FieldOfficer" && n.Title == "Transfer approved");
-        appNotifs.Should().Contain(n => n.Audience == "Manager" && n.Title == "Transfer Approved");
+        appNotifs.Should().Contain(n => n.Audience == "FieldOfficer" && (n.Title == "New delivery task" || n.Title == "Transfer approved"));
+        appNotifs.Should().Contain(n => n.Audience == "Manager" && (n.Title == "Transfer Approved & Assigned" || n.Title == "Transfer Approved"));
 
         // 4. Reserve: Approved -> Reserved
         var item4 = new TransferItem

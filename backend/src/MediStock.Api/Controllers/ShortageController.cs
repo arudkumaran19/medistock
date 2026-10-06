@@ -215,6 +215,33 @@ public class ShortageController : ControllerBase
     }
 
     /// <summary>
+    /// Marks a shortage alert as acknowledged by a facility user.
+    /// </summary>
+    [HttpPost("{id:guid}/acknowledge")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AcknowledgeShortage(Guid id, CancellationToken cancellationToken)
+    {
+        var alert = await _shortageService.AcknowledgeShortageAsync(id, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = DemandValidator.NotFoundCode,
+                    Message = $"Shortage alert {id} was not found.",
+                    TraceId = HttpContext.TraceIdentifier,
+                },
+            });
+        }
+
+        return Ok(new ApiResponse<ShortageResponse>(alert));
+    }
+
+    /// <summary>
     /// Recalculates the projected stockout and shortage risk, and stores the alert.
     /// </summary>
     [HttpPost("recalculate")]

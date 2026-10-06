@@ -1,4 +1,5 @@
 using MediStock.Api.Features.Redistribution.DTOs;
+using MediStock.Api.Features.Demand.DTOs;
 
 namespace MediStock.Api.Features.Redistribution.Hubs;
 
@@ -26,4 +27,14 @@ public interface ITransferHubClient
     /// Broadcast when a transfer assignment is pushed to a specific field officer.
     /// </summary>
     Task TaskAssigned(TransferResponse transfer);
+
+    /// <summary>
+    /// Broadcast when a shortage alert is raised for a facility.
+    /// </summary>
+    Task ShortageAlertCreated(ShortageResponse shortage);
+
+    /// <summary>
+    /// Broadcast when a transfer rejection creates a replenishment request for procurement.
+    /// </summary>
+    Task ReplenishmentRequested(MediStock.Api.Features.Procurement.DTOs.ReplenishmentRequestDto request);
 }

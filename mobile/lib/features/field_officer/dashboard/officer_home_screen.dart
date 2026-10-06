@@ -53,6 +53,7 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => IncomingTaskModal(
+        taskData: taskData,
         onAccept: () {
           Navigator.pop(context);
           context.push('/officer/active/$transferId');

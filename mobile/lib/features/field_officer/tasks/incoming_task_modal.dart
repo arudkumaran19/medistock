@@ -6,11 +6,13 @@ import '../../../core/theme/text_styles.dart';
 class IncomingTaskModal extends StatefulWidget {
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  final Map<String, dynamic>? taskData;
 
   const IncomingTaskModal({
     super.key,
     required this.onAccept,
     required this.onDecline,
+    this.taskData,
   });
 
   @override
@@ -42,6 +44,26 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
 
   @override
   Widget build(BuildContext context) {
+    final data = widget.taskData;
+    final transferNumber = data?['transferNumber']?.toString() ?? data?['transferId']?.toString() ?? '#TR-20261005';
+    
+    // Extract Pickup Info
+    final pickupMap = data?['pickupLocation'] as Map<String, dynamic>?;
+    final pickupName = pickupMap?['name']?.toString() ?? data?['sourceFacilityName']?.toString() ?? 'National Hospital of Sri Lanka (Colombo)';
+    final pickupDistance = pickupMap?['distanceKm']?.toString() ?? '3.2';
+
+    // Extract Delivery Info
+    final deliveryMap = data?['deliveryLocation'] as Map<String, dynamic>?;
+    final deliveryName = deliveryMap?['name']?.toString() ?? data?['destinationFacilityName']?.toString() ?? 'Teaching Hospital Karapitiya (Galle)';
+    
+    // Extract Distance & Medicine Info
+    final distanceMap = data?['distance'] as Map<String, dynamic>?;
+    final totalDistanceKm = distanceMap?['km']?.toString() ?? data?['estimatedDistanceKm']?.toString() ?? '119.5';
+    
+    final itemsList = data?['medicineItems'] as List<dynamic>?;
+    final firstItem = itemsList?.isNotEmpty == true ? itemsList!.first as Map<String, dynamic>? : null;
+    final medicineTitle = firstItem?['medicineName']?.toString() ?? 'Amoxicillin 500mg';
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
@@ -62,7 +84,7 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                   children: [
                     const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.secondary),
                     const SizedBox(width: 4),
-                    Text('URGENT DISPATCH ALERT', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                    Text('DISPATCH ALERT $transferNumber', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
                   ],
                 ),
               ),
@@ -87,8 +109,8 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
 
           const SizedBox(height: 16),
 
-          Text('Cold-Chain Medicine Requisition', style: AppTextStyles.displayMedium.copyWith(fontSize: 20)),
-          Text('Human Albumin 20% & Meropenem 1g IV • Cryo-Vault Payload', style: AppTextStyles.bodyMedium),
+          Text(medicineTitle, style: AppTextStyles.displayMedium.copyWith(fontSize: 20)),
+          Text('High Priority Requisition • Urgent Delivery Mission', style: AppTextStyles.bodyMedium),
 
           const SizedBox(height: 20),
 
@@ -110,11 +132,11 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('PICKUP FACILITY', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
-                          Text('Kilpauk Medical Depot, Bay 4', style: AppTextStyles.titleSmall),
+                          Text(pickupName, style: AppTextStyles.titleSmall),
                         ],
                       ),
                     ),
-                    Text('3.2 km', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                    Text('$pickupDistance km', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const Padding(
@@ -130,11 +152,11 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('DESTINATION HUB', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
-                          Text('Apollo Pharmacy, Anna Nagar Central', style: AppTextStyles.titleSmall),
+                          Text(deliveryName, style: AppTextStyles.titleSmall),
                         ],
                       ),
                     ),
-                    Text('15.8 km total', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                    Text('$totalDistanceKm km total', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],

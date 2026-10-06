@@ -15,7 +15,9 @@ public class TransferValidator
         [TransferStatus.Draft] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Cancelled },
         [TransferStatus.Proposed] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
         [TransferStatus.Requested] = new() { TransferStatus.Proposed, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
-        [TransferStatus.Approved] = new() { TransferStatus.Reserved, TransferStatus.Cancelled },
+        [TransferStatus.Approved] = new() { TransferStatus.Assigned, TransferStatus.Reserved, TransferStatus.Cancelled },
+        [TransferStatus.Assigned] = new() { TransferStatus.Reserved, TransferStatus.PendingReassignment, TransferStatus.Cancelled },
+        [TransferStatus.PendingReassignment] = new() { TransferStatus.Assigned, TransferStatus.Cancelled },
         [TransferStatus.Reserved] = new() { TransferStatus.Dispatched, TransferStatus.Cancelled },
         [TransferStatus.Dispatched] = new() { TransferStatus.Received },
         [TransferStatus.Received] = new(),
@@ -81,9 +83,9 @@ public class TransferValidator
     {
         var errors = new List<string>();
 
-        if (transfer.Status != TransferStatus.Approved)
+        if (transfer.Status != TransferStatus.Approved && transfer.Status != TransferStatus.Assigned)
         {
-            errors.Add($"Transfer must be in 'Approved' status to reserve inventory. Current status is '{transfer.Status}'.");
+            errors.Add($"Transfer must be in 'Approved' or 'Assigned' status to reserve inventory. Current status is '{transfer.Status}'.");
         }
 
         var sourceFacilityId = transfer.SourceFacilityId ?? request.SourceFacilityId;

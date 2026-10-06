@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import 'verify_shortage_screen.dart';
 
 class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
@@ -21,7 +21,23 @@ class AlertsScreen extends StatelessWidget {
             description: 'AI model predicts depletion within 36 hours based on local Dengue & ICU surge data. 2 surplus hubs nearby detected.',
             urgency: 'CRITICAL',
             time: '12m ago',
-            onTap: () => context.push('/user/requests/new'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const VerifyShortageScreen(
+                    shortageAlert: {
+                      'id': 'b1111111-1111-1111-1111-111111111111',
+                      'medicineName': 'Meropenem 1g IV Injection',
+                      'currentStock': 12,
+                      'daysRemaining': 2,
+                      'leadTimeDays': 10,
+                      'averageDailyConsumption': 20,
+                      'riskLevel': 'HIGH',
+                    },
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           _AlertCard(
@@ -29,7 +45,23 @@ class AlertsScreen extends StatelessWidget {
             description: 'Batch #AMX-2024-08 expires in 14 days. 120 strips remaining in Bay B4. Proactive reallocation recommended.',
             urgency: 'WARNING',
             time: '1h ago',
-            onTap: () {},
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const VerifyShortageScreen(
+                    shortageAlert: {
+                      'id': 'b2222222-2222-2222-2222-222222222222',
+                      'medicineName': 'Amoxicillin + Clavulanic Acid 625mg',
+                      'currentStock': 45,
+                      'daysRemaining': 5,
+                      'leadTimeDays': 10,
+                      'averageDailyConsumption': 15,
+                      'riskLevel': 'MEDIUM',
+                    },
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           _AlertCard(

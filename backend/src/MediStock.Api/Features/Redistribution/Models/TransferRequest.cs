@@ -30,6 +30,9 @@ public class TransferRequest
     public DateTime? DispatchedAt { get; set; }
     public DateTime? ReceivedAt { get; set; }
 
+    public Guid? AssignedOfficerId { get; set; }
+    public DateTime? AssignedAt { get; set; }
+
     public double? LastLatitude { get; set; }
     public double? LastLongitude { get; set; }
     public DateTime? LastLocationAt { get; set; }

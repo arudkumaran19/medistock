@@ -11,6 +11,8 @@ public enum TransferStatus
     Received = 6,
     Cancelled = 7,
     Rejected = 8,
+    Assigned = 9,
+    PendingReassignment = 10,
 
     // Status aliases for clients using InTransit and Delivered
     InTransit = 5,

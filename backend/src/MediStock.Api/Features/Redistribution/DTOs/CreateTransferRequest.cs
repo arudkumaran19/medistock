@@ -11,6 +11,7 @@ public class CreateTransferRequest
     public TransferPriority Priority { get; set; } = TransferPriority.Medium;
     public string? Notes { get; set; }
     public Guid? RequestedByUserId { get; set; }
+    public Guid? SourceShortageAlertId { get; set; }
 
     // Direct single-item convenience fields (for mobile & web clients)
     public Guid? MedicineId { get; set; }

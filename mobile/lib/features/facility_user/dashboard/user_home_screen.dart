@@ -7,6 +7,10 @@ import '../../../shared/widgets/progress_stepper.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../auth/presentation/auth_controller.dart';
 
+import 'dart:async';
+import '../../../core/network/signalr_client.dart';
+import '../alerts/verify_shortage_screen.dart';
+
 class UserHomeScreen extends ConsumerStatefulWidget {
   const UserHomeScreen({super.key});
 
@@ -16,6 +20,30 @@ class UserHomeScreen extends ConsumerStatefulWidget {
 
 class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
   int _currentIndex = 0;
+  StreamSubscription? _shortageSub;
+  Map<String, dynamic>? _liveShortageAlert;
+
+  @override
+  void initState() {
+    super.initState();
+    SignalRClient().connect().then((_) {
+      SignalRClient().joinFacilityGroup('a0000000-0000-0000-0000-000000000001');
+    });
+
+    _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
+      if (mounted) {
+        setState(() {
+          _liveShortageAlert = data;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _shortageSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +203,46 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               ],
             ),
 
-            const SizedBox(height: 20),
+            if (_liveShortageAlert != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.errorLight,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.error),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
+                        const SizedBox(width: 8),
+                        Text('REAL-TIME SHORTAGE ALERT', style: AppTextStyles.badge.copyWith(color: AppColors.error)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Shortage detected! Cover: ${_liveShortageAlert!['daysRemaining'] ?? 0} days remaining.',
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.error),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => VerifyShortageScreen(shortageAlert: _liveShortageAlert!),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                      child: const Text('Verify & Respond Now'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // AI FORECAST CARD
             Container(

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MediStock.Api.Domain.Entities;
+using MediStock.Api.Features.Procurement.Models;
 using MediStock.Api.Features.Redistribution.Models;
 using MediStock.Api.Features.Workflow.Models;
 
@@ -21,6 +22,10 @@ public class MediStockDbContext : DbContext
     public DbSet<TransferItem> TransferItems => Set<TransferItem>();
     public DbSet<TransferStatusHistory> TransferStatusHistories => Set<TransferStatusHistory>();
     public DbSet<TransferNotification> TransferNotifications => Set<TransferNotification>();
+    // Procurement Slice Entities
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<ReplenishmentRequest> ReplenishmentRequests => Set<ReplenishmentRequest>();
 
     // Workflow Entities
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
@@ -176,6 +181,7 @@ public class MediStockDbContext : DbContext
             entity.HasOne(e => e.TransferRequest)
                 .WithMany()
                 .HasForeignKey(e => e.TransferId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.TransferId);
@@ -270,6 +276,51 @@ public class MediStockDbContext : DbContext
             entity.Property(e => e.Action).IsRequired().HasMaxLength(50);
             entity.HasIndex(e => new { e.EntityName, e.EntityId });
             entity.HasIndex(e => e.Timestamp);
+        });
+
+        // ReplenishmentRequest
+        modelBuilder.Entity<ReplenishmentRequest>(entity =>
+        {
+            entity.ToTable("replenishment_requests");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.Priority).HasMaxLength(50);
+            entity.Property(e => e.Status).HasMaxLength(50);
+
+            entity.HasOne(e => e.SourceTransfer)
+                .WithMany()
+                .HasForeignKey(e => e.SourceTransferId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Facility)
+                .WithMany()
+                .HasForeignKey(e => e.FacilityId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Medicine)
+                .WithMany()
+                .HasForeignKey(e => e.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.PurchaseOrder)
+                .WithMany()
+                .HasForeignKey(e => e.PurchaseOrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // PurchaseOrder
+        modelBuilder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.ToTable("purchase_orders");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
+        });
+
+        // PurchaseOrderItem
+        modelBuilder.Entity<PurchaseOrderItem>(entity =>
+        {
+            entity.ToTable("purchase_order_items");
+            entity.HasKey(e => e.Id);
         });
     }
 }

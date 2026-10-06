@@ -114,4 +114,47 @@ public class TransferHub : Hub<ITransferHubClient>
 
     public static string GetTransferGroupName(string transferId) => $"transfer_{transferId.ToLowerInvariant()}";
     public static string GetOfficerGroupName(string officerId) => $"officer_{officerId.ToLowerInvariant()}";
+    public static string GetFacilityGroupName(string facilityId) => $"facility_{facilityId.ToLowerInvariant()}_users";
+
+    /// <summary>
+    /// Join notification group for a specific facility to receive shortage alerts and updates.
+    /// </summary>
+    public async Task JoinFacilityGroup(string facilityId)
+    {
+        if (string.IsNullOrWhiteSpace(facilityId)) return;
+
+        var groupName = GetFacilityGroupName(facilityId);
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        _logger.LogInformation("Connection {ConnectionId} joined facility group {GroupName}", Context.ConnectionId, groupName);
+    }
+
+    /// <summary>
+    /// Leave facility notification group.
+    /// </summary>
+    public async Task LeaveFacilityGroup(string facilityId)
+    {
+        if (string.IsNullOrWhiteSpace(facilityId)) return;
+
+        var groupName = GetFacilityGroupName(facilityId);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        _logger.LogInformation("Connection {ConnectionId} left facility group {GroupName}", Context.ConnectionId, groupName);
+    }
+
+    /// <summary>
+    /// Join procurement group to receive replenishment requests.
+    /// </summary>
+    public async Task JoinProcurementGroup()
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, "procurement");
+        _logger.LogInformation("Connection {ConnectionId} joined procurement group", Context.ConnectionId);
+    }
+
+    /// <summary>
+    /// Leave procurement group.
+    /// </summary>
+    public async Task LeaveProcurementGroup()
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, "procurement");
+        _logger.LogInformation("Connection {ConnectionId} left procurement group", Context.ConnectionId);
+    }
 }
