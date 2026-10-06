@@ -1,22 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle,
-  ArrowRight,
-  ArrowRightLeft,
   CheckCircle2,
   Clock,
-  ExternalLink,
-  Filter,
-  MapPin,
   Package,
-  Plus,
   RefreshCw,
-  Search,
   Truck,
 } from 'lucide-react';
 import { redistributionApi } from '../../services/redistributionApi';
-import { TransferDto, TransferStatus } from '../../types/redistribution';
+import { TransferDto } from '../../types/redistribution';
 import { PriorityBadge, StatusBadge } from '../../components/StatusBadge';
 import { SearchBar } from '../../components/SearchBar';
 import { LoadingState } from '../../components/LoadingState';

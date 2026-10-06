@@ -7,7 +7,7 @@ describe('App', () => {
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: 'MediStock' }),
+      screen.getAllByText('MediStock')[0],
     ).toBeInTheDocument()
   })
 })

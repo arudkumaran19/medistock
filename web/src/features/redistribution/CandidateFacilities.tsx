@@ -2,17 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertCircle,
   ArrowLeft,
   Building,
   Check,
   Compass,
-  Layers,
   MapPin,
   RefreshCw,
-  ShieldAlert,
   Sparkles,
-  TrendingUp,
 } from 'lucide-react';
 import { redistributionApi } from '../../services/redistributionApi';
 import { CandidateFacilityDto, TransferDto } from '../../types/redistribution';

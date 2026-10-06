@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MediStock.Api.Domain.Entities;
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
 using MediStock.Api.Domain.Enums;
 using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement;

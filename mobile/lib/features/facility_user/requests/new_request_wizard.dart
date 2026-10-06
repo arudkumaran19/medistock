@@ -39,7 +39,6 @@ class _NewRequestWizardState extends State<NewRequestWizard> {
   // Step 2 State
   String _sourceFacility = 'Tambaram Regional Medical Depot';
   late String _urgencyTier; // Normal, Urgent, Critical
-  DateTime _requiredBy = DateTime.now().add(const Duration(hours: 4));
   late TextEditingController _notesController;
 
   // Step 4 State

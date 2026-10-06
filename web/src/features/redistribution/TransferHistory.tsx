@@ -1,20 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar,
   CheckCircle,
-  Clock,
-  Download,
-  Filter,
-  History,
   Package,
   RefreshCw,
-  Search,
   Truck,
 } from 'lucide-react';
 import { redistributionApi } from '../../services/redistributionApi';
 import { TransferDto } from '../../types/redistribution';
-import { PriorityBadge, StatusBadge } from '../../components/StatusBadge';
+import { StatusBadge } from '../../components/StatusBadge';
 import { SearchBar } from '../../components/SearchBar';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorState } from '../../components/ErrorState';

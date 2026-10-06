@@ -57,7 +57,7 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
     const errorBody = await response.json().catch(() => ({
       message: `Request failed with status ${response.status}`,
     }));
-    const message =
+    const _message =
       errorBody.error?.message ??
       errorBody.Error?.Message ??
       errorBody.message ??

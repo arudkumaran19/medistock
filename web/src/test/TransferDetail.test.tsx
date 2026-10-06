@@ -53,6 +53,8 @@ const mockRequestedTransfer: TransferDto = {
 describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(redistributionApi, 'getRoute').mockResolvedValue(null as any);
+    vi.spyOn(workflowApi, 'getWorkflowRun').mockResolvedValue(null as any);
   });
 
   it('renders Draft transfer with read-only waiting note and without Submit Request or Approve/Reject buttons', async () => {

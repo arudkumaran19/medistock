@@ -23,11 +23,14 @@ export function useTransferSignalR({
   const [connectionState, setConnectionState] = useState<string>('Disconnected');
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const onStatusChangedRef = useRef(onStatusChanged);
-  onStatusChangedRef.current = onStatusChanged;
   const onLocationUpdatedRef = useRef(onLocationUpdated);
-  onLocationUpdatedRef.current = onLocationUpdated;
   const onNotificationCreatedRef = useRef(onNotificationCreated);
-  onNotificationCreatedRef.current = onNotificationCreated;
+
+  useEffect(() => {
+    onStatusChangedRef.current = onStatusChanged;
+    onLocationUpdatedRef.current = onLocationUpdated;
+    onNotificationCreatedRef.current = onNotificationCreated;
+  }, [onStatusChanged, onLocationUpdated, onNotificationCreated]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -53,7 +56,7 @@ export function useTransferSignalR({
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .configureLogging(signalR.LogLevel.None)
         .build();
-    } catch (err) {
+    } catch {
       // Offline, test runner, or non-browser environment
       setIsConnected(false);
       setConnectionState('Disconnected');
@@ -150,7 +153,7 @@ export function useTransferSignalR({
         if (isManager) {
           await connection.invoke('JoinManagerGroup');
         }
-      } catch (err) {
+      } catch {
         // Fallback gracefully
       }
     });
@@ -172,7 +175,7 @@ export function useTransferSignalR({
         if (isManager) {
           await connection.invoke('JoinManagerGroup');
         }
-      } catch (err) {
+      } catch {
         setIsConnected(false);
         setConnectionState('Failed');
       }

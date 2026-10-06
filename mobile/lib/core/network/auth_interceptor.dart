@@ -13,7 +13,7 @@ class AuthInterceptor extends Interceptor {
 
   Future<String?> _getToken() async {
     if (_readToken != null) {
-      return await _readToken!();
+      return await _readToken();
     }
     return await _storage.getToken();
   }

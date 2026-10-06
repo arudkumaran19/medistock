@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Navigation, Clock, MapPin, Hospital, Truck } from 'lucide-react';
+import { Navigation, Clock } from 'lucide-react';
 
 interface TransferLiveMapProps {
   sourceFacilityName: string;
@@ -16,7 +16,7 @@ interface TransferLiveMapProps {
 }
 
 // Custom DivIcons for crisp SVG rendering without external image dependencies
-const createSourceIcon = (name: string) =>
+const createSourceIcon = (_name: string) =>
   L.divIcon({
     className: 'custom-leaflet-icon',
     html: `
@@ -43,7 +43,7 @@ const createSourceIcon = (name: string) =>
     popupAnchor: [0, -18],
   });
 
-const createDestIcon = (name: string) =>
+const createDestIcon = (_name: string) =>
   L.divIcon({
     className: 'custom-leaflet-icon',
     html: `
@@ -120,7 +120,9 @@ function BoundsController({ points }: { points: [number, number][] }) {
     try {
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-    } catch (_) {}
+    } catch {
+      // ignore
+    }
   }, [map, points]);
 
   return null;
@@ -137,6 +139,30 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   durationMinutes,
   status,
 }) => {
+  // Construct polyline points: source -> waypoints -> destination
+  const polylinePoints = useMemo<[number, number][]>(() => {
+    const pts: [number, number][] = [sourceCoords];
+    if (waypoints && waypoints.length > 0) {
+      waypoints.forEach((w) => {
+        pts.push([w.latitude, w.longitude]);
+      });
+    }
+    pts.push(destinationCoords);
+    return pts;
+  }, [sourceCoords, destinationCoords, waypoints]);
+
+  const allPoints = useMemo<[number, number][]>(() => {
+    const pts = [...polylinePoints];
+    if (vehicleCoords) {
+      pts.push(vehicleCoords);
+    }
+    return pts;
+  }, [polylinePoints, vehicleCoords]);
+
+  const sourceIcon = useMemo(() => createSourceIcon(sourceFacilityName), [sourceFacilityName]);
+  const destIcon = useMemo(() => createDestIcon(destinationFacilityName), [destinationFacilityName]);
+  const vehicleIcon = useMemo(() => createVehicleIcon(), []);
+
   const isJSDOM =
     typeof navigator !== 'undefined' &&
     (navigator.userAgent?.includes('jsdom') || navigator.userAgent?.includes('Node.js'));
@@ -175,30 +201,6 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
       </div>
     );
   }
-
-  // Construct polyline points: source -> waypoints -> destination
-  const polylinePoints = useMemo<[number, number][]>(() => {
-    const pts: [number, number][] = [sourceCoords];
-    if (waypoints && waypoints.length > 0) {
-      waypoints.forEach((w) => {
-        pts.push([w.latitude, w.longitude]);
-      });
-    }
-    pts.push(destinationCoords);
-    return pts;
-  }, [sourceCoords, destinationCoords, waypoints]);
-
-  const allPoints = useMemo<[number, number][]>(() => {
-    const pts = [...polylinePoints];
-    if (vehicleCoords) {
-      pts.push(vehicleCoords);
-    }
-    return pts;
-  }, [polylinePoints, vehicleCoords]);
-
-  const sourceIcon = useMemo(() => createSourceIcon(sourceFacilityName), [sourceFacilityName]);
-  const destIcon = useMemo(() => createDestIcon(destinationFacilityName), [destinationFacilityName]);
-  const vehicleIcon = useMemo(() => createVehicleIcon(), []);
 
   return (
     <div

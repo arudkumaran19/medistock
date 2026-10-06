@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, Clock, ExternalLink } from 'lucide-react';
+import { Bell, CheckCheck, Clock } from 'lucide-react';
 import { TransferNotificationDto } from '../../types/redistribution';
 import { redistributionApi } from '../../services/redistributionApi';
 import { useTransferSignalR } from './useTransferSignalR';

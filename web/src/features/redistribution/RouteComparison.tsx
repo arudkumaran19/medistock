@@ -1,19 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertTriangle,
   ArrowLeft,
-  Building,
-  CheckCircle2,
-  Clock,
   Compass,
-  CornerDownRight,
-  Info,
-  MapPin,
   Navigation,
   RefreshCw,
   Route as RouteIcon,
-  ShieldCheck,
   Zap,
 } from 'lucide-react';
 import { redistributionApi } from '../../services/redistributionApi';
