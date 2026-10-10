@@ -27,9 +27,9 @@ import { PageHeader, Panel } from './components/Panel';
 import { RiskDistribution } from './components/RiskDistribution';
 import { SeverityBadge, StatusChip } from './components/SeverityBadge';
 import { SkeletonMetrics, SkeletonRegion, SkeletonTable } from './components/Skeleton';
-import { formatDate, formatDaysRemaining, formatNumber } from './format';
+import { describeScan, formatDate, formatDaysRemaining, formatNumber } from './format';
 import { facilityName, knownFacilities, medicineName, optionLabel } from './reference';
-import { useDeleteShortage, useResolveShortage, useShortages } from './hooks';
+import { useDeleteShortage, useResolveShortage, useScanShortages, useShortages } from './hooks';
 
 const PAGE_SIZE = 10;
 
@@ -53,6 +53,7 @@ export function ShortageDashboard({
 
   const resolveShortage = useResolveShortage();
   const deleteShortage = useDeleteShortage();
+  const scanShortages = useScanShortages();
 
   const query = useMemo(
     () => ({
@@ -167,9 +168,21 @@ export function ShortageDashboard({
         title="Demand & Shortage Monitoring"
         subtitle="Monitor consumption trends, forecast demand, and identify potential medicine shortages before they occur."
         actions={
-          <Link to="/demand/shortages/new">
-            <button type="button">Raise alert</button>
-          </Link>
+          <span className="row-actions">
+            {/* Re-checks every facility and medicine with consumption history and a
+                reorder rule against live Inventory stock. Manager and admin only;
+                the backend enforces the role. */}
+            <button
+              type="button"
+              disabled={scanShortages.isPending}
+              onClick={() => scanShortages.mutate()}
+            >
+              {scanShortages.isPending ? 'Scanning…' : 'Scan now'}
+            </button>
+            <Link to="/demand/shortages/new">
+              <button type="button">Raise alert</button>
+            </Link>
+          </span>
         }
       >
         <h2 id="shortage-dashboard-heading" className="visually-hidden">
@@ -177,6 +190,16 @@ export function ShortageDashboard({
         </h2>
         <DemandChain active="alert" />
       </PageHeader>
+
+      {scanShortages.isSuccess && (
+        <p className="card__hint" role="status" data-testid="scan-result">
+          {describeScan(scanShortages.data)}
+        </p>
+      )}
+
+      {scanShortages.isError && (
+        <ErrorState title="Scan failed" message={toErrorMessage(scanShortages.error)} />
+      )}
 
       {isLoading && (
         <SkeletonRegion label="Loading shortage alerts…">

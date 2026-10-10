@@ -181,7 +181,15 @@ class ConsumptionEntry {
         'facilityId': facilityId,
         'medicineId': medicineId,
         'quantityUsed': quantityUsed,
-        'consumptionDate': consumptionDate.toUtc().toIso8601String(),
+        // The calendar day the officer chose, as UTC midnight. Converting local
+        // midnight with toUtc() moved it to the previous day anywhere east of UTC:
+        // in Sri Lanka 2026-10-05 00:00 became 2026-10-04 18:30Z and was stored as
+        // the 4th.
+        'consumptionDate': DateTime.utc(
+          consumptionDate.year,
+          consumptionDate.month,
+          consumptionDate.day,
+        ).toIso8601String(),
         'source': source,
         if (notes != null && notes!.isNotEmpty) 'notes': notes,
       };

@@ -90,9 +90,15 @@ class DemandRepository {
     final String message =
         error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
 
+    // The shared client loses the status code, but it only produces an empty message
+    // when the response had no body - which the backend sends for 401 and 403. Saying
+    // so is more use than "could not be completed": the usual cause is a role that
+    // may not perform the action, e.g. a facility manager trying to record usage.
     return ApiFailure(
       code: 'DEMAND_REQUEST_FAILED',
-      message: message.isEmpty ? 'The request could not be completed.' : message,
+      message: message.isEmpty
+          ? 'Your account is not allowed to do this. Sign in with a role that can.'
+          : message,
     );
   }
 

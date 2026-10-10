@@ -118,6 +118,19 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Redistribution vertical (Member 3). Store officers raise, dispatch and
+    // receive transfers; managers approve. Mirrors TransferController roles.
+    group: "Redistribution",
+    items: [
+      {
+        label: "Transfers",
+        path: "/redistribution/transfers",
+        icon: <Truck size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
+      },
+    ],
+  },
+  {
     group: "Procurement",
     items: [
       {

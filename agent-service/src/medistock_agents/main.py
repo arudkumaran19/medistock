@@ -13,6 +13,8 @@ load_dotenv(_current_dir.parent.parent / ".env")
 load_dotenv(_current_dir.parent.parent.parent / ".env")
 load_dotenv()
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -47,6 +49,19 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+LOCAL_WEB_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
+# The local origins above stay allowed exactly as before.
+DEPLOYED_WEB_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -64,6 +79,7 @@ app.include_router(router)
 app.include_router(inventory_router)
 app.include_router(procurement_router)
 app.include_router(demand_router)
+app.include_router(redistribution_router)
 
 if __name__ == "__main__":
     import uvicorn

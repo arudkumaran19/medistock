@@ -251,6 +251,7 @@ builder.Services.AddScoped<MedicineService>();
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
+builder.Services.AddScoped<ShortageEvaluationService>();
 builder.Services.AddScoped<DemandValidator>();
 
 // AI & External HttpClients
@@ -389,7 +390,9 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseCors("LocalWeb");
 
-if (app.Environment.IsDevelopment())
+// Swagger stays on in deployed builds: the assignment requires a working Swagger URL
+// for evaluators. Set Swagger__Enabled=false to switch it off.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

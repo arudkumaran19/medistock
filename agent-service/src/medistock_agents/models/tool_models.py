@@ -193,6 +193,9 @@ class ProjectedStockoutResult(CamelModel):
     lead_time_days: int
     risk_level: str
     requires_transfer: bool
+    # "REQUEST" when the agent supplied the stock, "INVENTORY" when the backend read
+    # it from the Inventory balance. Optional so older payloads still validate.
+    stock_source: str | None = None
 
 
 class ShortageThresholdResult(CamelModel):
@@ -204,3 +207,6 @@ class ShortageThresholdResult(CamelModel):
     reorder_point: float
     safety_stock: float
     lead_time_days: int
+    # "CONFIGURED" for a stored reorder rule, "DEFAULT" when none is configured and
+    # the backend applied its default thresholds. Optional so older payloads validate.
+    source: str | None = None

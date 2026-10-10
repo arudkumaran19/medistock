@@ -130,7 +130,11 @@ export function AgentPanel({ facilityId, medicineId, currentStock }: AgentPanelP
         {analysis.isError && (
           <div className="agent-failure" role="alert">
             <strong>Agent unavailable.</strong>{' '}
-            {analysis.error.message}. No analysis was produced and nothing was changed.
+            {/* The backend's 503 message already says nothing was changed; only
+                add that sentence when the error came from somewhere else. */}
+            {/nothing was changed/i.test(analysis.error.message)
+              ? analysis.error.message
+              : `${analysis.error.message.replace(/\.$/, '')}. No analysis was produced and nothing was changed.`}
           </div>
         )}
 
@@ -189,12 +193,20 @@ export function AgentPanel({ facilityId, medicineId, currentStock }: AgentPanelP
                   )}
                 </div>
 
-                {result.status === 'SAFE_FAILURE' && (
-                  <p className="agent-note agent-note--refused">
-                    The agent refused this objective and called no tools. Authority stays
-                    with deterministic backend validation and the human approver.
-                  </p>
-                )}
+                {result.status === 'SAFE_FAILURE' &&
+                  (result.findings.some((finding) => finding.code === 'OBJECTIVE_REFUSED') ? (
+                    <p className="agent-note agent-note--refused">
+                      The agent refused this objective and called no tools. Authority stays
+                      with deterministic backend validation and the human approver.
+                    </p>
+                  ) : (
+                    // Not a refusal: a backend tool could not supply a figure, so the
+                    // agent stopped rather than guess one.
+                    <p className="agent-note agent-note--refused" data-testid="agent-tool-failure">
+                      The agent stopped safely because a backend tool could not supply a
+                      figure it needs. Nothing was guessed and nothing was changed.
+                    </p>
+                  ))}
 
                 <section>
                   <h4 className="agent-section-heading">Findings</h4>

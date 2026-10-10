@@ -98,6 +98,48 @@ public sealed class AgentServiceClient
     }
 
     /// <summary>Liveness of the agent service, for diagnostics and the demo.</summary>
+    /// <summary>
+    /// Runs the redistribution agent for one transfer. Redistribution vertical (Member 3).
+    /// Returns the agent's JSON as-is, or null when the service is unconfigured,
+    /// unreachable or refuses - the same safe failure as the demand agent.
+    /// </summary>
+    public async Task<System.Text.Json.JsonElement?> RunRedistributionAsync(
+        Guid transferId,
+        string? objective,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ServiceToken) || _http.BaseAddress is null)
+        {
+            _logger.LogWarning("Agent service is not configured. Redistribution agent call refused.");
+            return null;
+        }
+
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Post, "/api/redistribution-agent/run")
+            {
+                Content = JsonContent.Create(new { transferId, objective }, options: JsonOptions),
+            };
+
+            message.Headers.Add("X-Internal-Token", _options.ServiceToken);
+
+            using var response = await _http.SendAsync(message, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Redistribution agent returned {StatusCode} for transfer {TransferId}.", (int)response.StatusCode, transferId);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(JsonOptions, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "Agent service is unreachable.");
+            return null;
+        }
+    }
+
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
     {
         if (_http.BaseAddress is null)

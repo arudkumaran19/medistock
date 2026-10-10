@@ -102,6 +102,51 @@ export interface ShortageAlert {
   requiresTransfer: boolean;
   generatedAt: string;
   status: string;
+  /** Last time the figures were refreshed instead of a duplicate being raised. */
+  updatedAt?: string | null;
+  resolvedAt?: string | null;
+  /** Set when the alert resolved itself, e.g. "Stock now covers lead time". */
+  resolutionReason?: string | null;
+  /** True when raising refreshed an existing OPEN/ACKNOWLEDGED alert. */
+  existingAlertUpdated?: boolean;
+}
+
+/** GET /api/shortages/current-stock — Inventory balance, read-only. */
+export interface CurrentStock {
+  facilityId: string;
+  medicineId: string;
+  quantityOnHand: number;
+  quantityReserved: number;
+  /** On hand minus reserved: the figure the shortage calculation uses. */
+  availableQuantity: number;
+}
+
+export type ShortageEvaluationOutcome =
+  | 'CREATED'
+  | 'UPDATED'
+  | 'RESOLVED'
+  | 'NO_CHANGE'
+  | 'SKIPPED'
+  | 'FAILED';
+
+export interface ShortageEvaluationResult {
+  facilityId: string;
+  medicineId: string;
+  outcome: ShortageEvaluationOutcome;
+  reason: string | null;
+  alert: ShortageAlert | null;
+}
+
+/** POST /api/shortages/scan. */
+export interface ShortageScanResult {
+  evaluated: number;
+  created: number;
+  updated: number;
+  resolved: number;
+  unchanged: number;
+  skipped: number;
+  failed: number;
+  results: ShortageEvaluationResult[];
 }
 
 /** Body of POST and PUT /api/consumption. */
@@ -164,17 +209,22 @@ export interface ForecastRequest {
 export interface ShortageRecalculateRequest {
   facilityId: string;
   medicineId: string;
-  currentStock: number;
+  /** Omit to use the Inventory balance. */
+  currentStock?: number;
   averageDailyConsumption?: number;
   leadTimeDays?: number;
   windowDays?: number;
 }
 
-/** Body of POST /api/shortages — raise an alert directly. */
+/**
+ * Body of POST /api/shortages — raise an alert directly. Raising again for a
+ * facility and medicine with an active alert updates that alert instead.
+ */
 export interface ShortageCreateRequest {
   facilityId: string;
   medicineId: string;
-  currentStock: number;
+  /** Omit to use the Inventory balance (on hand - reserved). */
+  currentStock?: number;
   averageDailyConsumption?: number;
   leadTimeDays?: number;
   windowDays?: number;
