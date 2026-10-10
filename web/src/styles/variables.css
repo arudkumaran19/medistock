@@ -1,18 +1,62 @@
+:root {
+  /* Colors - Healthcare Light Theme Base */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f8fafc;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  --border-subtle: #e2e8f0;
+  --border-focus: #0d9488;
+  --border-accent: rgba(15, 118, 110, 0.3);
+
+  /* Brand Accents */
+  --color-primary: #0f766e;
+  --color-primary-hover: #0d9488;
+  --color-primary-glow: rgba(15, 118, 110, 0.18);
+  
+  --color-cyan: #0284c7;
+  --color-blue: #2563eb;
+  --color-purple: #7e22ce;
+  --color-amber: #d97706;
+  --color-rose: #dc2626;
+  
+  /* Status Colors */
+  --status-draft: #64748b;
+  --status-requested: #d97706;
+  --status-approved: #0284c7;
+  --status-reserved: #7e22ce;
+  --status-intransit: #0f766e;
+  --status-delivered: #16a34a;
+  --status-rejected: #dc2626;
+  --status-cancelled: #64748b;
+
+  /* Typography */
+  --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Shadows & Glass */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 24px rgba(15, 118, 110, 0.15);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
 /* Scoped to .demand-vertical so these tokens cannot override develop's
    design system. 21 token names collide with design-system.css; before
    scoping, this file won the cascade on every page in the app. */
-/*
- * SHARED REACT DESIGN SYSTEM - primary owner: Arudkumaran V. (IT24103011).
- * Token set created by the Demand vertical (Sathurstiga S., IT24103156). Replace with
- * the owner's tokens on integration; improvements go through the owner as reviewed
- * changes.
- *
- * Chart series and surface values come from the validated data-visualisation palette.
- * Status colours are fixed and never themed - warning sits below 3:1 on the light
- * surface by design, which is why every severity indicator carries an icon and a text
- * label rather than relying on colour.
- */
-
 .demand-vertical {
   color-scheme: light;
 
@@ -99,89 +143,16 @@
   --sidebar-width: 236px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .demand-vertical:not([data-theme='light']) {
-    color-scheme: dark;
-
-    --plane: #0c0f10;
-    --surface: #15191b;
-    --surface-raised: #1c2123;
-    --surface-sunken: #111416;
-    --text-primary: #f2f5f6;
-    --text-secondary: #b3bdc2;
-    --text-muted: #7f8c92;
-
-    --border: rgba(255, 255, 255, 0.09);
-    --border-strong: #2e3538;
-    --gridline: #232a2d;
-
-    --accent: #3fb0b6;
-    --accent-hover: #55c3c9;
-    --accent-ink: #06181a;
-    --accent-wash: rgba(63, 176, 182, 0.12);
-    --accent-ring: rgba(63, 176, 182, 0.32);
-
-    --series-1: #3987e5;
-    --series-1-soft: rgba(57, 135, 229, 0.2);
-
-    --sev-high-bg: rgba(230, 103, 103, 0.14);
-    --sev-high-border: rgba(230, 103, 103, 0.4);
-    --sev-high-ink: #f3a9a9;
-
-    --sev-medium-bg: rgba(250, 178, 25, 0.13);
-    --sev-medium-border: rgba(250, 178, 25, 0.38);
-    --sev-medium-ink: #f6c453;
-
-    --neutral-bg: #232a2d;
-    --neutral-ink: #b3bdc2;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px -12px rgba(0, 0, 0, 0.7);
-    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 20px 48px -20px rgba(0, 0, 0, 0.8);
-  }
+/* Scoped demand-vertical tokens - Enforce clean healthcare contrast */
+.demand-vertical {
+  color-scheme: light;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --surface: #ffffff;
+  --plane: #f8fafc;
 }
 
-.demand-vertical[data-theme='dark'] {
-  color-scheme: dark;
-
-  --plane: #0c0f10;
-  --surface: #15191b;
-  --surface-raised: #1c2123;
-  --surface-sunken: #111416;
-  --text-primary: #f2f5f6;
-  --text-secondary: #b3bdc2;
-  --text-muted: #7f8c92;
-
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: #2e3538;
-  --gridline: #232a2d;
-
-  --accent: #3fb0b6;
-  --accent-hover: #55c3c9;
-  --accent-ink: #06181a;
-  --accent-wash: rgba(63, 176, 182, 0.12);
-  --accent-ring: rgba(63, 176, 182, 0.32);
-
-  --series-1: #3987e5;
-  --series-1-soft: rgba(57, 135, 229, 0.2);
-
-  --sev-high-bg: rgba(230, 103, 103, 0.14);
-  --sev-high-border: rgba(230, 103, 103, 0.4);
-  --sev-high-ink: #f3a9a9;
-
-  --sev-medium-bg: rgba(250, 178, 25, 0.13);
-  --sev-medium-border: rgba(250, 178, 25, 0.38);
-  --sev-medium-ink: #f6c453;
-
-  --neutral-bg: #232a2d;
-  --neutral-ink: #b3bdc2;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 20px -12px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 20px 48px -20px rgba(0, 0, 0, 0.8);
-}
-
-/* Anyone who asks for less motion gets none of it. */
 @media (prefers-reduced-motion: reduce) {
   .demand-vertical {
     --dur-fast: 1ms;

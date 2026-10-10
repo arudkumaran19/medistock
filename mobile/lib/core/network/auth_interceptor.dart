@@ -1,28 +1,50 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import '../constants/app_constants.dart';
+import '../storage/secure_storage.dart';
 
-/// SHARED CORE - not owned by the Demand vertical.
-///
-/// Placeholder created by Sathurstiga S. (IT24103156) so authenticated requests work.
-/// The mobile core owners replace this on integration.
-///
-/// Attaches the bearer token to every outgoing request, and reports a rejected token
-/// upward so the app can return to sign-in rather than showing an unexplained error on
-/// every screen.
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor({required this.readToken, this.onUnauthorized});
+  AuthInterceptor({Future<String?> Function()? readToken, this.onUnauthorized})
+      : _readToken = readToken;
 
-  /// Supplies the current access token, or null when signed out.
-  final Future<String?> Function() readToken;
-
-  /// Invoked when the API rejects the token.
+  final Future<String?> Function()? _readToken;
   final Future<void> Function()? onUnauthorized;
+  final SecureStorageService _storage = SecureStorageService();
 
+  Future<String?> _getToken() async {
+    if (_readToken != null) {
+      return await _readToken();
+    }
+    return await _storage.getToken();
+  }
+
+  /// For http-based API calls (Redistribution Slice)
+  Future<Map<String, String>> getHeaders({Map<String, String>? extraHeaders}) async {
+    final token = await _getToken();
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-User-Id': AppConstants.defaultFieldUserId,
+    };
+
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    if (extraHeaders != null) {
+      headers.addAll(extraHeaders);
+    }
+
+    return headers;
+  }
+
+  /// For Dio-based API calls (Demand & Shortage Slice)
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final String? token = await readToken();
+    final String? token = await _getToken();
 
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';

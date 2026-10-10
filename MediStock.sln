@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{5678C556-956D-4C72-8415-A893F77E359B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C934C9F2-5183-4FFB-9032-09C97A8DAA87}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediStock.Api", "backend\src\MediStock.Api\MediStock.Api.csproj", "{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F7F54055-4588-46FD-9B37-4F3461351F3D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediStock.Api.Tests", "backend\tests\MediStock.Api.Tests\MediStock.Api.Tests.csproj", "{5BFFA4C3-A4BB-4879-A819-E064776DA70B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5BFFA4C3-A4BB-4879-A819-E064776DA70B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BFFA4C3-A4BB-4879-A819-E064776DA70B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BFFA4C3-A4BB-4879-A819-E064776DA70B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BFFA4C3-A4BB-4879-A819-E064776DA70B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C934C9F2-5183-4FFB-9032-09C97A8DAA87} = {5678C556-956D-4C72-8415-A893F77E359B}
+		{FC001AA9-7EB2-42B9-A2CB-3D93B7B24125} = {C934C9F2-5183-4FFB-9032-09C97A8DAA87}
+		{F7F54055-4588-46FD-9B37-4F3461351F3D} = {5678C556-956D-4C72-8415-A893F77E359B}
+		{5BFFA4C3-A4BB-4879-A819-E064776DA70B} = {F7F54055-4588-46FD-9B37-4F3461351F3D}
+	EndGlobalSection
+EndGlobal

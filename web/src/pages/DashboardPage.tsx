@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { PageHeader, KPICard, QuickAction } from "../components/ui";
 import { procurementApi, type PurchaseOrder, type SupplierItem } from "../services/procurementApi";
 import { inventoryApi } from "../services/inventoryApi";
@@ -312,11 +311,10 @@ function FacilityManagerDashboard({ email }: { email: string }) {
   const stockAlertsCount = inventory.filter((i) => i.isBelowMinimum).length;
 
   return (
-    <DashboardLayout>
-      <div className="page-container">
-        <PageHeader
-          eyebrow="Facility Operations"
-          title="Facility Dashboard"
+    <div className="page-container">
+      <PageHeader
+        eyebrow="Facility Operations"
+        title="Facility Dashboard"
           subtitle={`Signed in as ${email} · Facility Manager`}
           actions={
             <button
@@ -517,10 +515,9 @@ function FacilityManagerDashboard({ email }: { email: string }) {
           <ShieldCheck size={18} style={{ color: "var(--color-primary-700)", flexShrink: 0, marginTop: "2px" }} />
           <div>
             <strong>Operations Tip:</strong> Use the <strong>Approval Console</strong> to authorize or revise high-value purchase orders. Automated policy evaluations execute inline upon submission.
-          </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
 
@@ -533,11 +530,10 @@ function ProcurementOfficerDashboard({ email }: { email: string }) {
   const deliveredCount = orders.filter((o) => ["Delivered", "Received"].includes(o.status)).length;
 
   return (
-    <DashboardLayout>
-      <div className="page-container">
-        <PageHeader
-          eyebrow="Supplier & Procurement"
-          title="Procurement Dashboard"
+    <div className="page-container">
+      <PageHeader
+        eyebrow="Supplier & Procurement"
+        title="Procurement Dashboard"
           subtitle={`Signed in as ${email} · Supplier Officer`}
           actions={
             <button
@@ -732,7 +728,6 @@ function ProcurementOfficerDashboard({ email }: { email: string }) {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -751,11 +746,10 @@ function OperationalStaffDashboard({ email }: { email: string }) {
   const receivedCount = orders.filter((o) => o.status === "Received").length;
 
   return (
-    <DashboardLayout>
-      <div className="page-container">
-        <PageHeader
-          eyebrow="Pharmacy & Storage"
-          title="Staff Inventory Dashboard"
+    <div className="page-container">
+      <PageHeader
+        eyebrow="Pharmacy & Storage"
+        title="Staff Inventory Dashboard"
           subtitle={`Signed in as ${email} · Operational Staff`}
           actions={
             <button
@@ -931,7 +925,6 @@ function OperationalStaffDashboard({ email }: { email: string }) {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -939,11 +932,10 @@ function AdministratorDashboard({ email }: { email: string }) {
   const { orders, facilities, suppliers, inventory, batches, medicines, isLoading, error, refetch } = useDashboardData();
 
   return (
-    <DashboardLayout>
-      <div className="page-container">
-        <PageHeader
-          eyebrow="System Administration"
-          title="Executive Administrator Console"
+    <div className="page-container">
+      <PageHeader
+        eyebrow="System Administration"
+        title="Executive Administrator Console"
           subtitle={`Signed in as ${email} · Administrator`}
           actions={
             <button
@@ -1044,7 +1036,6 @@ function AdministratorDashboard({ email }: { email: string }) {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 

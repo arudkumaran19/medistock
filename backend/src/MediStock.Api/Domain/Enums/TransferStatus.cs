@@ -1,23 +1,20 @@
 namespace MediStock.Api.Domain.Enums;
 
-/// <summary>
-/// Lifecycle of a redistribution transfer. Redistribution vertical (Member 3).
-///
-/// Follows the state machine in the redistribution feature branch: a destination
-/// facility requests stock, a source is proposed, a manager approves, the source
-/// reserves it, it is dispatched and finally delivered. Each value has exactly one
-/// name - the earlier aliases (InTransit = Dispatched, Delivered = Received) made the
-/// numeric values ambiguous, so the status is stored as text.
-/// </summary>
 public enum TransferStatus
 {
-    Draft,
-    Requested,
-    Proposed,
-    Approved,
-    Reserved,
-    InTransit,
-    Delivered,
-    Rejected,
-    Cancelled,
+    Draft = 0,
+    Proposed = 1,
+    Requested = 2,
+    Approved = 3,
+    Reserved = 4,
+    Dispatched = 5,
+    Received = 6,
+    Cancelled = 7,
+    Rejected = 8,
+    Assigned = 9,
+    PendingReassignment = 10,
+
+    // Status aliases for clients using InTransit and Delivered
+    InTransit = 5,
+    Delivered = 6
 }

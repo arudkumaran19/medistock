@@ -52,6 +52,8 @@ public class ShortageAlert
 
     public bool RequiresTransfer { get; set; }
 
+    public Guid? RelatedTransferId { get; set; }
+
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 
     public string Status { get; set; } = ShortageAlertStatuses.Open;
@@ -87,21 +89,21 @@ public static class ShortageRiskLevels
 /// <summary>
 /// Shortage alert lifecycle.
 ///
-/// OPEN          - raised, nobody has looked at it yet.
-/// ACKNOWLEDGED  - a manager has seen it and is working the response.
-/// RESOLVED      - the shortage no longer applies; stock arrived or was transferred.
-///
-/// Not specified in the final blueprint: only OPEN appears in the blueprint example.
-/// ACKNOWLEDGED and RESOLVED were added to support the shortage management screen.
-/// Do not assume or introduce a new decision without team-level confirmation.
+/// OPEN                   - raised, nobody has looked at it yet.
+/// ACKNOWLEDGED           - a user/manager has confirmed the shortage.
+/// DEMAND_RAISED          - a demand transfer request was created for this shortage.
+/// REDISTRIBUTION_REQUESTED- forwarded to redistribution candidate search.
+/// RESOLVED               - the shortage no longer applies; stock arrived or was transferred.
 /// </summary>
 public static class ShortageAlertStatuses
 {
     public const string Open = "OPEN";
     public const string Acknowledged = "ACKNOWLEDGED";
+    public const string DemandRaised = "DEMAND_RAISED";
+    public const string RedistributionRequested = "REDISTRIBUTION_REQUESTED";
     public const string Resolved = "RESOLVED";
 
-    public static readonly string[] All = [Open, Acknowledged, Resolved];
+    public static readonly string[] All = [Open, Acknowledged, DemandRaised, RedistributionRequested, Resolved];
 
     /// <summary>
     /// Statuses that still need attention. Only one alert in these statuses is kept per

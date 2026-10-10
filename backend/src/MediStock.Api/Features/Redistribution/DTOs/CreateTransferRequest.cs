@@ -1,48 +1,31 @@
-namespace MediStock.Api.Features.Redistribution.DTOs;
-
+using System;
+using System.Collections.Generic;
 using MediStock.Api.Domain.Enums;
 
-/// <summary>
-/// Body of POST /api/transfers. Redistribution vertical (Member 3).
-/// The destination is the facility short of stock; the source is chosen later from
-/// the ranked candidates.
-/// </summary>
-public sealed class CreateTransferRequest
+namespace MediStock.Api.Features.Redistribution.DTOs;
+
+public class CreateTransferRequest
+{
+    public Guid DestinationFacilityId { get; set; }
+    public Guid? SourceFacilityId { get; set; }
+    public TransferPriority Priority { get; set; } = TransferPriority.Medium;
+    public string? Notes { get; set; }
+    public Guid? RequestedByUserId { get; set; }
+    public Guid? SourceShortageAlertId { get; set; }
+
+    // Direct single-item convenience fields (for mobile & web clients)
+    public Guid? MedicineId { get; set; }
+    public string? MedicineName { get; set; }
+    public int? RequestedQuantity { get; set; }
+    public string? UnitOfMeasure { get; set; }
+
+    public List<CreateTransferItemDto> Items { get; set; } = new();
+}
+
+public class CreateTransferItemDto
 {
     public Guid MedicineId { get; set; }
-
-    public Guid DestinationFacilityId { get; set; }
-
-    public int Quantity { get; set; }
-
-    public TransferPriority Priority { get; set; } = TransferPriority.Medium;
-
-    public string? Notes { get; set; }
-
-    /// <summary>True to submit straight away (Requested); false keeps it as a Draft.</summary>
-    public bool Submit { get; set; } = true;
-}
-
-/// <summary>Body of PUT /api/transfers/{id}. Only allowed while Draft or Requested.</summary>
-public sealed class UpdateTransferRequest
-{
-    public int Quantity { get; set; }
-
-    public TransferPriority Priority { get; set; } = TransferPriority.Medium;
-
-    public string? Notes { get; set; }
-}
-
-/// <summary>Body of POST /api/transfers/{id}/propose.</summary>
-public sealed class ProposeSourceRequest
-{
-    public Guid SourceFacilityId { get; set; }
-
-    public string? Reason { get; set; }
-}
-
-/// <summary>Body of the transition endpoints that take an optional or required reason.</summary>
-public sealed class TransferActionRequest
-{
-    public string? Reason { get; set; }
+    public string MedicineName { get; set; } = string.Empty;
+    public int RequestedQuantity { get; set; }
+    public string UnitOfMeasure { get; set; } = "units";
 }

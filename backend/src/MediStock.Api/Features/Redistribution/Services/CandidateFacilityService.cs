@@ -1,97 +1,126 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using MediStock.Api.Data;
+using MediStock.Api.Features.Redistribution.DTOs;
+
 namespace MediStock.Api.Features.Redistribution.Services;
 
-using MediStock.Api.Features.Redistribution.DTOs;
-using MediStock.Api.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-
-/// <summary>
-/// Ranks facilities that could supply a transfer. Redistribution vertical (Member 3).
-///
-/// Same scoring as the redistribution design - 60 points for how much of the request
-/// the surplus covers, 40 for proximity, nothing beyond 300 km - but read from the
-/// shared Inventory tables (InventoryBalances, MedicineBatches) rather than a separate
-/// inventory table, so a transfer always sees the same stock every other screen does.
-///
-/// Read-only. Choosing a candidate does not reserve anything; that happens only after
-/// a manager approves and the transfer is reserved.
-/// </summary>
-public sealed class CandidateFacilityService
+public class CandidateFacilityService : ICandidateFacilityService
 {
-    private const double ProximityCutoffKm = 300.0;
+    private readonly MediStockDbContext _dbContext;
+    private readonly IRoutingService _routingService;
+    private readonly ILogger<CandidateFacilityService> _logger;
 
-    private readonly ApplicationDbContext _db;
-    private readonly RoutingService _routing;
-
-    public CandidateFacilityService(ApplicationDbContext db, RoutingService routing)
+    public CandidateFacilityService(
+        MediStockDbContext dbContext,
+        IRoutingService routingService,
+        ILogger<CandidateFacilityService> logger)
     {
-        _db = db;
-        _routing = routing;
+        _dbContext = dbContext;
+        _routingService = routingService;
+        _logger = logger;
     }
 
-    public async Task<IReadOnlyList<CandidateFacilityResponse>> RankAsync(
-        Guid medicineId,
+    public async Task<List<CandidateFacilityResponse>> FindCandidatesAsync(
         Guid destinationFacilityId,
-        int quantity,
-        CancellationToken cancellationToken = default)
+        Guid medicineId,
+        int requestedQuantity,
+        CancellationToken ct = default)
     {
-        var balances = await _db.InventoryBalances
+        var destination = await _dbContext.Facilities
             .AsNoTracking()
-            .Include(x => x.Medicine)
-            .Include(x => x.Facility)
-            .Where(x => x.MedicineId == medicineId
-                        && x.FacilityId != destinationFacilityId
-                        && x.Facility.IsActive
-                        && x.Medicine.IsActive)
-            .ToListAsync(cancellationToken);
+            .FirstOrDefaultAsync(f => f.Id == destinationFacilityId, ct);
 
-        var facilityIds = balances.Select(x => x.FacilityId).ToList();
-
-        // Earliest expiry still holding stock, per facility, so a short-dated batch is
-        // visible before it is chosen.
-        var expiries = await _db.MedicineBatches
-            .AsNoTracking()
-            .Where(x => x.MedicineId == medicineId && facilityIds.Contains(x.FacilityId) && x.QuantityOnHand > 0)
-            .GroupBy(x => x.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Nearest = g.Min(x => x.ExpiryDateUtc) })
-            .ToDictionaryAsync(x => x.FacilityId, x => x.Nearest, cancellationToken);
-
-        var candidates = new List<CandidateFacilityResponse>();
-
-        foreach (var balance in balances)
+        if (destination == null)
         {
-            var surplus = balance.QuantityOnHand - balance.QuantityReserved - balance.Medicine.MinimumStockLevel;
+            _logger.LogWarning("Destination facility {DestinationFacilityId} not found when searching candidates", destinationFacilityId);
+            return new List<CandidateFacilityResponse>();
+        }
 
-            if (surplus <= 0)
+        // Query active candidate facilities that have inventory records for the requested medicine
+        var candidateInventories = await _dbContext.FacilityInventories
+            .AsNoTracking()
+            .Include(fi => fi.Facility)
+            .Where(fi => fi.FacilityId != destinationFacilityId
+                      && fi.MedicineId == medicineId
+                      && fi.Facility != null
+                      && fi.Facility.IsActive)
+            .ToListAsync(ct);
+
+        var candidateResponses = new List<CandidateFacilityResponse>();
+
+        foreach (var inv in candidateInventories)
+        {
+            var facility = inv.Facility!;
+            var availableSurplus = inv.StockOnHand - inv.SafetyStockThreshold - inv.ReservedStock;
+
+            // Must have strictly positive surplus
+            if (availableSurplus <= 0)
             {
-                // Giving stock away would push this facility below its own minimum.
                 continue;
             }
 
-            var (distanceKm, minutes) = _routing.Estimate(balance.FacilityId, destinationFacilityId);
+            var route = await _routingService.CalculateRouteAsync(facility, destination, ct);
 
-            var coverage = quantity > 0 ? Math.Min(1.0, (double)surplus / quantity) : 0.0;
-            var proximity = Math.Max(0.0, 1.0 - ((double)distanceKm / ProximityCutoffKm));
-            var score = Math.Round((coverage * 60.0) + (proximity * 40.0), 2);
+            var recommendedQty = Math.Min(availableSurplus, requestedQuantity);
 
-            candidates.Add(new CandidateFacilityResponse
+            // Scoring algorithm:
+            // 60% weight on meeting requested shortage quantity
+            // 40% weight on proximity (normalized to 300km)
+            var surplusCoverageRatio = Math.Min(1.0, (double)availableSurplus / Math.Max(1, requestedQuantity));
+            var proximityRatio = Math.Max(0.0, 1.0 - ((double)route.DistanceKm / 300.0));
+            var score = Math.Round((surplusCoverageRatio * 60.0) + (proximityRatio * 40.0), 2);
+
+            candidateResponses.Add(new CandidateFacilityResponse
             {
-                FacilityId = balance.FacilityId,
-                FacilityName = balance.Facility.Name,
-                QuantityOnHand = balance.QuantityOnHand,
-                QuantityReserved = balance.QuantityReserved,
-                MinimumStock = balance.Medicine.MinimumStockLevel,
-                AvailableSurplus = surplus,
-                CanFulfil = surplus >= quantity,
-                NearestExpiryUtc = expiries.TryGetValue(balance.FacilityId, out var expiry) ? expiry : null,
-                DistanceKm = distanceKm,
-                DurationMinutes = minutes,
-                Score = (decimal)score,
+                FacilityId = facility.Id,
+                FacilityName = facility.Name,
+                FacilityCode = facility.FacilityCode,
+                FacilityType = facility.FacilityType,
+                City = facility.City,
+                Latitude = facility.Latitude,
+                Longitude = facility.Longitude,
+                AvailableSurplus = availableSurplus,
+                StockOnHand = inv.StockOnHand,
+                SafetyStockThreshold = inv.SafetyStockThreshold,
+                DistanceKm = route.DistanceKm,
+                EstimatedDurationMinutes = route.DurationMinutes,
+                RoutingProvider = route.Provider,
+                RecommendedQuantity = recommendedQty,
+                Score = score
             });
         }
 
-        return candidates
-            .OrderByDescending(x => x.Score)
-            .ThenBy(x => x.DistanceKm)
+        return candidateResponses
+            .OrderByDescending(c => c.Score)
+            .ThenBy(c => c.DistanceKm)
             .ToList();
+    }
+
+    public async Task<List<CandidateFacilityResponse>> FindCandidatesForTransferAsync(
+        Guid transferRequestId,
+        CancellationToken ct = default)
+    {
+        var transfer = await _dbContext.TransferRequests
+            .AsNoTracking()
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == transferRequestId, ct);
+
+        if (transfer == null || !transfer.Items.Any())
+        {
+            return new List<CandidateFacilityResponse>();
+        }
+
+        var primaryItem = transfer.Items.First();
+        return await FindCandidatesAsync(
+            transfer.DestinationFacilityId,
+            primaryItem.MedicineId,
+            primaryItem.RequestedQuantity,
+            ct);
     }
 }

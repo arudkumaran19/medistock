@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { DashboardLayout } from "../../layouts/DashboardLayout";
 import {
   procurementApi,
   type PurchaseOrder,
@@ -304,7 +303,7 @@ export function PurchaseOrders() {
   });
 
   return (
-    <DashboardLayout>
+    <>
       <PageHeader
         eyebrow="Purchasing Operations"
         title="Purchase Orders"
@@ -943,6 +942,6 @@ export function PurchaseOrders() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

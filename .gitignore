@@ -1,13 +1,15 @@
-# Environment / secrets
-.env
-.env.*
-!.env.example
-
-# .NET
-**/bin/
-**/obj/
+## Visual Studio & .NET Build artifacts
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+.vs/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+
+## OS Generated Files
 
 # Node / React
 web/node_modules/
@@ -46,6 +48,36 @@ performance/results/*.json
 # OS
 .DS_Store
 Thumbs.db
+ehthumbs.db
+
+## Node & Web (for future steps)
+node_modules/
+.npm
+dist/
+build/
+.env
+.env.*
+.env.local
+.env.*.local
+agent-service/.env
+agent-service/.env.*
+
+## Python (for agent service step)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+
+## Flutter / Dart (for mobile step)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.apk
+*.aab
 
 # Local secrets / credentials
 *.pem

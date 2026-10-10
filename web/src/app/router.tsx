@@ -22,121 +22,95 @@ import { ShortageDetail } from "../features/demand/ShortageDetail";
 import { ShortageForm } from "../features/demand/ShortageForm";
 import { ForecastPage } from "../features/demand/ForecastPage";
 import { ConsumptionAnalytics } from "../features/demand/ConsumptionAnalytics";
-// Redistribution vertical (Member 3).
 import { TransferDashboard } from "../features/redistribution/TransferDashboard";
 import { TransferDetail } from "../features/redistribution/TransferDetail";
-import { TransferForm } from "../features/redistribution/TransferForm";
+import { CandidateFacilities } from "../features/redistribution/CandidateFacilities";
+import { RouteComparison } from "../features/redistribution/RouteComparison";
+import { TransferHistory } from "../features/redistribution/TransferHistory";
 
 export const router = createBrowserRouter([
   // Public routes
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
 
-  // Root redirect → dashboard
-  { path: "/", element: <Navigate to="/dashboard" replace /> },
-
-  // Role-based dashboard
+  // All protected application routes wrapped in single DashboardLayout
   {
-    path: "/dashboard",
-    element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
-  },
-
-  // Inventory routes
-  { path: "/inventory", element: <ProtectedRoute><InventoryPage /></ProtectedRoute> },
-  { path: "/inventory/:id", element: <ProtectedRoute><InventoryDetailPage /></ProtectedRoute> },
-  { path: "/batches/:id", element: <ProtectedRoute><BatchDetailPage /></ProtectedRoute> },
-  { path: "/inventory/receive", element: <ProtectedRoute><ReceiveStockPage /></ProtectedRoute> },
-  { path: "/inventory/expiry", element: <ProtectedRoute><ExpiryPage /></ProtectedRoute> },
-
-  // Procurement routes (Member slice: Arudkumaran V.)
-  {
-    path: "/procurement/suppliers",
-    element: <ProtectedRoute><SupplierDashboard /></ProtectedRoute>,
-  },
-  {
-    path: "/procurement/suppliers/:id",
-    element: <ProtectedRoute><SupplierDetail /></ProtectedRoute>,
-  },
-  {
-    path: "/procurement/orders",
-    element: <ProtectedRoute><PurchaseOrders /></ProtectedRoute>,
-  },
-  {
-    path: "/procurement/priorities",
-    element: <ProtectedRoute><ProcurementPriority /></ProtectedRoute>,
-  },
-  {
-    path: "/procurement/approvals",
+    path: "/",
     element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <ApprovalConsole />
+      <ProtectedRoute>
+        <DashboardLayout />
       </ProtectedRoute>
     ),
-  },
-  {
-    path: "/procurement/workflow",
-    element: <ProtectedRoute><WorkflowMonitor /></ProtectedRoute>,
+    children: [
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: "dashboard", element: <DashboardPage /> },
+
+      // Inventory
+      { path: "inventory", element: <InventoryPage /> },
+      { path: "inventory/:id", element: <InventoryDetailPage /> },
+      { path: "batches/:id", element: <BatchDetailPage /> },
+      { path: "inventory/receive", element: <ReceiveStockPage /> },
+      { path: "inventory/expiry", element: <ExpiryPage /> },
+
+      // Redistribution
+      { path: "transfers", element: <TransferDashboard /> },
+      { path: "transfers/:id", element: <TransferDetail /> },
+      { path: "transfers/:id/candidates", element: <CandidateFacilities /> },
+      { path: "transfers/:id/route", element: <RouteComparison /> },
+      { path: "history", element: <TransferHistory /> },
+
+      // Procurement
+      { path: "procurement/suppliers", element: <SupplierDashboard /> },
+      { path: "procurement/suppliers/:id", element: <SupplierDetail /> },
+      { path: "procurement/orders", element: <PurchaseOrders /> },
+      { path: "procurement/priorities", element: <ProcurementPriority /> },
+      {
+        path: "procurement/approvals",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ApprovalConsole />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "procurement/workflow", element: <WorkflowMonitor /> },
+
+      // Demand & Shortage
+      { path: "demand/shortages", element: <ShortageDashboard /> },
+      {
+        path: "demand/shortages/new",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ShortageForm />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "demand/shortages/:id", element: <ShortageDetail /> },
+      {
+        path: "demand/shortages/:id/edit",
+        element: (
+          <ProtectedRoute requiredRole="FacilityManager">
+            <ShortageForm />
+          </ProtectedRoute>
+        ),
+      },
+      { path: "demand/forecasts", element: <ForecastPage /> },
+      { path: "demand/consumption", element: <ConsumptionAnalytics /> },
+
+      // Admin
+      {
+        path: "admin/users",
+        element: (
+          <ProtectedRoute requiredRole="Administrator">
+            <AdminPage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
 
-  // Demand & Shortage routes (Member slice: Sathurstiga S.)
+  // Fallback
   {
-    path: "/demand/shortages",
-    element: <ProtectedRoute><DashboardLayout><ShortageDashboard /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/demand/shortages/new",
-    element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <DashboardLayout><ShortageForm /></DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/shortages/:id",
-    element: <ProtectedRoute><DashboardLayout><ShortageDetail /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/demand/shortages/:id/edit",
-    element: (
-      <ProtectedRoute requiredRole="FacilityManager">
-        <DashboardLayout><ShortageForm /></DashboardLayout>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/demand/forecasts",
-    element: <ProtectedRoute><DashboardLayout><ForecastPage /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/demand/consumption",
-    element: <ProtectedRoute><DashboardLayout><ConsumptionAnalytics /></DashboardLayout></ProtectedRoute>,
-  },
-
-  // Redistribution routes (Member 3). Additive.
-  {
-    path: "/redistribution/transfers",
-    element: <ProtectedRoute><DashboardLayout><TransferDashboard /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/redistribution/transfers/new",
-    element: <ProtectedRoute><DashboardLayout><TransferForm /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/redistribution/transfers/:id",
-    element: <ProtectedRoute><DashboardLayout><TransferDetail /></DashboardLayout></ProtectedRoute>,
-  },
-  {
-    path: "/redistribution/transfers/:id/edit",
-    element: <ProtectedRoute><DashboardLayout><TransferForm /></DashboardLayout></ProtectedRoute>,
-  },
-
-  // Admin routes
-  {
-    path: "/admin/users",
-    element: (
-      <ProtectedRoute requiredRole="Administrator">
-        <AdminPage />
-      </ProtectedRoute>
-    ),
+    path: "*",
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);

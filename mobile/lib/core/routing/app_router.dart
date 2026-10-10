@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../features/auth/data/auth_service.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
@@ -15,16 +16,29 @@ import '../../features/inventory/screens/expiry_monitor_screen.dart';
 import '../../features/procurement/screens/procurement_request_screen.dart';
 import '../../features/procurement/screens/purchase_status_screen.dart';
 import '../../features/procurement/screens/approval_status_screen.dart';
-// Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+// Demand & Shortage vertical
 import '../../features/demand/presentation/consumption_entry_screen.dart';
 import '../../features/demand/presentation/demand_history_screen.dart';
 import '../../features/demand/presentation/forecast_screen.dart';
 import '../../features/demand/presentation/shortage_alerts_screen.dart';
 import '../../features/demand/presentation/agent_analysis_screen.dart';
+// Redistribution vertical
+import '../../features/redistribution/models/transfer_models.dart';
+import '../../features/redistribution/screens/receive_transfer_screen.dart';
+import '../../features/redistribution/screens/transfer_details_screen.dart';
+import '../../features/redistribution/screens/transfer_list_screen.dart';
+import '../../features/redistribution/screens/transfer_tracking_screen.dart';
 
 /// Single global auth service instance used to share session across routes.
-/// In production, use a proper dependency injection / state management solution.
 final _authService = MobileAuthService();
+
+class AppRoutes {
+  static const String home = '/';
+  static const String transfers = '/transfers';
+  static const String details = '/details';
+  static const String tracking = '/tracking';
+  static const String receive = '/receive';
+}
 
 class AppRouter {
   // Auth routes
@@ -49,19 +63,27 @@ class AppRouter {
   static const procurementRequest = '/procurement/request';
   static const procurementApprovals = '/procurement/approvals';
 
-  // Demand & Shortage routes - Sathurstiga S. (IT24103156).
+  // Demand & Shortage routes
   static const demandShortages = '/demand/shortages';
   static const demandForecasts = '/demand/forecasts';
   static const demandConsumption = '/demand/consumption';
   static const demandHistory = '/demand/history';
   static const demandAgent = '/demand/agent';
 
+  // Redistribution routes
+  static const transfers = '/transfers';
+  static const details = '/details';
+  static const tracking = '/tracking';
+  static const receive = '/receive';
+
+  static Route<dynamic> generateRoute(RouteSettings settings) => generate(settings);
+
   static Route<dynamic> generate(RouteSettings settings) {
     final Widget page;
     switch (settings.name) {
       // ─── Auth ────────────────────────────────────────────────────────
       case login:
-        page = const LoginScreen();
+        page = const LoginScreen(roleType: 'user');
         break;
 
       case register:
@@ -71,7 +93,7 @@ class AppRouter {
       case dashboard:
         final user = (settings.arguments as AuthUser?) ?? _authService.currentUser;
         if (user == null) {
-          page = const LoginScreen();
+          page = const LoginScreen(roleType: 'user');
         } else {
           page = DashboardScreen(user: user, authService: _authService);
         }
@@ -81,7 +103,7 @@ class AppRouter {
         final user = _authService.currentUser;
         page = user != null && user.isAdmin
             ? UserManagementScreen(currentUser: user)
-            : const LoginScreen();
+            : const LoginScreen(roleType: 'user');
         break;
 
       // ─── Root: guard → dashboard or login ────────────────────────────
@@ -92,8 +114,28 @@ class AppRouter {
             authService: _authService,
           );
         } else {
-          page = const LoginScreen();
+          page = const LoginScreen(roleType: 'user');
         }
+        break;
+
+      // ─── Redistribution ──────────────────────────────────────────────
+      case transfers:
+        page = const TransferListScreen();
+        break;
+
+      case details:
+        final transferId = settings.arguments as String;
+        page = TransferDetailsScreen(transferId: transferId);
+        break;
+
+      case tracking:
+        final transfer = settings.arguments as Transfer;
+        page = TransferTrackingScreen(transfer: transfer);
+        break;
+
+      case receive:
+        final transfer = settings.arguments as Transfer;
+        page = ReceiveTransferScreen(transfer: transfer);
         break;
 
       // ─── Inventory ───────────────────────────────────────────────────
@@ -145,8 +187,6 @@ class AppRouter {
         break;
 
       // ─── Demand & Shortage ───────────────────────────────────────────
-      // Sathurstiga S. (IT24103156). These screens and their tests already
-      // existed; only the routing that reaches them is added here.
       case demandShortages:
         page = const ShortageAlertsScreen();
         break;
@@ -168,7 +208,7 @@ class AppRouter {
         break;
 
       default:
-        page = const LoginScreen();
+        page = const LoginScreen(roleType: 'user');
     }
 
     return MaterialPageRoute<void>(settings: settings, builder: (_) => page);

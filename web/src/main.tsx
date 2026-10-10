@@ -7,10 +7,9 @@ import { AuthProvider } from "./features/auth/AuthContext";
 import { ToastProvider } from "./components/Toast";
 import { ProcurementAgentProvider } from "./context/ProcurementAgentContext";
 import "./styles/globals.css";
-// Demand & Shortage vertical stylesheets (Sathurstiga S., IT24103156).
-// Loaded after globals.css so the demand screens keep their own tokens.
 import "./styles/variables.css";
 import "./styles/components.css";
+import "leaflet/dist/leaflet.css";
 
 const queryClient = new QueryClient();
 

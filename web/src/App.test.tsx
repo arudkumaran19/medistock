@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import App from './App'
 
@@ -7,7 +8,7 @@ describe('App', () => {
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: 'MediStock' }),
+      screen.getAllByText('MediStock')[0],
     ).toBeInTheDocument()
   })
 })

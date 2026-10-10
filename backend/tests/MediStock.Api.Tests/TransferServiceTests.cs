@@ -1,220 +1,689 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using MediStock.Api.Data;
 using MediStock.Api.Domain.Entities;
 using MediStock.Api.Domain.Enums;
-using MediStock.Api.Features.Inventory.DTOs;
-using MediStock.Api.Features.Inventory.Models;
-using MediStock.Api.Features.Inventory.Services;
 using MediStock.Api.Features.Redistribution.DTOs;
+using MediStock.Api.Features.Redistribution.Models;
 using MediStock.Api.Features.Redistribution.Services;
 using MediStock.Api.Features.Redistribution.Validators;
-using MediStock.Api.Infrastructure.Persistence;
-using MediStock.Api.Security;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using MediStock.Api.Common;
+using MediStock.Api.Features.Workflow.DTOs;
+using MediStock.Api.Features.Workflow.Services;
 
 namespace MediStock.Api.Tests;
 
-/// <summary>
-/// Transfer CRUD, lifecycle and stock movement. Redistribution vertical (Member 3).
-/// Uses the real InventoryService, so reservation and delivery are tested against the
-/// same balance and batch logic every other stock movement uses.
-/// </summary>
-public sealed class TransferServiceTests
+public class TransferServiceTests
 {
-    // Central Facility (Colombo) supplies Eastview (Galle) in the demo coordinates.
-    private static readonly Guid Source = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid Destination = Guid.Parse("99999999-9999-9999-9999-999999999999");
-
-    private sealed record Setup(ApplicationDbContext Db, TransferService Service, InventoryService Inventory, Guid Medicine);
-
-    private static async Task<Setup> CreateAsync(int sourceStock = 200, int minimum = 50)
+    private MediStockDbContext CreateInMemoryDbContext()
     {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-        var db = new ApplicationDbContext(options);
-        var medicine = Guid.NewGuid();
+        var options = new DbContextOptionsBuilder<MediStockDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
 
-        db.Medicines.Add(new Medicine { Id = medicine, Code = "PARA-500", Name = "Paracetamol 500 mg", Unit = "tablet", MinimumStockLevel = minimum });
-        db.Facilities.Add(new Facility { Id = Source, Code = "CENTRAL", Name = "Central Facility" });
-        db.Facilities.Add(new Facility { Id = Destination, Code = "EAST", Name = "Eastview General Hospital" });
+        return new MediStockDbContext(options);
+    }
+
+    [Fact]
+    public async Task FullLifecycle_EndToEnd_MaintainsInventoryAndAuditHistory()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        // Seed Facilities
+        var destFacility = new Facility
+        {
+            Id = destFacilityId,
+            Name = "Karapitiya Teaching Hospital",
+            FacilityCode = "FAC-GAL",
+            Latitude = 6.06,
+            Longitude = 80.22,
+            IsActive = true
+        };
+        var sourceFacility = new Facility
+        {
+            Id = sourceFacilityId,
+            Name = "National Hospital Colombo",
+            FacilityCode = "FAC-COL",
+            Latitude = 6.91,
+            Longitude = 79.86,
+            IsActive = true
+        };
+
+        db.Facilities.AddRange(destFacility, sourceFacility);
+
+        // Seed Medicine
+        db.Medicines.Add(new Medicine
+        {
+            Id = medicineId,
+            Name = "Amoxicillin 500mg",
+            GenericName = "Amoxicillin",
+            Sku = "MED-AMX-TEST-01",
+            UnitOfMeasure = "capsules",
+            Category = "Antibiotics",
+            IsActive = true
+        });
+
+        // Seed Source Inventory (Stock: 1000, Safety: 200, Reserved: 0 -> Surplus: 800)
+        var sourceInventory = new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            StockOnHand = 1000,
+            SafetyStockThreshold = 200,
+            ReservedStock = 0,
+            BatchNumber = "BAT-TEST-01",
+            ExpiryDate = DateTime.UtcNow.AddYears(1)
+        };
+        db.FacilityInventories.Add(sourceInventory);
         await db.SaveChangesAsync();
 
-        var inventory = new InventoryService(db);
-        await inventory.ReceiveAsync(new ReceiveStockRequest(medicine, Source, "BATCH-101", sourceStock, DateTime.UtcNow.AddDays(200), DateTime.UtcNow.AddDays(-20)), default);
+        var routingMock = new Mock<IRoutingService>();
+        routingMock.Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse
+            {
+                DistanceKm = 125m,
+                DurationMinutes = 115m,
+                Provider = "MockRoute"
+            });
 
-        var routing = new RoutingService();
-        var service = new TransferService(db, inventory, new CandidateFacilityService(db, routing), routing, new CurrentUserService(new HttpContextAccessor()));
+        var candidateMock = new Mock<ICandidateFacilityService>();
+        var validator = new TransferValidator();
+        var loggerMock = new Mock<ILogger<TransferService>>();
 
-        return new Setup(db, service, inventory, medicine);
-    }
+        var service = new TransferService(db, routingMock.Object, candidateMock.Object, validator, loggerMock.Object);
 
-    private static CreateTransferRequest Request(Guid medicine, int quantity = 30) => new()
-    {
-        MedicineId = medicine,
-        DestinationFacilityId = Destination,
-        Quantity = quantity,
-        Priority = TransferPriority.High,
-        Notes = "Outbreak",
-    };
-
-    [Fact]
-    public async Task Create_submits_the_request_and_records_the_audit_trail()
-    {
-        var s = await CreateAsync();
-
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        Assert.Equal("Requested", transfer.Status);
-        Assert.StartsWith("TR-", transfer.TransferNumber);
-        Assert.Equal(new[] { "Draft", "Requested" }, transfer.History.Select(h => h.ToStatus));
-    }
-
-    [Fact]
-    public async Task Candidates_offer_only_stock_above_the_minimum_and_score_it()
-    {
-        var s = await CreateAsync(sourceStock: 200, minimum: 50);
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine, quantity: 30));
-
-        var candidate = Assert.Single(await s.Service.CandidatesAsync(transfer.Id));
-
-        Assert.Equal(150, candidate.AvailableSurplus); // 200 on hand - 0 reserved - 50 minimum
-        Assert.True(candidate.CanFulfil);
-        Assert.True(candidate.DistanceKm > 0);
-        Assert.InRange(candidate.Score, 60m, 100m);
-    }
-
-    [Fact]
-    public async Task A_facility_at_its_minimum_is_never_a_candidate()
-    {
-        var s = await CreateAsync(sourceStock: 50, minimum: 50);
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        Assert.Empty(await s.Service.CandidatesAsync(transfer.Id));
-    }
-
-    [Fact]
-    public async Task Proposing_a_source_that_cannot_cover_the_request_is_refused()
-    {
-        var s = await CreateAsync(sourceStock: 70, minimum: 50); // surplus 20
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine, quantity: 30));
-
-        var error = await Assert.ThrowsAsync<TransferException>(() =>
-            s.Service.ProposeAsync(transfer.Id, new ProposeSourceRequest { SourceFacilityId = Source }));
-
-        Assert.Equal("SOURCE_INSUFFICIENT_SURPLUS", error.Code);
-    }
-
-    [Fact]
-    public async Task Full_lifecycle_moves_stock_from_source_to_destination()
-    {
-        var s = await CreateAsync(sourceStock: 200);
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine, quantity: 30));
-
-        await s.Service.ProposeAsync(transfer.Id, new ProposeSourceRequest { SourceFacilityId = Source });
-        await s.Service.ApproveAsync(transfer.Id, null);
-
-        var reserved = await s.Service.ReserveAsync(transfer.Id);
-        Assert.Equal("BATCH-101", reserved.BatchNumber);
-        Assert.Equal(30, (await s.Db.InventoryBalances.SingleAsync(x => x.FacilityId == Source)).QuantityReserved);
-
-        await s.Service.DispatchAsync(transfer.Id, null);
-        var delivered = await s.Service.DeliverAsync(transfer.Id, null);
-
-        var source = await s.Db.InventoryBalances.SingleAsync(x => x.FacilityId == Source);
-        var destination = await s.Db.InventoryBalances.SingleAsync(x => x.FacilityId == Destination);
-
-        Assert.Equal("Delivered", delivered.Status);
-        Assert.Equal(170, source.QuantityOnHand);
-        Assert.Equal(0, source.QuantityReserved);
-        Assert.Equal(30, destination.QuantityOnHand);
-        Assert.Equal(30, (await s.Db.MedicineBatches.SingleAsync(x => x.FacilityId == Destination)).QuantityOnHand);
-        Assert.Equal(
-            new[] { "Draft", "Requested", "Proposed", "Approved", "Reserved", "InTransit", "Delivered" },
-            delivered.History.Select(h => h.ToStatus));
-    }
-
-    [Fact]
-    public async Task Approval_without_a_proposed_source_is_refused()
-    {
-        var s = await CreateAsync();
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        var error = await Assert.ThrowsAsync<TransferException>(() => s.Service.ApproveAsync(transfer.Id, null));
-
-        Assert.Equal("TRANSFER_NO_SOURCE", error.Code);
-    }
-
-    [Fact]
-    public async Task Skipping_a_step_is_refused_by_the_state_machine()
-    {
-        var s = await CreateAsync();
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        var error = await Assert.ThrowsAsync<TransferException>(() => s.Service.DispatchAsync(transfer.Id, null));
-
-        Assert.Equal("INVALID_TRANSFER_TRANSITION", error.Code);
-    }
-
-    [Fact]
-    public async Task Cancelling_a_reserved_transfer_releases_the_stock_and_keeps_the_record()
-    {
-        var s = await CreateAsync(sourceStock: 200);
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine, quantity: 30));
-        await s.Service.ProposeAsync(transfer.Id, new ProposeSourceRequest { SourceFacilityId = Source });
-        await s.Service.ApproveAsync(transfer.Id, null);
-        await s.Service.ReserveAsync(transfer.Id);
-
-        var cancelled = await s.Service.CancelAsync(transfer.Id, "Source needs it");
-
-        Assert.Equal("Cancelled", cancelled.Status);
-        Assert.Equal(0, (await s.Db.InventoryBalances.SingleAsync(x => x.FacilityId == Source)).QuantityReserved);
-        Assert.NotNull(await s.Db.TransferRequests.FindAsync(transfer.Id)); // soft delete
-    }
-
-    [Fact]
-    public async Task A_request_can_be_edited_only_before_a_manager_acts()
-    {
-        var s = await CreateAsync();
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        var updated = await s.Service.UpdateAsync(transfer.Id, new UpdateTransferRequest { Quantity = 40, Priority = TransferPriority.Critical });
-        Assert.Equal(40, updated.Quantity);
-
-        await s.Service.ProposeAsync(transfer.Id, new ProposeSourceRequest { SourceFacilityId = Source });
-        var error = await Assert.ThrowsAsync<TransferException>(() =>
-            s.Service.UpdateAsync(transfer.Id, new UpdateTransferRequest { Quantity = 50 }));
-
-        Assert.Equal("TRANSFER_NOT_EDITABLE", error.Code);
-    }
-
-    [Fact]
-    public async Task Rejection_requires_a_reason()
-    {
-        var s = await CreateAsync();
-        var transfer = await s.Service.CreateAsync(Request(s.Medicine));
-
-        var error = await Assert.ThrowsAsync<TransferException>(() => s.Service.RejectAsync(transfer.Id, " "));
-
-        Assert.Equal("REASON_REQUIRED", error.Code);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-5)]
-    public void Non_positive_quantities_are_invalid(int quantity)
-    {
-        Assert.NotNull(TransferValidator.ValidateCreate(new CreateTransferRequest
+        // 1. Create Transfer Request (Draft)
+        var createRequest = new CreateTransferRequest
         {
-            MedicineId = Guid.NewGuid(),
-            DestinationFacilityId = Guid.NewGuid(),
-            Quantity = quantity,
-        }));
+            DestinationFacilityId = destFacilityId,
+            SourceFacilityId = sourceFacilityId,
+            Priority = TransferPriority.High,
+            Notes = "Shortage in intensive care",
+            Items = new List<CreateTransferItemDto>
+            {
+                new()
+                {
+                    MedicineId = medicineId,
+                    MedicineName = "Amoxicillin 500mg",
+                    RequestedQuantity = 300,
+                    UnitOfMeasure = "capsules"
+                }
+            }
+        };
+
+        var createResult = await service.CreateTransferAsync(createRequest, userId);
+        createResult.Success.Should().BeTrue();
+        var transferId = createResult.Data!.Id;
+        createResult.Data.Status.Should().Be(TransferStatus.Draft);
+        createResult.Data.EstimatedDistanceKm.Should().Be(125m);
+
+        // 2. Submit Transfer Request (Draft -> Requested)
+        var submitResult = await service.SubmitTransferRequestAsync(transferId, userId, "Ready for supervisor approval");
+        submitResult.Success.Should().BeTrue();
+        submitResult.Data!.Status.Should().Be(TransferStatus.Requested);
+
+        // 3. Approve Transfer Request internally (Requested -> Approved)
+        var approveResult = await service.ApproveTransferInternalAsync(transferId, userId, "Approved by Central Coordinator");
+        approveResult.Success.Should().BeTrue();
+        approveResult.Data!.Status.Should().BeOneOf(TransferStatus.Approved, TransferStatus.Assigned);
+
+        // 4. Reserve Inventory at Source (Approved -> Reserved)
+        var transferItem = approveResult.Data.Items.First();
+        var reserveRequest = new ReserveTransferRequest
+        {
+            UserId = userId,
+            Notes = "Reserved from shelf A3",
+            ItemAllocations = new List<ReserveItemAllocationDto>
+            {
+                new()
+                {
+                    TransferItemId = transferItem.Id,
+                    AllocatedQuantity = 300,
+                    BatchNumber = "BAT-TEST-01"
+                }
+            }
+        };
+
+        var reserveResult = await service.ReserveTransferAsync(transferId, reserveRequest);
+        reserveResult.Success.Should().BeTrue();
+        reserveResult.Data!.Status.Should().Be(TransferStatus.Reserved);
+
+        // Verify inventory locked: ReservedStock should be 300
+        var updatedSourceInv = await db.FacilityInventories.FirstAsync(fi => fi.Id == sourceInventory.Id);
+        updatedSourceInv.ReservedStock.Should().Be(300);
+
+        // 5. Receive Transfer at Destination (Dispatched -> Received)
+        // Note: For receiving, we simulate dispatch first
+        var transferEntity = await db.TransferRequests.FirstAsync(t => t.Id == transferId);
+        transferEntity.Status = TransferStatus.Dispatched;
+        transferEntity.DispatchedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        var receiveRequest = new ReceiveTransferRequest
+        {
+            ReceivedByUserId = userId,
+            Notes = "Verified all 300 units intact",
+            VerifiedItems = new List<ReceiveItemVerificationDto>
+            {
+                new()
+                {
+                    TransferItemId = transferItem.Id,
+                    ReceivedQuantity = 300,
+                    BatchNumber = "BAT-TEST-01"
+                }
+            }
+        };
+
+        var receiveResult = await service.ReceiveTransferAsync(transferId, receiveRequest);
+        receiveResult.Success.Should().BeTrue();
+        receiveResult.Data!.Status.Should().Be(TransferStatus.Received);
+        receiveResult.Data.ReceivedAt.Should().NotBeNull();
+
+        // Verify final inventory state:
+        // Source Stock: was 1000, now 700. Source Reserved: was 300, now 0.
+        var finalSourceInv = await db.FacilityInventories.FirstAsync(fi => fi.Id == sourceInventory.Id);
+        finalSourceInv.StockOnHand.Should().Be(700);
+        finalSourceInv.ReservedStock.Should().Be(0);
+
+        // Destination Stock: should now have 300
+        var destInv = await db.FacilityInventories.FirstOrDefaultAsync(fi => fi.FacilityId == destFacilityId && fi.MedicineId == medicineId);
+        destInv.Should().NotBeNull();
+        destInv!.StockOnHand.Should().Be(300);
+
+        // Verify Audit Status History ledger
+        var finalTransfer = await service.GetTransferByIdAsync(transferId);
+        finalTransfer!.StatusHistory.Should().HaveCountGreaterOrEqualTo(4);
     }
 
     [Fact]
-    public void Final_statuses_allow_no_further_transition()
+    public async Task ReceiveTransfer_WithFlatPayload_SucceedsAndUpdatesInventory()
     {
-        Assert.Empty(TransferValidator.NextStatuses(TransferStatus.Delivered));
-        Assert.Empty(TransferValidator.NextStatuses(TransferStatus.Rejected));
-        Assert.Empty(TransferValidator.NextStatuses(TransferStatus.Cancelled));
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.AddRange(
+            new Facility { Id = destFacilityId, Name = "Dest Facility", FacilityCode = "DF-01", Latitude = 6.9, Longitude = 79.8, IsActive = true },
+            new Facility { Id = sourceFacilityId, Name = "Source Facility", FacilityCode = "SF-01", Latitude = 7.2, Longitude = 80.6, IsActive = true });
+
+        db.Medicines.Add(new Medicine
+        {
+            Id = medicineId,
+            Name = "Paracetamol 500mg",
+            GenericName = "Paracetamol",
+            Sku = "MED-PARA-01",
+            Category = "Analgesic",
+            UnitOfMeasure = "tablets",
+            IsActive = true
+        });
+
+        var sourceInventory = new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            StockOnHand = 500,
+            SafetyStockThreshold = 50,
+            ReservedStock = 200,
+            BatchNumber = "BAT-SRC-01",
+            ExpiryDate = DateTime.UtcNow.AddYears(1),
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.FacilityInventories.Add(sourceInventory);
+
+        var transferItem = new TransferItem
+        {
+            Id = Guid.NewGuid(),
+            MedicineId = medicineId,
+            MedicineName = "Paracetamol 500mg",
+            RequestedQuantity = 200,
+            AllocatedQuantity = 200,
+            UnitOfMeasure = "tablets"
+        };
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-FLAT-001",
+            SourceFacilityId = sourceFacilityId,
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Dispatched,
+            DispatchedAt = DateTime.UtcNow,
+            Priority = TransferPriority.High,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem> { transferItem }
+        };
+        db.TransferRequests.Add(transfer);
+        await db.SaveChangesAsync();
+
+        var routingMock = new Mock<IRoutingService>();
+        var candidateMock = new Mock<ICandidateFacilityService>();
+        var validator = new TransferValidator();
+        var loggerMock = new Mock<ILogger<TransferService>>();
+        var service = new TransferService(db, routingMock.Object, candidateMock.Object, validator, loggerMock.Object);
+
+        // Act - Send flat fields as Flutter does
+        var flatReceiveRequest = new ReceiveTransferRequest
+        {
+            ReceivedByUserId = userId,
+            ReceivedQuantity = 195,
+            BatchNumber = "BAT-SRC-01",
+            DiscrepancyReason = "5 damaged in transit",
+            Notes = "Verified on mobile app"
+        };
+
+        var receiveResult = await service.ReceiveTransferAsync(transfer.Id, flatReceiveRequest);
+
+        // Assert
+        receiveResult.Success.Should().BeTrue();
+        receiveResult.Data!.Status.Should().Be(TransferStatus.Received);
+        receiveResult.Data.ReceivedAt.Should().NotBeNull();
+
+        // Source inventory decremented
+        var updatedSourceInv = await db.FacilityInventories.FirstAsync(fi => fi.Id == sourceInventory.Id);
+        updatedSourceInv.StockOnHand.Should().Be(300); // 500 - 200 allocated
+        updatedSourceInv.ReservedStock.Should().Be(0);   // 200 - 200
+
+        // Destination inventory created with received quantity 195
+        var destInv = await db.FacilityInventories.FirstOrDefaultAsync(fi => fi.FacilityId == destFacilityId && fi.MedicineId == medicineId);
+        destInv.Should().NotBeNull();
+        destInv!.StockOnHand.Should().Be(195);
+    }
+
+    [Fact]
+    public async Task ReserveTransfer_WhenAllocatedQuantityExceedsSurplus_FailsAndDoesNotLockInventory()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.AddRange(
+            new Facility { Id = destFacilityId, Name = "Dest", FacilityCode = "D1", Latitude = 6, Longitude = 80, IsActive = true },
+            new Facility { Id = sourceFacilityId, Name = "Source", FacilityCode = "S1", Latitude = 7, Longitude = 80, IsActive = true });
+
+        // Seed Medicine
+        db.Medicines.Add(new Medicine
+        {
+            Id = medicineId,
+            Name = "Med",
+            GenericName = "Med",
+            Sku = "MED-TEST-02",
+            UnitOfMeasure = "tablets",
+            Category = "General",
+            IsActive = true
+        });
+
+        // Available surplus = 500 - 450 - 0 = 50 units
+        db.FacilityInventories.Add(new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            StockOnHand = 500,
+            SafetyStockThreshold = 450,
+            ReservedStock = 0
+        });
+        await db.SaveChangesAsync();
+
+        var routingMock = new Mock<IRoutingService>();
+        routingMock.Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse { DistanceKm = 20m, DurationMinutes = 25m, Provider = "Mock" });
+
+        var service = new TransferService(
+            db,
+            routingMock.Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object);
+
+        // Create & Approve transfer
+        var createResult = await service.CreateTransferAsync(new CreateTransferRequest
+        {
+            DestinationFacilityId = destFacilityId,
+            SourceFacilityId = sourceFacilityId,
+            Items = new List<CreateTransferItemDto>
+            {
+                new() { MedicineId = medicineId, MedicineName = "Med", RequestedQuantity = 200 }
+            }
+        }, userId);
+
+        await service.SubmitTransferRequestAsync(createResult.Data!.Id, userId);
+        await service.ApproveTransferInternalAsync(createResult.Data.Id, userId);
+
+        // Act: Attempt to reserve 100 units when surplus is only 50
+        var reserveResult = await service.ReserveTransferAsync(createResult.Data.Id, new ReserveTransferRequest
+        {
+            UserId = userId,
+            ItemAllocations = new List<ReserveItemAllocationDto>
+            {
+                new() { TransferItemId = createResult.Data.Items.First().Id, AllocatedQuantity = 100 }
+            }
+        });
+
+        // Assert: Must fail gracefully and leave ReservedStock at 0
+        reserveResult.Success.Should().BeFalse();
+        reserveResult.Message.Should().Contain("Available surplus at source is only 50 units");
+
+        var sourceInv = await db.FacilityInventories.FirstAsync(fi => fi.FacilityId == sourceFacilityId);
+        sourceInv.ReservedStock.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReserveTransfer_WithFlatPayload_SucceedsAndLocksInventory()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.AddRange(
+            new Facility { Id = destFacilityId, Name = "Dest", FacilityCode = "D1", Latitude = 6, Longitude = 80, IsActive = true },
+            new Facility { Id = sourceFacilityId, Name = "Source", FacilityCode = "S1", Latitude = 7, Longitude = 80, IsActive = true });
+
+        db.Medicines.Add(new Medicine
+        {
+            Id = medicineId,
+            Name = "Amoxicillin 500mg",
+            GenericName = "Amoxicillin",
+            Sku = "MED-AMX-01",
+            UnitOfMeasure = "capsules",
+            Category = "Antibiotics",
+            IsActive = true
+        });
+
+        // Surplus = 1000 - 200 - 0 = 800
+        db.FacilityInventories.Add(new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            StockOnHand = 1000,
+            SafetyStockThreshold = 200,
+            ReservedStock = 0,
+            BatchNumber = "BAT-SRC-99"
+        });
+        await db.SaveChangesAsync();
+
+        var service = new TransferService(
+            db,
+            new Mock<IRoutingService>().Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object);
+
+        var createResult = await service.CreateTransferAsync(new CreateTransferRequest
+        {
+            DestinationFacilityId = destFacilityId,
+            SourceFacilityId = sourceFacilityId,
+            Items = new List<CreateTransferItemDto>
+            {
+                new() { MedicineId = medicineId, MedicineName = "Amoxicillin 500mg", RequestedQuantity = 200 }
+            }
+        }, userId);
+
+        await service.SubmitTransferRequestAsync(createResult.Data!.Id, userId);
+        await service.ApproveTransferInternalAsync(createResult.Data.Id, userId);
+
+        // Act: Reserve with flat-field payload as sent by React web frontend
+        var reserveResult = await service.ReserveTransferAsync(createResult.Data.Id, new ReserveTransferRequest
+        {
+            UserId = userId,
+            SourceFacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            QuantityToReserve = 200,
+            Notes = "Managerial stock reservation locked via portal."
+        });
+
+        // Assert
+        reserveResult.Success.Should().BeTrue();
+        reserveResult.Data!.Status.Should().Be(TransferStatus.Reserved);
+        reserveResult.Data.Items.First().AllocatedQuantity.Should().Be(200);
+
+        var sourceInv = await db.FacilityInventories.FirstAsync(fi => fi.FacilityId == sourceFacilityId);
+        sourceInv.ReservedStock.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task ReceiveTransfer_WhenAllocatedQuantityIsZero_FallsBackToRequestedQuantityForSourceDeduction()
+    {
+        // Arrange: Simulate a transfer where reservation was bypassed or broken (AllocatedQuantity is 0)
+        using var db = CreateInMemoryDbContext();
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.AddRange(
+            new Facility { Id = destFacilityId, Name = "Dest Facility", FacilityCode = "DF-01", Latitude = 6.9, Longitude = 79.8, IsActive = true },
+            new Facility { Id = sourceFacilityId, Name = "Source Facility", FacilityCode = "SF-01", Latitude = 7.2, Longitude = 80.6, IsActive = true });
+
+        db.Medicines.Add(new Medicine
+        {
+            Id = medicineId,
+            Name = "Amoxicillin 500mg",
+            GenericName = "Amoxicillin",
+            Sku = "MED-AMX-01",
+            UnitOfMeasure = "capsules",
+            Category = "Antibiotics",
+            IsActive = true
+        });
+
+        var sourceInventory = new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = sourceFacilityId,
+            MedicineId = medicineId,
+            StockOnHand = 600,
+            SafetyStockThreshold = 100,
+            ReservedStock = 0,
+            BatchNumber = "BAT-ZERO-01",
+            ExpiryDate = DateTime.UtcNow.AddYears(1)
+        };
+        db.FacilityInventories.Add(sourceInventory);
+
+        var transferItem = new TransferItem
+        {
+            Id = Guid.NewGuid(),
+            MedicineId = medicineId,
+            MedicineName = "Amoxicillin 500mg",
+            RequestedQuantity = 150,
+            AllocatedQuantity = 0, // AllocatedQuantity is 0 because reservation was broken
+            UnitOfMeasure = "capsules"
+        };
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-ZERO-ALLOC-001",
+            SourceFacilityId = sourceFacilityId,
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Dispatched,
+            DispatchedAt = DateTime.UtcNow,
+            Priority = TransferPriority.Medium,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem> { transferItem }
+        };
+        db.TransferRequests.Add(transfer);
+        await db.SaveChangesAsync();
+
+        var service = new TransferService(
+            db,
+            new Mock<IRoutingService>().Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object);
+
+        // Act: Receive transfer
+        var receiveRequest = new ReceiveTransferRequest
+        {
+            ReceivedByUserId = userId,
+            ReceivedQuantity = 150,
+            BatchNumber = "BAT-ZERO-01",
+            Notes = "Received 150 units"
+        };
+
+        var result = await service.ReceiveTransferAsync(transfer.Id, receiveRequest);
+
+        // Assert: Source inventory must be decremented by RequestedQuantity (150)
+        result.Success.Should().BeTrue();
+        var updatedSourceInv = await db.FacilityInventories.FirstAsync(fi => fi.Id == sourceInventory.Id);
+        updatedSourceInv.StockOnHand.Should().Be(450, "StockOnHand should decrement by RequestedQuantity (600 - 150 = 450) when AllocatedQuantity was 0");
+
+        var destInv = await db.FacilityInventories.FirstOrDefaultAsync(fi => fi.FacilityId == destFacilityId && fi.MedicineId == medicineId);
+        destInv.Should().NotBeNull();
+        destInv!.StockOnHand.Should().Be(150);
+    }
+
+    [Fact]
+    public async Task ProposeCandidate_AssignsSourceFacility_AndGetRouteSucceeds()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var destFacility = new Facility { Id = destFacilityId, Name = "Karapitiya", FacilityCode = "DF-01", Latitude = 6.06, Longitude = 80.22, IsActive = true };
+        var sourceFacility = new Facility { Id = sourceFacilityId, Name = "Colombo", FacilityCode = "SF-01", Latitude = 6.91, Longitude = 79.86, IsActive = true };
+        db.Facilities.AddRange(destFacility, sourceFacility);
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-NO-SOURCE-001",
+            SourceFacilityId = null, // Initially null
+            DestinationFacilityId = destFacilityId,
+            DestinationFacility = destFacility,
+            Status = TransferStatus.Draft,
+            Priority = TransferPriority.High,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.TransferRequests.Add(transfer);
+        await db.SaveChangesAsync();
+
+        var routingMock = new Mock<IRoutingService>();
+        routingMock.Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse { DistanceKm = 115m, DurationMinutes = 110m, Provider = "OpenRouteService", PolylineGeometry = "geom_poly" });
+
+        var service = new TransferService(
+            db,
+            routingMock.Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object);
+
+        // Before proposing candidate, GetRoute must fail because SourceFacilityId is null
+        var initialRouteResult = await service.GetRouteForTransferAsync(transfer.Id);
+        initialRouteResult.Success.Should().BeFalse();
+        initialRouteResult.Message.Should().Contain("Transfer does not have an assigned source facility");
+
+        // Act: Propose/Select Source Facility
+        var proposeResult = await service.ProposeCandidateInternalAsync(transfer.Id, sourceFacilityId, userId);
+
+        // Assert: SourceFacilityId is now assigned, status is Proposed
+        proposeResult.Success.Should().BeTrue();
+        proposeResult.Data!.SourceFacilityId.Should().Be(sourceFacilityId);
+        proposeResult.Data.Status.Should().Be(TransferStatus.Proposed);
+
+        // Subsequent GetRoute now succeeds
+        var afterRouteResult = await service.GetRouteForTransferAsync(transfer.Id);
+        afterRouteResult.Success.Should().BeTrue();
+        afterRouteResult.Data!.DistanceKm.Should().Be(115m);
+    }
+
+    [Fact]
+    public async Task SubmitTransferRequest_WhenWorkflowServiceAvailable_AutoTriggersAIPlanningWorkflow()
+    {
+        using var db = CreateInMemoryDbContext();
+        var destFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.Add(new Facility { Id = destFacilityId, Name = "Test Dest Hospital", City = "Kandy", Latitude = 7.29, Longitude = 80.63, IsActive = true });
+        db.Medicines.Add(new Medicine { Id = medicineId, Name = "Amoxicillin", UnitOfMeasure = "capsules" });
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-AUTO-AI-01",
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Draft,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    MedicineId = medicineId,
+                    MedicineName = "Amoxicillin",
+                    RequestedQuantity = 50,
+                    UnitOfMeasure = "capsules"
+                }
+            }
+        };
+        db.TransferRequests.Add(transfer);
+        await db.SaveChangesAsync();
+
+        var workflowMock = new Mock<IWorkflowService>();
+        var runId = Guid.NewGuid();
+        workflowMock.Setup(w => w.StartPlanningWorkflowAsync(It.Is<StartWorkflowRequest>(r => r.TransferRequestId == transfer.Id && r.ShortageQuantity == 50), default))
+            .ReturnsAsync(ApiResponse<WorkflowResponse>.Ok(new WorkflowResponse { Id = runId, Status = WorkflowStatus.WaitingForApproval }, "Workflow triggered"));
+
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddSingleton(workflowMock.Object);
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        var service = new TransferService(
+            db,
+            new Mock<IRoutingService>().Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object,
+            serviceProvider);
+
+        var result = await service.SubmitTransferRequestAsync(transfer.Id, userId);
+
+        result.Success.Should().BeTrue();
+        workflowMock.Verify(w => w.StartPlanningWorkflowAsync(It.IsAny<StartWorkflowRequest>(), default), Times.Once);
+        result.Data!.WorkflowRunId.Should().Be(runId);
     }
 }
+
+

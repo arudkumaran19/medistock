@@ -1,50 +1,64 @@
 import 'dart:convert';
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// SHARED CORE - not owned by the Demand vertical.
-///
-/// Placeholder created by Sathurstiga S. (IT24103156) so the demand feature can hold a
-/// session. The mobile core owners replace this on integration.
-///
-/// The token is kept in platform-encrypted storage (Keystore on Android), never in
-/// plain shared preferences.
-class SecureStorage {
-  SecureStorage({FlutterSecureStorage? storage})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+class SecureStorageService {
+  static final SecureStorageService _instance = SecureStorageService._internal();
+  factory SecureStorageService() => _instance;
+  SecureStorageService._internal();
 
-  static const String _sessionKey = 'medistock.session';
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
-  final FlutterSecureStorage _storage;
+  static const String _keyToken = 'auth_token';
+  static const String _keyRefreshToken = 'refresh_token';
+  static const String _keyUser = 'user_data';
+  static const String _keySelectedRole = 'selected_role';
 
-  Future<void> writeSession(Map<String, dynamic> session) async {
-    await _storage.write(key: _sessionKey, value: jsonEncode(session));
+  Future<void> saveToken(String token) async {
+    await _storage.write(key: _keyToken, value: token);
   }
 
-  Future<Map<String, dynamic>?> readSession() async {
-    final String? raw = await _storage.read(key: _sessionKey);
+  Future<String?> getToken() async {
+    return await _storage.read(key: _keyToken);
+  }
 
-    if (raw == null || raw.isEmpty) {
-      return null;
-    }
+  Future<void> saveRefreshToken(String token) async {
+    await _storage.write(key: _keyRefreshToken, value: token);
+  }
 
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: _keyRefreshToken);
+  }
+
+  Future<void> saveUser(Map<String, dynamic> user) async {
+    await _storage.write(key: _keyUser, value: jsonEncode(user));
+  }
+
+  Future<Map<String, dynamic>?> getUser() async {
+    final data = await _storage.read(key: _keyUser);
+    if (data == null || data.isEmpty) return null;
     try {
-      return jsonDecode(raw) as Map<String, dynamic>;
-    } on FormatException {
-      // Corrupted entry: drop it rather than crash on every launch.
-      await clearSession();
+      return jsonDecode(data) as Map<String, dynamic>;
+    } catch (_) {
       return null;
     }
   }
 
-  Future<void> clearSession() async {
-    await _storage.delete(key: _sessionKey);
+  Future<void> saveSelectedRole(String role) async {
+    await _storage.write(key: _keySelectedRole, value: role);
+  }
+
+  Future<String?> getSelectedRole() async {
+    return await _storage.read(key: _keySelectedRole);
+  }
+
+  Future<void> deleteToken() async {
+    await _storage.delete(key: _keyToken);
+    await _storage.delete(key: _keyRefreshToken);
+  }
+
+  Future<void> clearAll() async {
+    await _storage.deleteAll();
   }
 }
-
-final Provider<SecureStorage> secureStorageProvider =
-    Provider<SecureStorage>((Ref ref) => SecureStorage());

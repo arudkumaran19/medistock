@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { DashboardLayout } from "../../layouts/DashboardLayout";
 import { ProcurementAgentPanel } from "../../components/ProcurementAgentPanel";
 import {
   procurementApi,
@@ -152,7 +151,7 @@ export function ProcurementPriority() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <PageHeader
         eyebrow="Replenishment Governance"
         title="Procurement Priorities"
@@ -386,6 +385,6 @@ export function ProcurementPriority() {
           </table>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

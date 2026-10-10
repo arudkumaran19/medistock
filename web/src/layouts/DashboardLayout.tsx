@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+﻿import React, { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import {
   LayoutDashboard,
@@ -14,21 +14,21 @@ import {
   LineChart,
   BadgeCheck,
   GitBranch,
-  User,
   Users,
+  Truck,
   LogOut,
   ChevronDown,
   Menu,
   X,
-  Bell,
   Sparkles,
-  ShieldCheck,
   Loader2,
-  Truck,
+  ArrowRightLeft,
+  Clock,
 } from "lucide-react";
 import { useProcurementAgent } from "../context/ProcurementAgentContext";
+import { NotificationBell } from "../features/redistribution/NotificationBell";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface NavItem {
   label: string;
@@ -42,7 +42,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-// ─── Navigation Definition ─────────────────────────────────────────────────
+// â”€â”€â”€ Navigation Definition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ICON_SIZE = 16;
 const ICON_STROKE = 1.75;
@@ -81,9 +81,21 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Demand & Shortage vertical - Sathurstiga S. (IT24103156).
-    // Roles mirror the [Authorize] attributes on DemandController and
-    // ShortageController so the sidebar never offers a page the API refuses.
+    group: "Redistribution",
+    items: [
+      {
+        label: "Transfers",
+        path: "/transfers",
+        icon: <ArrowRightLeft size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+      },
+      {
+        label: "Transfer History",
+        path: "/history",
+        icon: <Clock size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+      },
+    ],
+  },
+  {
     group: "Demand & Shortage",
     items: [
       {
@@ -167,7 +179,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// ─── Role helpers ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Role helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getRoleLabel(roles: string[]): string {
   if (roles.some((r) => ["Administrator", "ADMIN"].includes(r))) return "Administrator";
@@ -189,7 +201,7 @@ function getInitials(email: string): string {
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "U";
 }
 
-// ─── Profile Dropdown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Profile Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ProfileDropdown({
   user,
@@ -226,47 +238,66 @@ function ProfileDropdown({
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          background: "none",
+          width: "100%",
+          padding: "6px 8px",
+          background: open ? "rgba(255,255,255,0.06)" : "none",
           border: "none",
+          borderRadius: "6px",
           cursor: "pointer",
-          padding: "4px 8px",
-          borderRadius: "8px",
-          transition: "background 150ms",
+          textAlign: "left",
+          transition: "background 150ms ease",
         }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)")}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
       >
-        {/* Avatar */}
-        <div
-          aria-hidden="true"
+        <span
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: roleAccent,
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "0.75rem",
-            fontWeight: 700,
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: roleAccent,
             color: "#fff",
+            fontSize: "0.6875rem",
+            fontWeight: 700,
             flexShrink: 0,
           }}
         >
           {initials}
-        </div>
-        <div style={{ textAlign: "left", lineHeight: 1.3 }}>
-          <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#f1f5f9", margin: 0 }}>
-            {user.email.split("@")[0]}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              color: "#f1f5f9",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {user.email}
           </p>
-          <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>{roleLabel}</p>
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: "0.6875rem",
+              fontWeight: 500,
+              color: roleAccent,
+              margin: 0,
+            }}
+          >
+            {roleLabel}
+          </span>
         </div>
         <ChevronDown
           size={14}
           style={{
             color: "#64748b",
-            transition: "transform 150ms",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            flexShrink: 0,
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 150ms ease",
           }}
         />
       </button>
@@ -276,294 +307,217 @@ function ProfileDropdown({
           role="menu"
           style={{
             position: "absolute",
+            bottom: "calc(100% + 4px)",
+            left: 0,
             right: 0,
-            bottom: "calc(100% + 8px)",
-            width: 240,
             background: "#1e293b",
-            border: "1px solid #334155",
-            borderRadius: "10px",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-            overflow: "hidden",
-            animation: "modalIn 150ms ease",
-            zIndex: 300,
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "8px",
+            padding: "4px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            zIndex: 100,
           }}
         >
-          {/* User info */}
-          <div style={{ padding: "16px", borderBottom: "1px solid #334155" }}>
-            <div
+          <div
+            style={{
+              padding: "6px 8px 8px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              marginBottom: 4,
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>Signed in as</p>
+            <p
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginBottom: "8px",
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: roleAccent,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.875rem",
-                  fontWeight: 700,
-                  color: "#fff",
-                  flexShrink: 0,
-                }}
-              >
-                {initials}
-              </div>
-              <div>
-                <p style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#f1f5f9", margin: 0 }}>
-                  {user.email.split("@")[0]}
-                </p>
-                <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "2px 0 0" }}>
-                  {user.email}
-                </p>
-              </div>
-            </div>
-            <span
-              style={{
-                display: "inline-block",
-                padding: "2px 8px",
-                fontSize: "0.7rem",
-                fontWeight: 600,
-                background: `${roleAccent}22`,
-                color: roleAccent,
-                borderRadius: "9999px",
-                border: `1px solid ${roleAccent}40`,
-              }}
-            >
-              {roleLabel}
-            </span>
-          </div>
-
-          {/* Menu items */}
-          <div style={{ padding: "6px" }}>
-            {[
-              { icon: <User size={14} />, label: "Profile" },
-              { icon: <ShieldCheck size={14} />, label: "Role Information" },
-            ].map((item) => (
-              <button
-                key={item.label}
-                role="menuitem"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  width: "100%",
-                  padding: "8px 10px",
-                  background: "none",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "0.8125rem",
-                  color: "#cbd5e1",
-                  textAlign: "left",
-                  transition: "background 150ms",
-                }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "#334155")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
-              >
-                <span style={{ color: "#64748b" }}>{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ borderTop: "1px solid #334155", padding: "6px" }}>
-            <button
-              role="menuitem"
-              onClick={() => { setOpen(false); onLogout(); }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                width: "100%",
-                padding: "8px 10px",
-                background: "none",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
+                margin: 0,
                 fontSize: "0.8125rem",
-                color: "#f87171",
-                textAlign: "left",
-                transition: "background 150ms",
+                fontWeight: 600,
+                color: "#e2e8f0",
+                wordBreak: "break-all",
               }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "#3f1212")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
             >
-              <LogOut size={14} />
-              Sign out
-            </button>
+              {user.email}
+            </p>
           </div>
+          <button
+            role="menuitem"
+            onClick={onLogout}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              padding: "7px 8px",
+              background: "none",
+              border: "none",
+              borderRadius: "4px",
+              color: "#f87171",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Sidebar Nav Item ───────────────────────────────────────────────────────
+// â”€â”€â”€ Sidebar Item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
+function NavLinkItem({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  onClick?: () => void;
+}) {
   return (
     <Link
       to={item.path}
-      title={item.label}
+      onClick={onClick}
       style={{
         display: "flex",
         alignItems: "center",
         gap: "10px",
-        padding: "7px 12px",
-        fontSize: "0.8125rem",
-        fontWeight: isActive ? 600 : 500,
-        color: isActive ? "#f1f5f9" : "#94a3b8",
-        textDecoration: "none",
-        background: isActive ? "rgba(13, 148, 136, 0.18)" : "transparent",
+        padding: "7px 10px",
         borderRadius: "6px",
-        borderLeft: isActive ? "2px solid #2dd4bf" : "2px solid transparent",
-        transition: "background 120ms, color 120ms",
-        position: "relative",
-        marginBottom: "1px",
-      }}
-      onMouseEnter={(e) => {
-        if (!isActive) {
-          const el = e.currentTarget as HTMLElement;
-          el.style.background = "rgba(255,255,255,0.05)";
-          el.style.color = "#e2e8f0";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) {
-          const el = e.currentTarget as HTMLElement;
-          el.style.background = "transparent";
-          el.style.color = "#94a3b8";
-        }
+        fontSize: "0.875rem",
+        fontWeight: isActive ? 600 : 400,
+        color: isActive ? "#f8fafc" : "#94a3b8",
+        background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+        textDecoration: "none",
+        transition: "all 150ms ease",
+        marginBottom: "2px",
       }}
     >
-      <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7 }}>{item.icon}</span>
-      <span>{item.label}</span>
+      <span style={{ color: isActive ? "#38bdf8" : "#64748b", display: "flex" }}>
+        {item.icon}
+      </span>
+      <span style={{ flex: 1 }}>{item.label}</span>
+      {isActive && (
+        <span
+          style={{
+            width: 4,
+            height: 4,
+            borderRadius: "50%",
+            background: "#38bdf8",
+          }}
+        />
+      )}
     </Link>
   );
 }
 
-// ─── Main Layout ────────────────────────────────────────────────────────────
+// â”€â”€â”€ DashboardLayout Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-interface DashboardLayoutProps {
-  children: React.ReactNode;
-}
-
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: { children?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isLoading: isAgentLoading, elapsedSecs: agentElapsedSecs, getPhase: getAgentPhase } = useProcurementAgent();
+  const { isAgentLoading, agentElapsedSecs, getAgentPhase } = useProcurementAgent();
 
   const userRoles = user?.roles ?? [];
-  const roleLabel = getRoleLabel(userRoles);
-  const roleAccent = getRoleAccent(userRoles);
-
-  const visibleGroups = NAV_GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter(
-      (item) => !item.roles || item.roles.some((r) => userRoles.includes(r))
-    ),
-  })).filter((g) => g.items.length > 0);
-
-  function isActive(path: string) {
-    if (path === "/inventory") return location.pathname === "/inventory";
-    if (path === "/dashboard") return location.pathname === "/dashboard";
-    return location.pathname.startsWith(path);
-  }
 
   async function handleLogout() {
     await logout();
-    navigate("/login", { replace: true });
+    navigate("/login");
   }
 
-  // ── Sidebar inner ─────────────────────────────────────────────────────────
+  function userHasRole(requiredRoles?: string[]): boolean {
+    if (!requiredRoles || requiredRoles.length === 0) return true;
+    return requiredRoles.some((r) => userRoles.includes(r));
+  }
+
+  const visibleGroups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((item) => userHasRole(item.roles)),
+  })).filter((g) => g.items.length > 0);
+
+  function isActive(path: string): boolean {
+    if (path === "/dashboard") return location.pathname === "/dashboard";
+    if (path === "/inventory") return location.pathname === "/inventory";
+    if (path === "/transfers") return location.pathname === "/" || location.pathname.startsWith("/transfers");
+    return location.pathname.startsWith(path);
+  }
+
+  const roleLabel = getRoleLabel(userRoles);
+  const roleAccent = getRoleAccent(userRoles);
+
   const sidebarContent = (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Brand */}
       <div
         style={{
-          padding: "0 16px",
-          height: 56,
+          padding: "20px 16px 16px",
           display: "flex",
           alignItems: "center",
           gap: "10px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
-          flexShrink: 0,
         }}
       >
         <div
-          aria-hidden="true"
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: "8px",
-            background: "linear-gradient(135deg, #0d9488, #0f766e)",
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            color: "#fff",
             flexShrink: 0,
           }}
         >
-          <Activity size={15} strokeWidth={2.5} style={{ color: "#fff" }} />
+          <Activity size={18} />
         </div>
-        <Link
-          to="/dashboard"
-          style={{ textDecoration: "none" }}
-          aria-label="MediStock Home"
-        >
+        <div>
           <span
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: "1.0625rem",
+              fontSize: "1rem",
               fontWeight: 700,
               color: "#f1f5f9",
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.01em",
+              display: "block",
             }}
           >
             MediStock
           </span>
-        </Link>
+          <span style={{ fontSize: "0.6875rem", color: "#64748b", display: "block" }}>
+            Supply Chain Platform
+          </span>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav
-        aria-label="Main navigation"
-        style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}
-      >
+      <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
         {visibleGroups.map((group) => (
-          <div key={group.group} style={{ marginBottom: "20px" }}>
+          <div key={group.group} style={{ marginBottom: "16px" }}>
             <p
               style={{
                 fontSize: "0.6875rem",
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "#475569",
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                padding: "0 12px",
-                marginBottom: "4px",
+                letterSpacing: "0.05em",
+                margin: "0 0 6px 10px",
               }}
             >
               {group.group}
             </p>
             {group.items.map((item) => (
-              <NavLink
+              <NavLinkItem
                 key={item.path}
                 item={item}
                 isActive={isActive(item.path)}
+                onClick={() => setMobileOpen(false)}
               />
             ))}
           </div>
@@ -578,13 +532,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           flexShrink: 0,
         }}
       >
-        {user && (
+        {user ? (
           <ProfileDropdown
             user={user}
             roleLabel={roleLabel}
             roleAccent={roleAccent}
             onLogout={() => void handleLogout()}
           />
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px" }}>
+            <Link to="/login" style={{ color: "#38bdf8", fontSize: "0.8125rem", textDecoration: "none" }}>
+              Sign In
+            </Link>
+          </div>
         )}
       </div>
     </div>
@@ -592,7 +552,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
-      {/* ── Desktop Sidebar ───────────────────────────────────── */}
+      {/* â”€â”€ Desktop Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <aside
         style={{
           width: 240,
@@ -609,7 +569,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {sidebarContent}
       </aside>
 
-      {/* ── Mobile Sidebar Drawer ─────────────────────────────── */}
+      {/* â”€â”€ Mobile Sidebar Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {mobileOpen && (
         <>
           <div
@@ -659,7 +619,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </>
       )}
 
-      {/* ── Main Area ─────────────────────────────────────────── */}
+      {/* â”€â”€ Main Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Mobile topbar */}
         <header
@@ -699,8 +659,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           >
             MediStock
           </span>
-          <div style={{ marginLeft: "auto" }}>
-            <Bell size={18} style={{ color: "#64748b" }} />
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <NotificationBell />
+          </div>
+        </header>
+
+        {/* Top desktop bar */}
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 32px",
+            background: "#ffffff",
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>
+              MediStock Core &amp; Redistribution Platform
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <NotificationBell />
           </div>
         </header>
 
@@ -723,7 +704,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Loader2 size={15} className="spin" style={{ color: "#2dd4bf" }} />
               <span>
-                <strong>Procurement AI Agent working ({agentElapsedSecs}s):</strong> {getAgentPhase().label}
+                <strong>Procurement AI Agent working ({agentElapsedSecs}s):</strong> {getAgentPhase?.()?.label ?? 'Working...'}
               </span>
             </div>
             <Link
@@ -742,7 +723,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Page content */}
         <main style={{ flex: 1, overflow: "auto", padding: "28px 32px" }}>
-          {children}
+          {children ?? <Outlet />}
         </main>
       </div>
 
@@ -772,3 +753,5 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     </div>
   );
 }
+
+export default DashboardLayout;

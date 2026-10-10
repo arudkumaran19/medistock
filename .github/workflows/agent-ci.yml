@@ -1,24 +1,30 @@
-name: Agent CI
+name: Agent Service CI
 
 on:
   push:
     branches:
       - main
+      - 'feature/**'
       - develop
+    paths:
+      - 'agent-service/**'
+      - '.github/workflows/agent-ci.yml'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - 'agent-service/**'
+      - '.github/workflows/agent-ci.yml'
+  workflow_dispatch:
 
 jobs:
-  agent:
-    name: Agent Service Tests
+  test:
+    name: Test Agent Service
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: agent-service
-
     # Tests never call a real model. The suite uses scripted stand-ins, and
     # these pin the service to its offline paths so CI needs no API key.
     env:
@@ -37,7 +43,9 @@ jobs:
           cache-dependency-path: agent-service/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest-asyncio
 
       - name: Run tests
-        run: python -m pytest tests -q
+        run: python -m pytest tests --verbosity=2

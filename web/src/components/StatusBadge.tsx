@@ -1,15 +1,31 @@
-/**
- * SHARED REACT DESIGN SYSTEM - primary owner: Arudkumaran V. (IT24103011).
- *
- * Placeholder created by the Demand vertical (Sathurstiga S., IT24103156).
- * Replace with the owner's implementation on integration.
- */
-export function StatusBadge({ label, tone = 'neutral' }: { label: string; tone?: string }) {
+import React from 'react';
+import { TransferPriority, TransferStatus } from '../types/redistribution';
+
+export interface StatusBadgeProps {
+  status?: TransferStatus | string;
+  label?: string;
+  tone?: string;
+}
+
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, tone }) => {
+  if (status !== undefined) {
+    return <span className={`status-badge status-${status}`}>{status}</span>;
+  }
+  const text = label ?? '';
+  const currentTone = (tone ?? 'neutral').toLowerCase();
   return (
-    <span className={`badge badge--${tone.toLowerCase()}`} data-tone={tone}>
-      {label}
+    <span className={`badge badge--${currentTone}`} data-tone={tone ?? 'neutral'}>
+      {text}
     </span>
   );
+};
+
+export interface PriorityBadgeProps {
+  priority: TransferPriority | string;
 }
+
+export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority }) => {
+  return <span className={`priority-badge priority-${priority}`}>{priority}</span>;
+};
 
 export default StatusBadge;

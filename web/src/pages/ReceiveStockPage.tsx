@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { inventoryApi } from "../services/inventoryApi";
 import type { Facility, Medicine } from "../types/inventory";
 import { validateBatchNumber } from "../utils/inventoryValidation";
@@ -95,7 +94,7 @@ export function ReceiveStockPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div style={{ maxWidth: 840, margin: "0 auto", padding: "16px 24px 64px" }}>
         {/* Breadcrumb Navigation */}
       <div style={{ marginBottom: 20 }}>
@@ -520,6 +519,6 @@ export function ReceiveStockPage() {
         </div>
       )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

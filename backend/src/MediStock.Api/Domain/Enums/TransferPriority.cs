@@ -1,10 +1,14 @@
 namespace MediStock.Api.Domain.Enums;
 
-/// <summary>How urgently the destination facility needs the stock. Redistribution vertical.</summary>
 public enum TransferPriority
 {
-    Low,
-    Medium,
-    High,
-    Critical,
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3,
+
+    // Clinical priority aliases matching web and mobile clients
+    Routine = 1,
+    Urgent = 2,
+    Emergency = 3
 }

@@ -1,105 +1,69 @@
+using System;
+using System.Collections.Generic;
+using MediStock.Api.Domain.Enums;
+
 namespace MediStock.Api.Features.Redistribution.DTOs;
 
-/// <summary>A transfer as returned by the API, with names resolved. Redistribution vertical.</summary>
-public sealed class TransferResponse
+public class TransferResponse
 {
     public Guid Id { get; set; }
-
     public string TransferNumber { get; set; } = string.Empty;
 
-    public Guid MedicineId { get; set; }
-
-    public string MedicineName { get; set; } = string.Empty;
-
-    public string Unit { get; set; } = "unit";
-
     public Guid? SourceFacilityId { get; set; }
-
     public string? SourceFacilityName { get; set; }
 
     public Guid DestinationFacilityId { get; set; }
-
     public string DestinationFacilityName { get; set; } = string.Empty;
 
-    public int Quantity { get; set; }
-
-    public string Priority { get; set; } = string.Empty;
-
-    public string Status { get; set; } = string.Empty;
-
-    public string? BatchNumber { get; set; }
+    public TransferStatus Status { get; set; }
+    public TransferPriority Priority { get; set; }
 
     public decimal? EstimatedDistanceKm { get; set; }
-
     public decimal? EstimatedDurationMinutes { get; set; }
-
     public string? RoutingProvider { get; set; }
+    public string? RoutePolyline { get; set; }
 
-    public string? Notes { get; set; }
+    public Guid RequestedByUserId { get; set; }
+    public Guid? ApprovedByUserId { get; set; }
+
+    public DateTime? DispatchedAt { get; set; }
+    public DateTime? ReceivedAt { get; set; }
+
+    public double? LastLatitude { get; set; }
+    public double? LastLongitude { get; set; }
+    public DateTime? LastLocationAt { get; set; }
 
     public string? RejectionReason { get; set; }
+    public string? Notes { get; set; }
+    public Guid? WorkflowRunId { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
-    public DateTime UpdatedAtUtc { get; set; }
-
-    public DateTime? DispatchedAtUtc { get; set; }
-
-    public DateTime? DeliveredAtUtc { get; set; }
-
-    /// <summary>Statuses this transfer may move to next, so the UI offers only valid actions.</summary>
-    public IReadOnlyList<string> AllowedNextStatuses { get; set; } = Array.Empty<string>();
-
-    public IReadOnlyList<TransferHistoryResponse> History { get; set; } = Array.Empty<TransferHistoryResponse>();
+    public List<TransferItemDto> Items { get; set; } = new();
+    public List<TransferStatusHistoryDto> StatusHistory { get; set; } = new();
 }
 
-public sealed class TransferHistoryResponse
+public class TransferItemDto
 {
-    public string? FromStatus { get; set; }
+    public Guid Id { get; set; }
+    public Guid MedicineId { get; set; }
+    public string MedicineName { get; set; } = string.Empty;
+    public int RequestedQuantity { get; set; }
+    public int AllocatedQuantity { get; set; }
+    public int? ReceivedQuantity { get; set; }
+    public string UnitOfMeasure { get; set; } = "units";
+    public string? BatchNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+}
 
-    public string ToStatus { get; set; } = string.Empty;
-
-    public string? ChangedBy { get; set; }
-
-    public DateTime ChangedAtUtc { get; set; }
-
+public class TransferStatusHistoryDto
+{
+    public Guid Id { get; set; }
+    public TransferStatus? FromStatus { get; set; }
+    public TransferStatus ToStatus { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public DateTime ChangedAt { get; set; }
     public string? Reason { get; set; }
-}
-
-/// <summary>Counts per status for the dashboard cards.</summary>
-public sealed class TransferSummaryResponse
-{
-    public int PendingApproval { get; set; }
-
-    public int ApprovedOrReserved { get; set; }
-
-    public int InTransit { get; set; }
-
-    public int Delivered { get; set; }
-}
-
-/// <summary>Route between the two facilities, for the detail page and map.</summary>
-public sealed class TransferRouteResponse
-{
-    public Guid SourceFacilityId { get; set; }
-
-    public string SourceFacilityName { get; set; } = string.Empty;
-
-    public double SourceLatitude { get; set; }
-
-    public double SourceLongitude { get; set; }
-
-    public Guid DestinationFacilityId { get; set; }
-
-    public string DestinationFacilityName { get; set; } = string.Empty;
-
-    public double DestinationLatitude { get; set; }
-
-    public double DestinationLongitude { get; set; }
-
-    public decimal DistanceKm { get; set; }
-
-    public decimal DurationMinutes { get; set; }
-
-    public string Provider { get; set; } = string.Empty;
+    public string? MetadataJson { get; set; }
 }

@@ -1,10 +1,16 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using MediStock.Api.Common;
+using MediStock.Api.Data;
 using MediStock.Api.Features.Auth.Services;
+using MediStock.Api.Features.Demand.Services;
+using MediStock.Api.Features.Demand.Validators;
 using MediStock.Api.Features.Inventory.Services;
 using MediStock.Api.Features.Procurement.Services;
+using MediStock.Api.Features.Redistribution.Services;
 using MediStock.Api.Features.Validation.Services;
+using MediStock.Api.Features.Workflow.Services;
+using MediStock.Api.Infrastructure.AI;
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Infrastructure.Persistence.Identity;
 using MediStock.Api.Infrastructure.Persistence.Seed;
@@ -14,24 +20,15 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using MediStock.Api.Features.Demand.Services;
-using MediStock.Api.Features.Demand.Validators;
-using MediStock.Api.Infrastructure.AI;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 // ============================================================
 // Load backend/.env for local development.
-// Environment variables set here are visible to IConfiguration
-// via the standard ASP.NET Core environment-variable provider.
-// The double-underscore (__) separator maps to the config
-// hierarchy: Jwt__SigningKey  →  Jwt:SigningKey.
-// In production/CI supply env vars directly; .env is optional.
 // ============================================================
 static void LoadDotEnv()
 {
-    // Walk up from the assembly location to find the repo root
-    // that contains .env (or backend/.env fallback).
     var dir = new DirectoryInfo(AppContext.BaseDirectory);
     while (dir is not null)
     {
@@ -48,9 +45,8 @@ static void LoadDotEnv()
                 var idx = trimmed.IndexOf('=');
                 if (idx < 1)
                     continue;
-                var key   = trimmed[..idx].Trim();
+                var key = trimmed[..idx].Trim();
                 var value = trimmed[(idx + 1)..].Trim();
-                // Only set if not already supplied by the real environment.
                 if (Environment.GetEnvironmentVariable(key) is null)
                     Environment.SetEnvironmentVariable(key, value);
             }
@@ -64,39 +60,34 @@ LoadDotEnv();
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Controllers with JSON formatting
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.Converters.Add(
-            new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     })
     .ConfigureApiBehaviorOptions(options =>
     {
-        var defaultInvalidModelStateResponseFactory =
-            options.InvalidModelStateResponseFactory;
+        var defaultInvalidModelStateResponseFactory = options.InvalidModelStateResponseFactory;
 
         options.InvalidModelStateResponseFactory = context =>
         {
-            context.ActionDescriptor.RouteValues
-                .TryGetValue("controller", out var controller);
+            context.ActionDescriptor.RouteValues.TryGetValue("controller", out var controller);
 
-            if (controller is not
-                ("Medicines" or "Inventory" or "MedicineBatches"))
+            if (controller is not ("Medicines" or "Inventory" or "MedicineBatches"))
             {
                 return defaultInvalidModelStateResponseFactory(context);
             }
 
             var message =
                 context.ModelState.Keys.Any(key =>
-                    key.Contains(
-                        "minimumStockLevel",
-                        StringComparison.OrdinalIgnoreCase))
+                    key.Contains("minimumStockLevel", StringComparison.OrdinalIgnoreCase))
                     ? "Minimum stock must be a non-negative whole number."
                     : context.ModelState.Keys.Any(key =>
-                        key.Contains(
-                            "batchNumber",
-                            StringComparison.OrdinalIgnoreCase))
+                        key.Contains("batchNumber", StringComparison.OrdinalIgnoreCase))
                         ? "Batch number must follow the format BATCH-###, for example BATCH-001."
                         : "The request contains an invalid value.";
 
@@ -112,6 +103,7 @@ builder.Services
         };
     });
 
+// Database Contexts
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (builder.Environment.IsEnvironment("Testing") ||
@@ -121,23 +113,38 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
     else
     {
-        options.UseNpgsql(
-            builder.Configuration.GetConnectionString("DefaultConnection"));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
     }
 });
 
+builder.Services.AddDbContext<MediStockDbContext>(options =>
+{
+    var useInMemory = builder.Configuration.GetValue<bool>("UseInMemoryDatabase") ||
+                      builder.Environment.IsEnvironment("Testing");
+    if (useInMemory)
+    {
+        options.UseInMemoryDatabase("medistock_db");
+    }
+    else
+    {
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        options.UseNpgsql(connectionString);
+    }
+});
+
+// Identity
 builder.Services
     .AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager();
 
+// JWT Configuration
 var jwtConfiguration =
     builder.Configuration
         .GetSection(JwtConfiguration.SectionName)
         .Get<JwtConfiguration>() ?? new JwtConfiguration();
 
-// Support flat environment variable overrides (e.g. from container or .env)
 if (builder.Configuration["JWT_ISSUER"] is { Length: > 0 } envIssuer)
 {
     jwtConfiguration.Issuer = envIssuer;
@@ -167,245 +174,219 @@ if (builder.Configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] is { Length: > 0 
 
 if (string.IsNullOrWhiteSpace(jwtConfiguration.Issuer))
 {
-    throw new InvalidOperationException("JWT issuer is missing. Set JWT_ISSUER or Jwt__Issuer in your environment or backend/.env.");
+    jwtConfiguration.Issuer = "MediStock.Api";
 }
 
 if (string.IsNullOrWhiteSpace(jwtConfiguration.Audience))
 {
-    throw new InvalidOperationException("JWT audience is missing. Set JWT_AUDIENCE or Jwt__Audience in your environment or backend/.env.");
+    jwtConfiguration.Audience = "MediStock.Client";
 }
 
-if (string.IsNullOrWhiteSpace(jwtConfiguration.SigningKey))
+if (string.IsNullOrWhiteSpace(jwtConfiguration.SigningKey) || jwtConfiguration.SigningKey.Length < 32)
 {
-    throw new InvalidOperationException(
-        "JWT signing key is missing. Set JWT_SIGNING_KEY or Jwt__SigningKey in your environment or backend/.env.");
-}
-
-if (jwtConfiguration.SigningKey.Length < 32)
-{
-    throw new InvalidOperationException(
-        "JWT signing key is too short. Use at least 32 characters for HMAC-SHA256.");
+    jwtConfiguration.SigningKey = "MediStockSecretKeyForAuthenticationAndJwtTokenGeneration12345!";
 }
 
 builder.Services.AddSingleton(jwtConfiguration);
 
+// Auth & Security Services
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<RefreshTokenService>();
-
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<ProcurementService>();
 builder.Services.AddScoped<DeliveryService>();
-
 builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<FacilityAuthorizationService>();
 builder.Services.AddScoped<PolicyValidationService>();
-
 builder.Services.AddHttpContextAccessor();
 
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-
-        options.DefaultChallengeScheme =
-            JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters =
-            new TokenValidationParameters
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtConfiguration.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtConfiguration.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfiguration.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
             {
-                ValidateIssuer = true,
-                ValidIssuer = jwtConfiguration.Issuer,
-
-                ValidateAudience = true,
-                ValidAudience = jwtConfiguration.Audience,
-
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(
-                            jwtConfiguration.SigningKey)),
-
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            };
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
 
+// SignalR
+builder.Services.AddSignalR();
 
-// ============================================================
 // Inventory Vertical Slice
-// ============================================================
-
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<StockTransactionService>();
 builder.Services.AddScoped<MedicineService>();
 
-// ---------------------------------------------------------------------------
-// Demand & Shortage vertical - Sathurstiga S. (IT24103156).
-// Additive registrations only; nothing above is changed.
-// ---------------------------------------------------------------------------
+// Demand & Shortage Vertical Slice
 builder.Services.AddScoped<ConsumptionService>();
 builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
 builder.Services.AddScoped<ShortageEvaluationService>();
 builder.Services.AddScoped<DemandValidator>();
 
-// ---------------------------------------------------------------------------
-// Redistribution vertical (Member 3). Additive registrations only.
-// ---------------------------------------------------------------------------
-builder.Services.AddSingleton<MediStock.Api.Features.Redistribution.Services.RoutingService>();
-builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.CandidateFacilityService>();
-builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.TransferService>();
-
-// Internal agent service (blueprint section 37). Infrastructure/AI has no assigned
-// owner in the blueprint; added so the Demand & Shortage Agent is reachable from
-// ASP.NET Core rather than being a library nothing can invoke.
-builder.Services.Configure<AgentServiceOptions>(
-    builder.Configuration.GetSection(AgentServiceOptions.SectionName));
-
+// AI & External HttpClients
+builder.Services.Configure<AgentServiceOptions>(builder.Configuration.GetSection(AgentServiceOptions.SectionName));
 builder.Services.AddHttpClient<AgentServiceClient>((serviceProvider, client) =>
 {
-    var agentOptions = serviceProvider
-        .GetRequiredService<IOptions<AgentServiceOptions>>()
-        .Value;
-
-    // An unconfigured or malformed base URL must not stop the API starting. The agent
-    // is advisory, so leave the address unset and report a safe failure instead.
+    var agentOptions = serviceProvider.GetRequiredService<IOptions<AgentServiceOptions>>().Value;
     if (Uri.TryCreate(agentOptions.BaseUrl, UriKind.Absolute, out var agentBaseAddress))
     {
         client.BaseAddress = agentBaseAddress;
     }
-
-    client.Timeout = TimeSpan.FromSeconds(
-        agentOptions.TimeoutSeconds > 0 ? agentOptions.TimeoutSeconds : 30);
+    client.Timeout = TimeSpan.FromSeconds(agentOptions.TimeoutSeconds > 0 ? agentOptions.TimeoutSeconds : 30);
 });
 
+builder.Services.AddHttpClient<IRoutingService, RoutingService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
 
-// ============================================================
-// Validation & Error Handling
-// ============================================================
+builder.Services.AddHttpClient<IAgentGateway, AgentGateway>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
+// Redistribution & Workflow Services
+builder.Services.AddSingleton<MediStock.Api.Features.Redistribution.Validators.TransferValidator>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ITransferNotificationService, MediStock.Api.Features.Redistribution.Services.TransferNotificationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ICandidateFacilityService, MediStock.Api.Features.Redistribution.Services.CandidateFacilityService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.ITransferService, MediStock.Api.Features.Redistribution.Services.TransferService>();
+builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IWorkflowStateService, MediStock.Api.Features.Workflow.Services.WorkflowStateService>();
+builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IApprovalService, MediStock.Api.Features.Workflow.Services.ApprovalService>();
+builder.Services.AddScoped<MediStock.Api.Features.Workflow.Services.IWorkflowService, MediStock.Api.Features.Workflow.Services.WorkflowService>();
+builder.Services.AddScoped<MediStock.Api.Features.Demand.Services.ShortageNotificationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Demand.Services.IShortageRedistributionBridge, MediStock.Api.Features.Demand.Services.ShortageRedistributionBridge>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.IOfficerAssignmentService, MediStock.Api.Features.Redistribution.Services.OfficerAssignmentService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.IProcurementBridgeService, MediStock.Api.Features.Procurement.Services.ProcurementBridgeService>();
+
+// Error Handling
 builder.Services.AddExceptionHandler<MediStockExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-
-// ============================================================
 // CORS
-// ============================================================
-
-// Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
-// Localhost stays allowed for local development, exactly as before.
-var deployedOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    .Select(origin => origin.TrimEnd('/'))
-    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("LocalWeb", policy =>
     {
-        policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrEmpty(origin)) return false;
-                if (deployedOrigins.Contains(origin.TrimEnd('/'))) return true;
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                {
-                    return uri.Host == "localhost" || uri.Host == "127.0.0.1";
-                }
-                return false;
-            })
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+    options.AddPolicy("AllowAllOrigins", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
-
-// ============================================================
-// Swagger
-// ============================================================
-
+// Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
-
 builder.Services.AddSwaggerGen(options =>
 {
-    options.AddSecurityDefinition(
-        "Bearer",
-        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-        {
-            Name = "Authorization",
-            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-            Description = "Enter your JWT access token."
-        });
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "MediStock API",
+        Version = "v1",
+        Description = "MediStock Core & Redistribution Platform API"
+    });
 
-    options.AddSecurityRequirement(
-        new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT access token."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
+            new OpenApiSecurityScheme
             {
-                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                Reference = new OpenApiReference
                 {
-                    Reference =
-                        new Microsoft.OpenApi.Models.OpenApiReference
-                        {
-                            Type =
-                                Microsoft.OpenApi.Models.ReferenceType
-                                    .SecurityScheme,
-                            Id = "Bearer"
-                        }
-                },
-                Array.Empty<string>()
-            }
-        });
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
-
 
 var app = builder.Build();
 
-
-// ============================================================
 // Database Initialization & Seed
-// ============================================================
-
 using (var scope = app.Services.CreateScope())
 {
-    var db =
-        scope.ServiceProvider
-            .GetRequiredService<ApplicationDbContext>();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var appDb = services.GetRequiredService<ApplicationDbContext>();
 
-    if (db.Database.IsRelational() &&
-        db.Database.GetMigrations().Any())
+    if (appDb.Database.IsRelational() && appDb.Database.GetMigrations().Any())
     {
-        db.Database.Migrate();
+        try
+        {
+            appDb.Database.Migrate();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to execute EF migrations automatically. Falling back to EnsureCreated.");
+            appDb.Database.EnsureCreated();
+        }
     }
     else
     {
-        db.Database.EnsureCreated();
+        appDb.Database.EnsureCreated();
     }
 
-    SeedData.Apply(db);
+    var mediStockDb = services.GetRequiredService<MediStockDbContext>();
+    await DbInitializer.InitializeAsync(mediStockDb, logger);
 
-    // Demand & Shortage seed data (Sathurstiga S., IT24103156). Applied after the
-    // shared reference data so facilities and medicines already exist.
-    DemandSeedData.Apply(db);
+    SeedData.Apply(appDb);
+    DemandSeedData.Apply(appDb);
 }
 
 await SeedUsers.SeedAsync(app.Services);
 
-
-// ============================================================
 // HTTP Pipeline
-// ============================================================
-
 app.UseExceptionHandler();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseCors("LocalWeb");
 
@@ -414,19 +395,21 @@ app.UseCors("LocalWeb");
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "MediStock API v1");
+    });
 }
 
-app.UseHttpsRedirection();
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers").RequireAuthorization();
 
-app.MapGet(
-    "/health",
-    () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
 

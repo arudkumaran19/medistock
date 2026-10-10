@@ -1,4 +1,5 @@
 @import './design-system.css';
+@import './variables.css';
 
 /* ============================================================
    Global Reset & Base
@@ -22,13 +23,32 @@ html, body, #root {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-body, var(--font-sans));
   font-size: var(--text-base);
   font-weight: var(--weight-normal);
   line-height: 1.6;
   color: var(--text-primary);
   background: var(--bg-page);
   min-width: 320px;
+}
+
+input, select, textarea {
+  color: #0f172a;
+}
+
+/* Glassmorphism / Clean Card panel helper */
+.glass-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+  transition: all var(--transition-normal);
+}
+
+.glass-panel:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
 }
 
 /* ─── Accessibility ──────────────────────────────────────── */

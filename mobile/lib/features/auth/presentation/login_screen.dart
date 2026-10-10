@@ -1,24 +1,36 @@
 import 'package:flutter/material.dart';
-import '../data/auth_service.dart';
-import '../../../core/routing/app_router.dart';
-import 'dashboard_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/text_styles.dart';
+import '../domain/auth_state.dart';
+import 'auth_controller.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginScreen extends ConsumerStatefulWidget {
+  final String roleType; // 'user' or 'officer'
+
+  const LoginScreen({super.key, required this.roleType});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _authService = MobileAuthService();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-
-  bool _isLoading = false;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
   bool _obscurePassword = true;
-  String? _errorMessage;
+
+  bool get isOfficer => widget.roleType == 'officer';
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(
+      text: isOfficer ? 'officer@medistock.com' : 'user@medistock.com',
+    );
+    _passwordController = TextEditingController(text: 'Password123!');
+  }
 
   @override
   void dispose() {
@@ -27,181 +39,190 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      final response = await _authService.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          settings: const RouteSettings(name: AppRouter.dashboard),
-          builder: (_) => DashboardScreen(user: response.user, authService: _authService),
-        ),
-        (route) => false,
-      );
-    } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+
+    final controller = ref.read(authControllerProvider.notifier);
+    final success = await controller.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    if (success && mounted) {
+      if (isOfficer) {
+        context.go('/officer/dashboard');
+      } else {
+        context.go('/user/dashboard');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final authState = ref.watch(authControllerProvider);
+    final roleColor = isOfficer ? AppColors.secondary : AppColors.primary;
+    final roleTitle = isOfficer ? 'Field Officer Sign In' : 'Facility User Sign In';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/role-selection'),
+        ),
+        title: Text(roleTitle),
+      ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Header
-                        Text(
-                          'CLINICAL INVENTORY & LOGISTICS',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                            color: cs.primary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'MediStock Portal',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Sign in with authorized staff credentials',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 28),
-
-                        // Error banner
-                        if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2F2),
-                              border: Border.all(color: const Color(0xFFFECACA)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, color: Color(0xFF991B1B), size: 18),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(fontSize: 13, color: Color(0xFF991B1B)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Email
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Staff Email Address',
-                            prefixIcon: Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Email is required' : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                            ),
-                          ),
-                          validator: (v) => (v == null || v.isEmpty) ? 'Password is required' : null,
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Sign in button
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleLogin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: cs.primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                                  )
-                                : const Text('Sign In to Portal', style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Register link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header badge
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: roleColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: roleColor.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isOfficer ? Icons.local_shipping_rounded : Icons.local_hospital_rounded,
+                        color: roleColor,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('New clinical staff? ', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                            GestureDetector(
-                              onTap: () => Navigator.of(context).pushNamed(AppRouter.register),
-                              child: Text(
-                                'Register Account',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: cs.primary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                            Text(
+                              isOfficer ? 'FIELD LOGISTICS DISPATCH' : 'FACILITY & CLINIC PORTAL',
+                              style: AppTextStyles.badge.copyWith(color: roleColor),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isOfficer ? 'Authorized Courier Network' : 'Apollo Anna Nagar Hub',
+                              style: AppTextStyles.titleSmall,
                             ),
                           ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                if (authState.status == AuthStatus.error && authState.errorMessage != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.error),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            authState.errorMessage!,
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                          ),
                         ),
                       ],
                     ),
                   ),
+
+                Text('Email Address', style: AppTextStyles.labelLarge),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: AppTextStyles.bodyLarge,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.email_outlined),
+                    hintText: 'name@medistock.com',
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) return 'Please enter your email';
+                    if (!val.contains('@')) return 'Enter a valid email address';
+                    return null;
+                  },
                 ),
-              ),
+
+                const SizedBox(height: 20),
+
+                Text('Password', style: AppTextStyles.labelLarge),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  style: AppTextStyles.bodyLarge,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    hintText: '••••••••',
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return 'Please enter your password';
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 28),
+
+                ElevatedButton(
+                  onPressed: authState.status == AuthStatus.loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: roleColor,
+                  ),
+                  child: authState.status == AuthStatus.loading
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Sign In to Dashboard', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Quick Demo Login helper
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _emailController.text = isOfficer ? 'officer@medistock.com' : 'user@medistock.com';
+                      _passwordController.text = 'Password123!';
+                      _submit();
+                    },
+                    icon: const Icon(Icons.flash_on_rounded, size: 16),
+                    label: Text(
+                      'Use Demo Credentials & Sign In Instantly',
+                      style: AppTextStyles.bodySmall.copyWith(color: roleColor, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

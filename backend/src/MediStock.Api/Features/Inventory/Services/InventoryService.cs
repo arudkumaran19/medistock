@@ -5,6 +5,8 @@ using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Features.Inventory.Validators;
 using Microsoft.EntityFrameworkCore;
 
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+
 namespace MediStock.Api.Features.Inventory.Services;
 
 public sealed class InventoryService(ApplicationDbContext db)

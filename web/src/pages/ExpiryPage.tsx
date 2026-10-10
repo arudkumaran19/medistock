@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { PageHeader, KPICard } from "../components/ui";
 import { inventoryApi } from "../services/inventoryApi";
 import type { Batch, Facility } from "../types/inventory";
@@ -63,7 +62,7 @@ export function ExpiryPage() {
   }).length;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="page-container">
         {/* Back link */}
         <div style={{ marginBottom: 8 }}>
@@ -406,6 +405,6 @@ export function ExpiryPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

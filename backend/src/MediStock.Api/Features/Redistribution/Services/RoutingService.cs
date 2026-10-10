@@ -1,66 +1,214 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using MediStock.Api.Common;
+using MediStock.Api.Domain.Entities;
+using MediStock.Api.Features.Redistribution.DTOs;
+
 namespace MediStock.Api.Features.Redistribution.Services;
 
-/// <summary>
-/// Estimated road distance and travel time between facilities. Redistribution vertical.
-///
-/// The redistribution design called OpenRouteService and fell back to a Haversine
-/// estimate when no API key was configured. This keeps only the fallback, which is
-/// deterministic and needs no network.
-///
-/// DEMONSTRATION COORDINATES. The shared Facilities table (Inventory vertical) has no
-/// latitude or longitude, and adding them would change another member's schema, so the
-/// seeded facilities are placed here at representative Sri Lankan towns. Not specified
-/// in the final blueprint: real facility locations. Do not assume or introduce a new
-/// decision without team-level confirmation. Replace with stored coordinates when the
-/// team agrees to add them.
-/// </summary>
-public sealed class RoutingService
+public class RoutingService : IRoutingService
 {
-    public const string Provider = "HaversineFallback (demo coordinates)";
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<RoutingService> _logger;
 
     private const double EarthRadiusKm = 6371.0;
+    private const double RoadWindingFactor = 1.25; // Empirical road curvature ratio over straight line
 
-    /// <summary>Straight-line distance is shorter than any road; this scales it to a road estimate.</summary>
-    private const double RoadFactor = 1.25;
-
-    /// <summary>Average road speed for a medical supply vehicle, km/h.</summary>
-    private const double AverageSpeedKmh = 45.0;
-
-    private static readonly Dictionary<Guid, (double Lat, double Lon, string Town)> Locations = new()
+    public RoutingService(
+        HttpClient httpClient,
+        IConfiguration configuration,
+        ILogger<RoutingService> logger)
     {
-        [Guid.Parse("11111111-1111-1111-1111-111111111111")] = (6.9271, 79.8612, "Colombo"),     // Central Facility
-        [Guid.Parse("99999999-9999-9999-9999-999999999999")] = (6.0535, 80.2210, "Galle"),       // Eastview General Hospital
-        [Guid.Parse("88888888-8888-8888-8888-888888888888")] = (7.2906, 80.6337, "Kandy"),       // Northside Community Clinic
-        [Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")] = (7.2083, 79.8358, "Negombo"),     // Westgate Public Dispensary
-    };
-
-    /// <summary>Used for facilities created after seeding, which have no demo location.</summary>
-    private static readonly (double Lat, double Lon, string Town) DefaultLocation = (7.8731, 80.7718, "Dambulla");
-
-    public (double Lat, double Lon, string Town) LocationOf(Guid facilityId) =>
-        Locations.TryGetValue(facilityId, out var location) ? location : DefaultLocation;
-
-    public (decimal DistanceKm, decimal DurationMinutes) Estimate(Guid sourceFacilityId, Guid destinationFacilityId)
-    {
-        var (sLat, sLon, _) = LocationOf(sourceFacilityId);
-        var (dLat, dLon, _) = LocationOf(destinationFacilityId);
-
-        var straightKm = Haversine(sLat, sLon, dLat, dLon);
-        var roadKm = straightKm * RoadFactor;
-        var minutes = roadKm / AverageSpeedKmh * 60.0;
-
-        return (Math.Round((decimal)roadKm, 1), Math.Round((decimal)minutes, 0));
+        _httpClient = httpClient;
+        _configuration = configuration;
+        _logger = logger;
     }
 
-    private static double Haversine(double lat1, double lon1, double lat2, double lon2)
+    public async Task<RouteResponse> CalculateRouteAsync(Facility source, Facility destination, CancellationToken ct = default)
     {
-        static double ToRad(double degrees) => degrees * Math.PI / 180.0;
-
-        var dLat = ToRad(lat2 - lat1);
-        var dLon = ToRad(lon2 - lon1);
-        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
-                + Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-
-        return EarthRadiusKm * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return await CalculateRouteCoordinatesAsync(
+            source.Latitude,
+            source.Longitude,
+            destination.Latitude,
+            destination.Longitude,
+            source.Name,
+            destination.Name,
+            source.Id,
+            destination.Id,
+            ct);
     }
+
+    public async Task<RouteResponse> CalculateRouteCoordinatesAsync(
+        double sourceLat,
+        double sourceLon,
+        double destLat,
+        double destLon,
+        string sourceName = "",
+        string destName = "",
+        Guid? sourceId = null,
+        Guid? destId = null,
+        CancellationToken ct = default)
+    {
+        var apiKey = _configuration["OpenRouteService:ApiKey"];
+        var baseUrl = _configuration["OpenRouteService:BaseUrl"] ?? Constants.OpenRouteServiceBaseUrl;
+
+        // If API key is missing, immediately use fallback without failing
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogInformation("OpenRouteService API key not configured. Using deterministic Haversine fallback.");
+            return CalculateHaversineFallback(sourceLat, sourceLon, destLat, destLon, sourceName, destName, sourceId, destId);
+        }
+
+        try
+        {
+            // OpenRouteService expects coordinates as [longitude, latitude]
+            var url = $"{baseUrl.TrimEnd('/')}/v2/directions/driving-car?start={sourceLon:F6},{sourceLat:F6}&end={destLon:F6},{destLat:F6}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("Authorization", apiKey);
+            request.Headers.TryAddWithoutValidation("Accept", "application/json, application/geo+json");
+
+            var response = await _httpClient.SendAsync(request, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "OpenRouteService responded with status {StatusCode} ({ReasonPhrase}). Falling back to Haversine.",
+                    (int)response.StatusCode, response.ReasonPhrase);
+                return CalculateHaversineFallback(sourceLat, sourceLon, destLat, destLon, sourceName, destName, sourceId, destId);
+            }
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            using var jsonDoc = JsonDocument.Parse(content);
+
+            if (jsonDoc.RootElement.TryGetProperty("features", out var features) && features.GetArrayLength() > 0)
+            {
+                var feature = features[0];
+                var properties = feature.GetProperty("properties");
+                var summary = properties.GetProperty("summary");
+
+                var distanceMeters = summary.GetProperty("distance").GetDouble();
+                var durationSeconds = summary.GetProperty("duration").GetDouble();
+
+                var distanceKm = Math.Round((decimal)(distanceMeters / 1000.0), 2);
+                var durationMinutes = Math.Round((decimal)(durationSeconds / 60.0), 2);
+
+                string? polyline = null;
+                var waypoints = new List<RouteWaypointDto>();
+
+                if (feature.TryGetProperty("geometry", out var geometry))
+                {
+                    polyline = geometry.GetRawText();
+
+                    if (geometry.TryGetProperty("coordinates", out var coords) && coords.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var pt in coords.EnumerateArray())
+                        {
+                            if (pt.GetArrayLength() >= 2)
+                            {
+                                waypoints.Add(new RouteWaypointDto
+                                {
+                                    Longitude = pt[0].GetDouble(),
+                                    Latitude = pt[1].GetDouble()
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return new RouteResponse
+                {
+                    SourceFacilityId = sourceId ?? Guid.Empty,
+                    SourceFacilityName = sourceName,
+                    SourceLatitude = sourceLat,
+                    SourceLongitude = sourceLon,
+                    DestinationFacilityId = destId ?? Guid.Empty,
+                    DestinationFacilityName = destName,
+                    DestinationLatitude = destLat,
+                    DestinationLongitude = destLon,
+                    DistanceKm = distanceKm,
+                    DurationMinutes = durationMinutes,
+                    Provider = Constants.OpenRouteServiceProvider,
+                    IsFallback = false,
+                    PolylineGeometry = polyline,
+                    Waypoints = waypoints
+                };
+            }
+
+            _logger.LogWarning("OpenRouteService response did not contain features. Falling back to Haversine.");
+            return CalculateHaversineFallback(sourceLat, sourceLon, destLat, destLon, sourceName, destName, sourceId, destId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OpenRouteService call failed or timed out. Falling back to deterministic Haversine calculation.");
+            return CalculateHaversineFallback(sourceLat, sourceLon, destLat, destLon, sourceName, destName, sourceId, destId);
+        }
+    }
+
+    public static RouteResponse CalculateHaversineFallback(
+        double sourceLat,
+        double sourceLon,
+        double destLat,
+        double destLon,
+        string sourceName = "",
+        string destName = "",
+        Guid? sourceId = null,
+        Guid? destId = null)
+    {
+        var straightLineKm = ComputeHaversineDistanceKm(sourceLat, sourceLon, destLat, destLon);
+        var roadDistanceKm = Math.Round((decimal)(straightLineKm * RoadWindingFactor), 2);
+        
+        // Estimated transit time at 45 km/h
+        var durationMinutes = Math.Round((decimal)((double)roadDistanceKm / Constants.DefaultAverageTransitSpeedKmh * 60.0), 2);
+
+        var waypoints = new List<RouteWaypointDto>
+        {
+            new() { Latitude = sourceLat, Longitude = sourceLon, Label = sourceName },
+            new() { Latitude = destLat, Longitude = destLon, Label = destName }
+        };
+
+        return new RouteResponse
+        {
+            SourceFacilityId = sourceId ?? Guid.Empty,
+            SourceFacilityName = sourceName,
+            SourceLatitude = sourceLat,
+            SourceLongitude = sourceLon,
+            DestinationFacilityId = destId ?? Guid.Empty,
+            DestinationFacilityName = destName,
+            DestinationLatitude = destLat,
+            DestinationLongitude = destLon,
+            DistanceKm = roadDistanceKm,
+            DurationMinutes = durationMinutes,
+            Provider = Constants.HaversineFallbackProvider,
+            IsFallback = true,
+            PolylineGeometry = null,
+            Waypoints = waypoints
+        };
+    }
+
+    public static double ComputeHaversineDistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+
+        var rLat1 = ToRadians(lat1);
+        var rLat2 = ToRadians(lat2);
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(rLat1) * Math.Cos(rLat2) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return EarthRadiusKm * c;
+    }
+
+    private static double ToRadians(double degrees) => degrees * (Math.PI / 180.0);
 }

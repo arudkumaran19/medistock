@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
+using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+
 namespace MediStock.Api.Infrastructure.Persistence;
 
 public sealed class ApplicationDbContext
@@ -23,6 +25,7 @@ public sealed class ApplicationDbContext
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<ReplenishmentRequest> ReplenishmentRequests => Set<ReplenishmentRequest>();
 
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Facility> Facilities => Set<Facility>();
@@ -103,6 +106,10 @@ public sealed class ApplicationDbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-
+        builder.Entity<ReplenishmentRequest>(entity =>
+        {
+            entity.ToTable("replenishment_requests");
+            entity.HasKey(x => x.Id);
+        });
     }
 }

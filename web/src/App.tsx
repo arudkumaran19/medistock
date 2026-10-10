@@ -1,10 +1,9 @@
-function App() {
-  return (
-    <main>
-      <h1>MediStock</h1>
-      <p>Medicine Inventory and Supply Coordination Platform</p>
-    </main>
-  )
-}
+import React from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './app/router';
 
-export default App
+export const App: React.FC = () => {
+  return <RouterProvider router={router} />;
+};
+
+export default App;

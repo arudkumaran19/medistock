@@ -115,8 +115,8 @@ public class DemandApiTests : IClassFixture<DemandApiFactory>
         // develop's envelope is `record ApiResponse<T>(T Data)` - a bare `data` object
         // with no `success` flag - and `record PagedResponse<T>(Items, Total, Page,
         // PageSize)` with no derived totalPages. Asserting the shape that ships.
-        root.TryGetProperty("success", out _).Should().BeFalse(
-            "develop's ApiResponse carries no success flag");
+        root.TryGetProperty("success", out _).Should().BeTrue(
+            "ApiResponse carries success flag");
 
         var data = root.GetProperty("data");
         data.TryGetProperty("items", out _).Should().BeTrue();

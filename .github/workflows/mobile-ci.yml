@@ -1,40 +1,53 @@
-name: Mobile CI
+name: Mobile App CI
 
 on:
   push:
     branches:
       - main
+      - 'feature/**'
       - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  workflow_dispatch:
 
 jobs:
-  mobile:
-    name: Mobile Analyze and Tests
+  analyze-and-test:
+    name: Analyze & Test Flutter App
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: mobile
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.5
-          channel: stable
+          channel: 'stable'
           cache: true
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: flutter pub get
 
-      - name: Analyze
+      - name: Analyze Dart Code
         run: flutter analyze
 
-      - name: Run tests
+      - name: Run Widget Tests
         run: flutter test

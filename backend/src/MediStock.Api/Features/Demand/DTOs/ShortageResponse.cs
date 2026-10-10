@@ -36,6 +36,8 @@ public class ShortageResponse
 
     public DateTime GeneratedAt { get; set; }
 
+    public Guid? RelatedTransferId { get; set; }
+
     public string Status { get; set; } = string.Empty;
 
     public DateTime? UpdatedAt { get; set; }

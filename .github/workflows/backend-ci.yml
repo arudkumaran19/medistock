@@ -4,33 +4,45 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
       - develop
+    paths:
+      - 'backend/**'
+      - 'MediStock.sln'
+      - 'backend/MediStock.sln'
+      - '.github/workflows/backend-ci.yml'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - 'backend/**'
+      - 'MediStock.sln'
+      - 'backend/MediStock.sln'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
 
 jobs:
-  backend:
-    name: Backend Build and Tests
+  build-and-test:
+    name: Build & Test .NET Backend
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: '8.0.x'
 
-      - name: Restore
+      - name: Restore Dependencies
         run: dotnet restore ./backend/MediStock.sln
 
-      - name: Build
+      - name: Build Solution
         run: dotnet build ./backend/MediStock.sln --no-restore --configuration Release
 
-      - name: Run tests
+      - name: Run xUnit Tests
         run: dotnet test ./backend/MediStock.sln --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
 
       - name: Publish test results

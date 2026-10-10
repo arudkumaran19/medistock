@@ -31,5 +31,18 @@ public sealed class FacilityConfiguration
         builder.Property(facility => facility.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
+
+        builder.Property(facility => facility.Latitude)
+            .HasColumnType("double precision");
+
+        builder.Property(facility => facility.Longitude)
+            .HasColumnType("double precision");
+
+        builder.Ignore(facility => facility.City);
+        builder.Ignore(facility => facility.FacilityCode);
+        builder.Ignore(facility => facility.FacilityType);
+        builder.Ignore(facility => facility.ContactPhone);
+        builder.Ignore(facility => facility.ContactPerson);
+        builder.Ignore(facility => facility.Inventories);
     }
 }

@@ -1,29 +1,21 @@
-namespace MediStock.Api.Features.Redistribution.Models;
-
+using System;
 using MediStock.Api.Domain.Enums;
 
-/// <summary>
-/// One entry in a transfer's audit trail: who moved it from which status to which, and
-/// why. Written for every transition and never edited. Redistribution vertical.
-/// </summary>
+namespace MediStock.Api.Features.Redistribution.Models;
+
 public class TransferStatusHistory
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     public Guid TransferRequestId { get; set; }
-
     public TransferRequest? TransferRequest { get; set; }
 
-    /// <summary>Null for the entry that records the transfer's creation.</summary>
     public TransferStatus? FromStatus { get; set; }
-
     public TransferStatus ToStatus { get; set; }
 
-    public Guid? ChangedByUserId { get; set; }
-
-    public string? ChangedByEmail { get; set; }
-
-    public DateTime ChangedAtUtc { get; set; } = DateTime.UtcNow;
+    public Guid ChangedByUserId { get; set; }
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
 
     public string? Reason { get; set; }
+    public string? MetadataJson { get; set; } // GPS, tracking info, checkpoint data
 }

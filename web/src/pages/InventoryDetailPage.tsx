@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DashboardLayout } from "../layouts/DashboardLayout";
 import { PageHeader } from "../components/ui";
 import { inventoryApi, medicineApi } from "../services/inventoryApi";
 import type { Inventory, Medicine, StockTransaction } from "../types/inventory";
@@ -164,7 +163,7 @@ export function InventoryDetailPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="page-container">
         {/* Back link */}
         <div style={{ marginBottom: 8 }}>
@@ -825,6 +824,6 @@ export function InventoryDetailPage() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
