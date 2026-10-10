@@ -19,6 +19,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from medistock_agents.api.demand_routes import demand_router
+from medistock_agents.api.redistribution_routes import redistribution_router
 from medistock_agents.api.routes import (
     inventory_router,
     procurement_router,
