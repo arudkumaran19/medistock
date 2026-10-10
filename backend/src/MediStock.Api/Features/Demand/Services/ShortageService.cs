@@ -1,4 +1,4 @@
-namespace MediStock.Api.Features.Demand.Services;
+﻿namespace MediStock.Api.Features.Demand.Services;
 
 using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
@@ -692,7 +692,7 @@ public class ShortageService
         return ToResponse(alert);
     }
 
-    private static ShortageResponse ToResponse(ShortageAlert alert) => new()
+    public static ShortageResponse ToResponse(ShortageAlert alert) => new()
     {
         Id = alert.Id,
         FacilityId = alert.FacilityId,

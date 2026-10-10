@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import {
@@ -15,6 +15,7 @@ import {
   BadgeCheck,
   GitBranch,
   Users,
+  Truck,
   LogOut,
   ChevronDown,
   Menu,
@@ -27,7 +28,7 @@ import {
 import { useProcurementAgent } from "../context/ProcurementAgentContext";
 import { NotificationBell } from "../features/redistribution/NotificationBell";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface NavItem {
   label: string;
@@ -41,7 +42,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-// ─── Navigation Definition ─────────────────────────────────────────────────
+// â”€â”€â”€ Navigation Definition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ICON_SIZE = 16;
 const ICON_STROKE = 1.75;
@@ -178,7 +179,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// ─── Role helpers ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Role helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getRoleLabel(roles: string[]): string {
   if (roles.some((r) => ["Administrator", "ADMIN"].includes(r))) return "Administrator";
@@ -200,7 +201,7 @@ function getInitials(email: string): string {
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "U";
 }
 
-// ─── Profile Dropdown ───────────────────────────────────────────────────────
+// â”€â”€â”€ Profile Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ProfileDropdown({
   user,
@@ -365,7 +366,7 @@ function ProfileDropdown({
   );
 }
 
-// ─── Sidebar Item ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sidebar Item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function NavLinkItem({
   item,
@@ -413,7 +414,7 @@ function NavLinkItem({
   );
 }
 
-// ─── DashboardLayout Component ──────────────────────────────────────────────
+// â”€â”€â”€ DashboardLayout Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function DashboardLayout({ children }: { children?: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -551,7 +552,7 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
-      {/* ── Desktop Sidebar ───────────────────────────────────── */}
+      {/* â”€â”€ Desktop Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <aside
         style={{
           width: 240,
@@ -568,7 +569,7 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
         {sidebarContent}
       </aside>
 
-      {/* ── Mobile Sidebar Drawer ─────────────────────────────── */}
+      {/* â”€â”€ Mobile Sidebar Drawer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {mobileOpen && (
         <>
           <div
@@ -618,7 +619,7 @@ export function DashboardLayout({ children }: { children?: React.ReactNode }) {
         </>
       )}
 
-      {/* ── Main Area ─────────────────────────────────────────── */}
+      {/* â”€â”€ Main Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Mobile topbar */}
         <header
