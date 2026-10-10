@@ -1,4 +1,4 @@
-"""Internal MediStock agent service entrypoint."""
+﻿"""Internal MediStock agent service entrypoint."""
 
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from medistock_agents.api.demand_routes import demand_router
-from medistock_agents.api.redistribution_routes import redistribution_router
 from medistock_agents.api.routes import (
     inventory_router,
     procurement_router,
@@ -80,7 +79,6 @@ app.include_router(router)
 app.include_router(inventory_router)
 app.include_router(procurement_router)
 app.include_router(demand_router)
-app.include_router(redistribution_router)
 
 if __name__ == "__main__":
     import uvicorn

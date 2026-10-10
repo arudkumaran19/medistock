@@ -326,3 +326,6 @@ class RedistributionAgent:
             tool_calls=tool_records,
             error_message=None,
         )
+
+# Compatibility alias for develop's redistribution_routes.py
+RedistributionPlanningAgent = RedistributionAgent
