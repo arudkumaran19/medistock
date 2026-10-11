@@ -162,13 +162,14 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             const SizedBox(height: 10),
             LayoutBuilder(
               builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 360;
                 return Row(
-                  children: const [
-                    _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
-                    SizedBox(width: 10),
-                    _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
-                    SizedBox(width: 10),
-                    _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Tamil Nadu Grid'),
+                  children: [
+                    const _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
+                    SizedBox(width: isCompact ? 6 : 10),
+                    const _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
+                    SizedBox(width: isCompact ? 6 : 10),
+                    const _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Tamil Nadu Grid'),
                   ],
                 );
               },
