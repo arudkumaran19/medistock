@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/status_chip.dart';
 
 class RequestListScreen extends StatefulWidget {
@@ -13,6 +14,35 @@ class RequestListScreen extends StatefulWidget {
 
 class _RequestListScreenState extends State<RequestListScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final bool _isLoading = false;
+  String? _errorMessage;
+
+  final List<Map<String, dynamic>> _mockRequests = [
+    {
+      'id': '#REQ-2024-8842',
+      'medicine': 'Insulin Glargine 100IU/ml & Cefixime',
+      'details': '120 strips • Cold-Chain Tracked',
+      'route': 'Tambaram Regional Depot ➔ Apollo Anna Nagar',
+      'status': 'INTRANSIT',
+      'path': '/user/requests/req-8842',
+    },
+    {
+      'id': '#REQ-2024-8839',
+      'medicine': 'Human Albumin 20%',
+      'details': '15 vials (100ml) • Cold storage',
+      'route': 'Kilpauk Medical Depot ➔ Apollo Anna Nagar',
+      'status': 'APPROVED',
+      'path': '/user/requests/req-8839',
+    },
+    {
+      'id': '#REQ-2024-8810',
+      'medicine': 'Paracetamol 650mg Tablets',
+      'details': '500 strips • Verified via barcode scan',
+      'route': 'MedPlus Guindy Hub ➔ Apollo Anna Nagar',
+      'status': 'DELIVERED',
+      'path': '/user/requests/req-8810',
+    },
+  ];
 
   @override
   void initState() {
@@ -28,6 +58,31 @@ class _RequestListScreenState extends State<RequestListScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Facility Medicine Requisitions')),
+        body: const LoadingView(label: 'Loading...'),
+      );
+    }
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Facility Medicine Requisitions')),
+        body: ErrorView(
+          message: _errorMessage!,
+          onRetry: () => setState(() => _errorMessage = null),
+        ),
+      );
+    }
+    if (_mockRequests.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Facility Medicine Requisitions')),
+        body: const EmptyView(message: 'No items'),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

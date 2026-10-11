@@ -1,13 +1,64 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/status_chip.dart';
 
-class TaskHistoryScreen extends StatelessWidget {
+class TaskHistoryScreen extends StatefulWidget {
   const TaskHistoryScreen({super.key});
 
   @override
+  State<TaskHistoryScreen> createState() => _TaskHistoryScreenState();
+}
+
+class _TaskHistoryScreenState extends State<TaskHistoryScreen> {
+  final bool _isLoading = false;
+  String? _errorMessage;
+
+  final List<Map<String, String>> _mockHistory = [
+    {
+      'id': '#REQ-2024-8810',
+      'medicine': 'Paracetamol 650mg Tablets',
+      'route': 'MedPlus Guindy Hub ➔ Apollo Anna Nagar',
+      'date': 'Today, 02:30 PM',
+      'distance': '14.2 km',
+    },
+    {
+      'id': '#REQ-2024-8790',
+      'medicine': 'Amoxicillin 500mg Capsules',
+      'route': 'Tambaram Depot ➔ Kilpauk Govt Hospital',
+      'date': 'Yesterday, 11:15 AM',
+      'distance': '22.8 km',
+    },
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Officer Delivery History')),
+        body: const LoadingView(label: 'Loading...'),
+      );
+    }
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Officer Delivery History')),
+        body: ErrorView(
+          message: _errorMessage!,
+          onRetry: () => setState(() => _errorMessage = null),
+        ),
+      );
+    }
+    if (_mockHistory.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Officer Delivery History')),
+        body: const EmptyView(message: 'No items'),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

@@ -1,13 +1,48 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../shared/widgets/state_views.dart';
 import 'verify_shortage_screen.dart';
 
-class AlertsScreen extends StatelessWidget {
+class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
 
   @override
+  State<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends State<AlertsScreen> {
+  final bool _isLoading = false;
+  String? _errorMessage;
+
+  final List<String> _mockAlerts = ['alert-1', 'alert-2', 'alert-3'];
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('AI Shortage Risk & Alerts')),
+        body: const LoadingView(label: 'Loading...'),
+      );
+    }
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('AI Shortage Risk & Alerts')),
+        body: ErrorView(
+          message: _errorMessage!,
+          onRetry: () => setState(() => _errorMessage = null),
+        ),
+      );
+    }
+    if (_mockAlerts.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('AI Shortage Risk & Alerts')),
+        body: const EmptyView(message: 'No items'),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
