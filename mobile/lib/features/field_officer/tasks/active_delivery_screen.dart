@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -22,6 +25,18 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   // Phase B Checklist
   bool _item1Checked = true;
   bool _item2Checked = true;
+  String? _proofPhotoPath;
+
+  Future<void> _takePhoto() async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+    );
+    if (photo != null && mounted) {
+      setState(() => _proofPhotoPath = photo.path);
+    }
+  }
 
   // Phase D OTP
   final TextEditingController _otpController = TextEditingController(text: '4829');
@@ -197,10 +212,19 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: _takePhoto,
               icon: const Icon(Icons.camera_alt_rounded),
               label: const Text('Take Payload Proof Photo'),
             ),
+            if (_proofPhotoPath != null) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: kIsWeb
+                    ? Image.network(_proofPhotoPath!, height: 100)
+                    : Image.file(File(_proofPhotoPath!), height: 100),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => setState(() => _currentPhase = DeliveryPhase.inTransit),
