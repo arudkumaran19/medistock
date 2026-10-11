@@ -160,14 +160,18 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             // TODAY'S SHIFT STATS
             Text('TODAY\'S SHIFT PERFORMANCE', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
-                const SizedBox(width: 10),
-                _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
-                const SizedBox(width: 10),
-                _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Tamil Nadu Grid'),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Row(
+                  children: const [
+                    _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
+                    SizedBox(width: 10),
+                    _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
+                    SizedBox(width: 10),
+                    _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Tamil Nadu Grid'),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
