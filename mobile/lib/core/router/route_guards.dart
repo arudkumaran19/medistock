@@ -12,11 +12,12 @@ class RouteGuards {
     final isSplash = currentPath == '/splash';
     final isRoleSelect = currentPath == '/role-selection';
     final isLogin = currentPath.startsWith('/login');
+    final isRegister = currentPath == '/auth/register';
 
     if (isSplash) return null;
 
     if (!isAuth) {
-      if (!isRoleSelect && !isLogin) {
+      if (!isRoleSelect && !isLogin && !isRegister) {
         return '/role-selection';
       }
       return null;
@@ -30,7 +31,7 @@ class RouteGuards {
 
     final isOfficer = role == 'FIELD_OFFICER' || role == 'FIELDOFFICER' || role == 'LOGISTICSCOORDINATOR';
 
-    if (isRoleSelect || isLogin) {
+    if (isRoleSelect || isLogin || isRegister) {
       return isOfficer ? '/officer/dashboard' : '/user/dashboard';
     }
 

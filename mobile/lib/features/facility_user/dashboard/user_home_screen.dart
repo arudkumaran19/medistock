@@ -351,6 +351,22 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                   subtitle: 'Predictive 14-day stockout AI',
                   onTap: () => context.push('/user/alerts'),
                 ),
+                _QuickOpCard(
+                  icon: Icons.qr_code_scanner_rounded,
+                  iconBg: AppColors.primarySurface,
+                  iconColor: AppColors.primary,
+                  title: 'Scan Batch',
+                  subtitle: 'DataMatrix barcode lookup',
+                  onTap: () => context.push('/inventory/scan'),
+                ),
+                _QuickOpCard(
+                  icon: Icons.psychology_rounded,
+                  iconBg: AppColors.secondaryLight,
+                  iconColor: AppColors.secondary,
+                  title: 'AI Agent',
+                  subtitle: 'Autonomous demand planning',
+                  onTap: () => context.push('/demand/agent'),
+                ),
               ],
             ),
 

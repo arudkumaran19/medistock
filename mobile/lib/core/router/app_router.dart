@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/demand/presentation/agent_analysis_screen.dart';
+import '../../features/demand/presentation/demand_history_screen.dart';
+import '../../features/demand/presentation/forecast_screen.dart';
 import '../../features/facility_user/alerts/alerts_screen.dart';
 import '../../features/facility_user/dashboard/user_home_screen.dart';
 import '../../features/facility_user/inventory/inventory_list_screen.dart';
@@ -14,6 +18,7 @@ import '../../features/field_officer/dashboard/officer_home_screen.dart';
 import '../../features/field_officer/profile/officer_profile_screen.dart';
 import '../../features/field_officer/tasks/active_delivery_screen.dart';
 import '../../features/field_officer/tasks/task_history_screen.dart';
+import '../../features/inventory/screens/scan_batch_screen.dart';
 import 'route_guards.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -36,6 +41,26 @@ final GoRouter appRouter = GoRouter(
         final roleType = state.pathParameters['role'] ?? 'user';
         return LoginScreen(roleType: roleType);
       },
+    ),
+    GoRoute(
+      path: '/auth/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/inventory/scan',
+      builder: (context, state) => const ScanBatchScreen(),
+    ),
+    GoRoute(
+      path: '/demand/agent',
+      builder: (context, state) => const AgentAnalysisScreen(),
+    ),
+    GoRoute(
+      path: '/demand/forecasts',
+      builder: (context, state) => const ForecastScreen(),
+    ),
+    GoRoute(
+      path: '/demand/history',
+      builder: (context, state) => const DemandHistoryScreen(),
     ),
 
     // FACILITY USER DASHBOARD ROUTES
