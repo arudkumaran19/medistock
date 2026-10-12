@@ -26,8 +26,10 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
+    final authState = ref.read(authControllerProvider);
+    final facilityId = authState.user?.facilityId ?? 'a0000000-0000-0000-0000-000000000001';
     SignalRClient().connect().then((_) {
-      SignalRClient().joinFacilityGroup('a0000000-0000-0000-0000-000000000001');
+      SignalRClient().joinFacilityGroup(facilityId);
     });
 
     _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
@@ -41,6 +43,9 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
 
   @override
   void dispose() {
+    final authState = ref.read(authControllerProvider);
+    final facilityId = authState.user?.facilityId ?? 'a0000000-0000-0000-0000-000000000001';
+    SignalRClient().leaveFacilityGroup(facilityId);
     _shortageSub?.cancel();
     super.dispose();
   }

@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/network/signalr_client.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -14,8 +17,41 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   final bool _isLoading = false;
   String? _errorMessage;
+  StreamSubscription? _shortageSub;
+  String? _facilityId;
+  final List<Map<String, dynamic>> _liveAlerts = [];
 
   final List<String> _mockAlerts = ['alert-1', 'alert-2', 'alert-3'];
+
+  @override
+  void initState() {
+    super.initState();
+    _initSignalR();
+  }
+
+  Future<void> _initSignalR() async {
+    final user = await SecureStorageService().getUser();
+    _facilityId = user?['facilityId']?.toString() ?? 'a0000000-0000-0000-0000-000000000001';
+    await SignalRClient().connect();
+    await SignalRClient().joinFacilityGroup(_facilityId!);
+
+    _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
+      if (mounted) {
+        setState(() {
+          _liveAlerts.insert(0, data);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _shortageSub?.cancel();
+    if (_facilityId != null) {
+      SignalRClient().leaveFacilityGroup(_facilityId!);
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +72,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ),
       );
     }
-    if (_mockAlerts.isEmpty) {
+    if (_mockAlerts.isEmpty && _liveAlerts.isEmpty) {
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('AI Shortage Risk & Alerts')),
@@ -51,6 +87,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Live Real-Time SignalR Alerts
+          for (final alert in _liveAlerts) ...[
+            _AlertCard(
+              title: 'LIVE: Shortage Detected — ${alert['medicineName'] ?? 'Medicine'}',
+              description: 'Stock: ${alert['currentStock'] ?? 0} units • ${alert['daysRemaining'] ?? 0} days cover remaining. Supplier lead time: ${alert['leadTimeDays'] ?? 10} days.',
+              urgency: (alert['riskLevel']?.toString().toUpperCase() == 'HIGH') ? 'CRITICAL' : 'WARNING',
+              time: 'Just now (Live)',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => VerifyShortageScreen(shortageAlert: alert),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
           _AlertCard(
             title: 'Critical Stockout Prediction: Meropenem 1g IV',
             description: 'AI model predicts depletion within 36 hours based on local Dengue & ICU surge data. 2 surplus hubs nearby detected.',

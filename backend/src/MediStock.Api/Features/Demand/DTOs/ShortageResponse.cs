@@ -15,6 +15,10 @@ public class ShortageResponse
 
     public Guid MedicineId { get; set; }
 
+    public string? MedicineName { get; set; }
+
+    public string? FacilityName { get; set; }
+
     public Guid? DemandForecastId { get; set; }
 
     public decimal CurrentStock { get; set; }

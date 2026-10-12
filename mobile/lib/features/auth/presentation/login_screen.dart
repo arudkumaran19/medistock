@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../domain/auth_state.dart';
@@ -50,8 +51,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (success && mounted) {
       if (isOfficer) {
+        SignalRClient().connect().then((_) {
+          SignalRClient().joinOfficerGroup();
+        });
         context.go('/officer/dashboard');
       } else {
+        final authState = ref.read(authControllerProvider);
+        final facilityId = authState.user?.facilityId ?? 'a0000000-0000-0000-0000-000000000001';
+        SignalRClient().connect().then((_) {
+          SignalRClient().joinFacilityGroup(facilityId);
+        });
         context.go('/user/dashboard');
       }
     }

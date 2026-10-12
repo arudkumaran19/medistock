@@ -1,4 +1,4 @@
-﻿namespace MediStock.Api.Features.Demand.Services;
+namespace MediStock.Api.Features.Demand.Services;
 
 using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
@@ -47,17 +47,20 @@ public class ShortageService
     private readonly ConsumptionService _consumptionService;
     private readonly ForecastService _forecastService;
     private readonly ILogger<ShortageService> _logger;
+    private readonly ShortageNotificationService? _notificationService;
 
     public ShortageService(
         ApplicationDbContext db,
         ConsumptionService consumptionService,
         ForecastService forecastService,
-        ILogger<ShortageService> logger)
+        ILogger<ShortageService> logger,
+        ShortageNotificationService? notificationService = null)
     {
         _db = db;
         _consumptionService = consumptionService;
         _forecastService = forecastService;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -254,6 +257,13 @@ public class ShortageService
             alert.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(cancellationToken);
 
+            var resp = ToResponse(alert);
+            resp.ExistingAlertUpdated = true;
+            if (_notificationService != null)
+            {
+                await _notificationService.NotifyShortageAlertCreatedAsync(resp, cancellationToken);
+            }
+
             return (alert, true);
         }
 
@@ -270,6 +280,13 @@ public class ShortageService
 
         _db.ShortageAlerts.Add(alert);
         await _db.SaveChangesAsync(cancellationToken);
+
+        var response = ToResponse(alert);
+        response.ExistingAlertUpdated = false;
+        if (_notificationService != null)
+        {
+            await _notificationService.NotifyShortageAlertCreatedAsync(response, cancellationToken);
+        }
 
         return (alert, false);
     }
@@ -573,7 +590,13 @@ public class ShortageService
             alert.LeadTimeDays,
             alert.RiskLevel);
 
-        return ToResponse(alert);
+        var response = ToResponse(alert);
+        if (_notificationService != null)
+        {
+            await _notificationService.NotifyShortageAlertCreatedAsync(response, cancellationToken);
+        }
+
+        return response;
     }
 
     // -----------------------------------------------------------------------

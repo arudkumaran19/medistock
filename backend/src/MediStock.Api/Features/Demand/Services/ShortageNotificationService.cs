@@ -36,13 +36,21 @@ public class ShortageNotificationService
     {
         try
         {
-            var facilityGroup = TransferHub.GetFacilityGroupName(shortage.FacilityId.ToString());
-            await _hubContext.Clients.Group(facilityGroup).ShortageAlertCreated(shortage);
-            _logger.LogInformation("Broadcasted ShortageAlertCreated to group {Group} for alert {AlertId}", facilityGroup, shortage.Id);
-
             // Fetch medicine name
             var medicine = await _appDb.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == shortage.MedicineId, cancellationToken);
-            var medicineName = medicine?.Name ?? "Medicine";
+            var medicineName = medicine?.Name ?? shortage.MedicineName ?? "Medicine";
+            shortage.MedicineName = medicineName;
+
+            var facility = await _appDb.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == shortage.FacilityId, cancellationToken);
+            if (facility != null)
+            {
+                shortage.FacilityName = facility.Name;
+            }
+
+            var facilityGroup = TransferHub.GetFacilityGroupName(shortage.FacilityId.ToString());
+            await _hubContext.Clients.Group(facilityGroup).ShortageAlertCreated(shortage);
+            await _hubContext.Clients.Group("managers").ShortageAlertCreated(shortage);
+            _logger.LogInformation("Broadcasted ShortageAlertCreated to group {Group} and managers for alert {AlertId}", facilityGroup, shortage.Id);
 
             // Fetch facility user ID for recipient
             var userFacility = await _appDb.UserFacilities.AsNoTracking().FirstOrDefaultAsync(uf => uf.FacilityId == shortage.FacilityId, cancellationToken);
