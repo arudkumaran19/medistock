@@ -141,6 +141,24 @@ public class TransferHub : Hub<ITransferHubClient>
     }
 
     /// <summary>
+    /// Join real-time notification group for all facility users.
+    /// </summary>
+    public async Task JoinAllFacilityUsers()
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, "all_facility_users");
+        _logger.LogInformation("Connection {ConnectionId} joined all_facility_users", Context.ConnectionId);
+    }
+
+    /// <summary>
+    /// Leave real-time notification group for all facility users.
+    /// </summary>
+    public async Task LeaveAllFacilityUsers()
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, "all_facility_users");
+        _logger.LogInformation("Connection {ConnectionId} left all_facility_users", Context.ConnectionId);
+    }
+
+    /// <summary>
     /// Join procurement group to receive replenishment requests.
     /// </summary>
     public async Task JoinProcurementGroup()
