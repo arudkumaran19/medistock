@@ -53,6 +53,19 @@ class SecureStorageService {
     return await _storage.read(key: _keySelectedRole);
   }
 
+  Future<String?> getUserRole() async {
+    final role = await getSelectedRole();
+    if (role != null && role.isNotEmpty) return role;
+    final user = await getUser();
+    if (user != null) {
+      if (user['role'] != null) return user['role'].toString();
+      if (user['roles'] is List && (user['roles'] as List).isNotEmpty) {
+        return (user['roles'] as List).first.toString();
+      }
+    }
+    return null;
+  }
+
   Future<void> deleteToken() async {
     await _storage.delete(key: _keyToken);
     await _storage.delete(key: _keyRefreshToken);

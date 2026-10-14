@@ -48,7 +48,7 @@ class SignalRClient {
             },
           ),
         )
-        .withAutomaticReconnect()
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .build();
 
     _hubConnection?.on('TransferStatusChanged', _handleStatusChanged);
@@ -61,6 +61,18 @@ class SignalRClient {
       await _hubConnection?.start();
       if (kDebugMode) {
         debugPrint('✅ [SignalR] Connected successfully to $hubUrl');
+      }
+
+      final role = await _storage.getUserRole();
+      if (role != null &&
+          (role.toUpperCase().contains('FACILITY') ||
+           role.toUpperCase().contains('USER') ||
+           role.toUpperCase().contains('STORE') ||
+           role.toUpperCase().contains('MANAGER'))) {
+        await joinAllFacilityUsers();
+        if (kDebugMode) {
+          debugPrint('📡 [SignalR] Joined all_facility_users');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -132,6 +144,18 @@ class SignalRClient {
   Future<void> leaveOfficerGroup() async {
     if (isConnected) {
       await _hubConnection?.invoke('LeaveOfficerGroup');
+    }
+  }
+
+  Future<void> joinAllFacilityUsers() async {
+    if (isConnected) {
+      await _hubConnection?.invoke('JoinAllFacilityUsers');
+    }
+  }
+
+  Future<void> leaveAllFacilityUsers() async {
+    if (isConnected) {
+      await _hubConnection?.invoke('LeaveAllFacilityUsers');
     }
   }
 
