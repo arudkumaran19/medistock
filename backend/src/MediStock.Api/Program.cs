@@ -239,7 +239,12 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // SignalR
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+});
 
 // Inventory Vertical Slice
 builder.Services.AddScoped<InventoryService>();
@@ -296,6 +301,19 @@ builder.Services.AddProblemDetails();
 // CORS
 builder.Services.AddCors(options =>
 {
+    options.AddPolicy("MobileApp", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:5050",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:5050"
+              )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
     options.AddPolicy("LocalWeb", policy =>
     {
         policy.SetIsOriginAllowed(_ => true)
@@ -388,8 +406,6 @@ await SeedUsers.SeedAsync(app.Services);
 app.UseExceptionHandler();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-app.UseCors("LocalWeb");
-
 // Swagger stays on in deployed builds: the assignment requires a working Swagger URL
 // for evaluators. Set Swagger__Enabled=false to switch it off.
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", true))
@@ -403,11 +419,13 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabl
 
 app.UseRouting();
 
+app.UseCors("MobileApp");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers").RequireAuthorization();
+app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers").RequireCors("MobileApp").RequireAuthorization();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
