@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Header, HTTPException, status
+from pydantic import BaseModel, ConfigDict, Field
 from medistock_agents.agents.redistribution_agent import RedistributionAgent
 from medistock_agents.agents.inventory_agent import InventoryAgent
 from medistock_agents.agents.procurement_validation_agent import ProcurementValidationAgent
@@ -73,6 +76,68 @@ async def plan_redistribution(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Agent execution failed: {str(ex)}",
         )
+
+
+class RedistributionRunRequest(BaseModel):
+    transfer_id: UUID = Field(alias="transferId")
+    objective: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+@router.post(
+    "/api/redistribution-agent/run",
+    response_model=RedistributionPlanResponse,
+    response_model_by_alias=True,
+    tags=["Redistribution Planning"],
+)
+async def run_redistribution_agent(
+    request: RedistributionRunRequest,
+    x_internal_token: Optional[str] = Header(None, alias="X-Internal-Token"),
+) -> RedistributionPlanResponse:
+    """
+    Executes redistribution agent by resolving transfer from the authoritative backend.
+    """
+    try:
+        from medistock_agents.clients.backend_client import BackendClient
+        client = BackendClient()
+        transfer = await client.get_transfer(str(request.transfer_id))
+        if not transfer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transfer request {request.transfer_id} not found in backend.",
+            )
+
+        destination_facility_id = UUID(str(transfer["destinationFacilityId"]))
+        items = transfer.get("items", [])
+        if not items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transfer {request.transfer_id} contains no transfer items.",
+            )
+
+        medicine_id = UUID(str(items[0]["medicineId"]))
+        shortage_quantity = int(items[0].get("requestedQuantity", 100))
+
+        plan_request = RedistributionPlanRequest(
+            workflow_run_id=UUID(str(transfer.get("workflowRunId") or uuid4())),
+            destination_facility_id=destination_facility_id,
+            medicine_id=medicine_id,
+            shortage_quantity=shortage_quantity,
+            additional_context=request.objective,
+        )
+
+        return await _redistribution_agent.plan_redistribution(plan_request)
+
+    except HTTPException:
+        raise
+    except Exception as ex:
+        logger.error("Unhandled error during redistribution agent execution: %s", ex, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Agent execution failed: {str(ex)}",
+        )
+
 # ---------------------------------------------------------------------------
 # Inventory agent router
 # ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-medistock};Username=${POSTGRES_USER:-medistock};Password=${POSTGRES_PASSWORD:-medistock_dev_password}
       - AgentService__BaseUrl=http://agent-service:8000
+      - AgentService__ServiceToken=${AGENT_SERVICE_TOKEN:-medistock-internal-agent-token-2024}
       - JWT_ISSUER=${JWT_ISSUER:-MediStock.Api}
       - JWT_AUDIENCE=${JWT_AUDIENCE:-MediStock.Client}
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-HoOeYL3F2xPhZY+Px4gWS3zfbtnreq4o69ivATfKCB2lab2GSOq9PaNPcbD7VyY4vdHonz9ecREeDXh92nBYtQ==}
@@ -47,6 +48,9 @@ services:
     environment:
       - ENVIRONMENT=development
       - MEDISTOCK_API_BASE_URL=http://backend:5050
+      - BACKEND_URL=http://backend:5050
+      - AGENT_SERVICE_TOKEN=${AGENT_SERVICE_TOKEN:-medistock-internal-agent-token-2024}
+      - INTERNAL_TOKEN=${AGENT_SERVICE_TOKEN:-medistock-internal-agent-token-2024}
     depends_on:
       - backend
 

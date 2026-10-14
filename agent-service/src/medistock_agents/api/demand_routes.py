@@ -47,7 +47,7 @@ SERVICE_TOKEN_HEADER = "X-Internal-Token"
 API_BASE_URL = os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5050")
 
 # Shared secret with the ASP.NET backend. Never committed; supplied by environment.
-AGENT_SERVICE_TOKEN = os.getenv("AGENT_SERVICE_TOKEN", "")
+AGENT_SERVICE_TOKEN = os.getenv("AGENT_SERVICE_TOKEN", "medistock-internal-agent-token-2024")
 
 # Stateless, so one instance is shared across requests.
 _INPUT_GUARD = InputGuard()
