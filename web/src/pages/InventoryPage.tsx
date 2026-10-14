@@ -428,7 +428,7 @@ export function InventoryPage() {
                       </td>
                       <td>{item.facilityName}</td>
                       <td>
-                        <strong>{item.quantityOnHand}</strong>
+                        <strong>{item.unitDisplay ?? item.quantityOnHand}</strong>
                       </td>
                       <td>{item.availableQuantity}</td>
                       <td>{item.minimumStockLevel}</td>
