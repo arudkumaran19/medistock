@@ -15,8 +15,8 @@ public class TransferValidator
         [TransferStatus.Draft] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Cancelled },
         [TransferStatus.Proposed] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
         [TransferStatus.Requested] = new() { TransferStatus.Proposed, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
-        [TransferStatus.Approved] = new() { TransferStatus.Assigned, TransferStatus.Reserved, TransferStatus.Cancelled },
-        [TransferStatus.Assigned] = new() { TransferStatus.Reserved, TransferStatus.PendingReassignment, TransferStatus.Cancelled },
+        [TransferStatus.Approved] = new() { TransferStatus.Assigned, TransferStatus.Reserved, TransferStatus.Dispatched, TransferStatus.Cancelled },
+        [TransferStatus.Assigned] = new() { TransferStatus.Reserved, TransferStatus.Dispatched, TransferStatus.PendingReassignment, TransferStatus.Cancelled },
         [TransferStatus.PendingReassignment] = new() { TransferStatus.Assigned, TransferStatus.Cancelled },
         [TransferStatus.Reserved] = new() { TransferStatus.Dispatched, TransferStatus.Cancelled },
         [TransferStatus.Dispatched] = new() { TransferStatus.Received },
@@ -112,6 +112,15 @@ public class TransferValidator
                     }
                 };
             }
+            else if (transfer.Items.Any())
+            {
+                request.ItemAllocations = transfer.Items.Select(i => new ReserveItemAllocationDto
+                {
+                    TransferItemId = i.Id,
+                    AllocatedQuantity = i.RequestedQuantity,
+                    BatchNumber = request.BatchNumber
+                }).ToList();
+            }
             else
             {
                 errors.Add("Reservation request must contain item allocations.");
@@ -161,6 +170,16 @@ public class TransferValidator
                         DiscrepancyReason = request.DiscrepancyReason
                     }
                 };
+            }
+            else if (transfer.Items.Any())
+            {
+                request.VerifiedItems = transfer.Items.Select(item => new ReceiveItemVerificationDto
+                {
+                    TransferItemId = item.Id,
+                    ReceivedQuantity = item.AllocatedQuantity > 0 ? item.AllocatedQuantity : item.RequestedQuantity,
+                    BatchNumber = request.BatchNumber,
+                    DiscrepancyReason = request.DiscrepancyReason
+                }).ToList();
             }
             else
             {

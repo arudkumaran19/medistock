@@ -104,6 +104,28 @@ public class TransferController : ControllerBase
     }
 
     /// <summary>
+    /// 4b. POST /api/transfers/{id}/approve - Manager approves proposed/requested transfer
+    /// </summary>
+    [HttpPost("{id:guid}/approve")]
+    [Consumes(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ApproveTransfer(
+        [FromRoute] Guid id,
+        [FromBody] SubmitTransferNotesDto? body = null,
+        CancellationToken ct = default)
+    {
+        var approverId = GetCurrentUserId();
+        var result = await _transferService.ApproveTransferInternalAsync(id, approverId, body?.Notes, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "APPROVAL_FAILED", result.Errors));
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// 5. POST /api/transfers/{id}/reserve - Reserve source facility stock for approved transfer
     /// </summary>
     [HttpPost("{id:guid}/reserve")]

@@ -111,3 +111,14 @@ class BackendClient:
         """Fetch all active facilities from backend synchronously."""
         result = self._get_sync("/api/facilities")
         return result if isinstance(result, list) else []
+
+    async def get_transfer_candidates(self, transfer_id: str) -> List[Dict[str, Any]]:
+        """Fetch candidate facilities for transfer from backend asynchronously."""
+        result = await self._get_async(f"/api/transfers/{transfer_id}/candidates")
+        return result if isinstance(result, list) else []
+
+    def get_transfer_candidates_sync(self, transfer_id: str) -> List[Dict[str, Any]]:
+        """Fetch candidate facilities for transfer from backend synchronously."""
+        result = self._get_sync(f"/api/transfers/{transfer_id}/candidates")
+        return result if isinstance(result, list) else []
+

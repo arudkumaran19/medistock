@@ -411,6 +411,7 @@ app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transf
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
 
