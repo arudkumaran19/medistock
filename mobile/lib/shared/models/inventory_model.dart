@@ -6,6 +6,9 @@ class InventoryModel {
   final int quantityAvailable;
   final int minimumThreshold;
   final String unitOfMeasure;
+  final String unit;
+  final String unitDisplay;
+  final String? packBreakdown;
   final DateTime? nextExpiryDate;
   final String status;
 
@@ -17,6 +20,9 @@ class InventoryModel {
     required this.quantityAvailable,
     required this.minimumThreshold,
     required this.unitOfMeasure,
+    required this.unit,
+    required this.unitDisplay,
+    this.packBreakdown,
     this.nextExpiryDate,
     required this.status,
   });
@@ -36,17 +42,36 @@ class InventoryModel {
     final isBelowMin = json['isBelowMinimum'] == true || avail <= minThresh;
     final statusStr = json['status']?.toString() ?? (isBelowMin ? 'LowStock' : 'Optimal');
 
+    final unitVal = json['unit']?.toString() ??
+        json['unitOfMeasure']?.toString() ??
+        'units';
+    final unitDisplayVal = json['unitDisplay']?.toString() ??
+        '$avail $unitVal';
+    final packBreakdownVal = json['packBreakdown']?.toString();
+
     return InventoryModel(
       id: json['id']?.toString() ?? '',
-      itemCode: json['itemCode']?.toString() ?? json['code']?.toString() ?? (json['medicineId'] != null ? 'MED-${json['medicineId'].toString().substring(0, 6).toUpperCase()}' : 'MED-001'),
-      name: json['name']?.toString() ?? json['medicineName']?.toString() ?? json['itemName']?.toString() ?? 'Medicine Item',
+      itemCode: json['itemCode']?.toString() ??
+          json['code']?.toString() ??
+          (json['medicineId'] != null
+              ? 'MED-${json['medicineId'].toString().substring(0, 6).toUpperCase()}'
+              : 'MED-001'),
+      name: json['name']?.toString() ??
+          json['medicineName']?.toString() ??
+          json['itemName']?.toString() ??
+          'Medicine Item',
       category: json['category']?.toString() ?? 'General',
       quantityAvailable: avail,
       minimumThreshold: minThresh,
-      unitOfMeasure: json['unitOfMeasure']?.toString() ?? 'units',
+      unitOfMeasure: unitVal,
+      unit: unitVal,
+      unitDisplay: unitDisplayVal,
+      packBreakdown: packBreakdownVal,
       nextExpiryDate: json['nextExpiryDate'] != null
           ? DateTime.tryParse(json['nextExpiryDate'].toString())
-          : (json['expiryDate'] != null ? DateTime.tryParse(json['expiryDate'].toString()) : null),
+          : (json['expiryDate'] != null
+              ? DateTime.tryParse(json['expiryDate'].toString())
+              : null),
       status: statusStr,
     );
   }

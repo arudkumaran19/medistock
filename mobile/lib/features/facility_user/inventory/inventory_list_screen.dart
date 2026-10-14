@@ -244,7 +244,7 @@ class _InventoryCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Qty: ${item.quantityAvailable} ${item.unitOfMeasure}',
+                      'Qty: ${item.unitDisplay.isNotEmpty ? item.unitDisplay : "${item.quantityAvailable} ${item.unitOfMeasure}"}',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         color: item.isLowStock ? AppColors.error : AppColors.textPrimary,

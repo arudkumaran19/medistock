@@ -106,7 +106,7 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
                   : 'Requisition #${item.transferNumber}';
               final totalUnits = item.items.fold<int>(0, (sum, i) => sum + i.requestedQuantity);
               final details = totalUnits > 0
-                  ? '$totalUnits units • Priority: ${item.priority}'
+                  ? '$totalUnits ${item.primaryUnitOfMeasure} • Priority: ${item.priority}'
                   : 'Priority: ${item.priority}';
               final route = '${item.sourceFacilityName} ➔ ${item.destinationFacilityName}';
 

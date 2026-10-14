@@ -775,7 +775,7 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                               ),
                             ),
                             Text(
-                              '${_transfer.totalAllocatedQuantity > 0 ? _transfer.totalAllocatedQuantity : _transfer.totalRequestedQuantity} units',
+                              _transfer.quantityDisplay,
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,

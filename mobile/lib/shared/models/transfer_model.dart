@@ -4,6 +4,7 @@ class TransferItemModel {
   final String itemName;
   final int requestedQuantity;
   final int? fulfilledQuantity;
+  final String unitOfMeasure;
 
   TransferItemModel({
     required this.id,
@@ -11,6 +12,7 @@ class TransferItemModel {
     required this.itemName,
     required this.requestedQuantity,
     this.fulfilledQuantity,
+    this.unitOfMeasure = 'units',
   });
 
   factory TransferItemModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class TransferItemModel {
       itemName: json['itemName']?.toString() ?? json['medicineName']?.toString() ?? json['name']?.toString() ?? 'Medicine Item',
       requestedQuantity: (json['requestedQuantity'] as num?)?.toInt() ?? (json['quantity'] as num?)?.toInt() ?? 1,
       fulfilledQuantity: (json['fulfilledQuantity'] as num?)?.toInt() ?? (json['allocatedQuantity'] as num?)?.toInt() ?? (json['receivedQuantity'] as num?)?.toInt(),
+      unitOfMeasure: json['unitOfMeasure']?.toString() ?? json['unit']?.toString() ?? 'units',
     );
   }
 }
@@ -58,6 +61,13 @@ class TransferModel {
     this.otp,
     required this.items,
   });
+
+  String get primaryUnitOfMeasure {
+    if (items.isNotEmpty && items.first.unitOfMeasure.isNotEmpty) {
+      return items.first.unitOfMeasure;
+    }
+    return 'units';
+  }
 
   factory TransferModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] as List<dynamic>? ?? [];
