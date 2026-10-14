@@ -81,8 +81,8 @@ export const TransferDashboard: React.FC = () => {
   // Calculate metrics
   const requestedCount = transfers.filter((t) => t.status === 'Requested').length;
   const approvedCount = transfers.filter((t) => t.status === 'Approved' || t.status === 'Reserved').length;
-  const inTransitCount = transfers.filter((t) => t.status === 'InTransit').length;
-  const deliveredCount = transfers.filter((t) => t.status === 'Delivered').length;
+  const inTransitCount = transfers.filter((t) => t.status === 'InTransit' || t.status === 'Dispatched').length;
+  const deliveredCount = transfers.filter((t) => t.status === 'Delivered' || t.status === 'Received').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -197,7 +197,7 @@ export const TransferDashboard: React.FC = () => {
 
         {/* Status Filter Tabs */}
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {['ALL', 'Requested', 'Approved', 'Reserved', 'InTransit', 'Delivered'].map((status) => (
+          {['ALL', 'Requested', 'Approved', 'Reserved', 'Dispatched', 'Received'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
