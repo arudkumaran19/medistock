@@ -120,4 +120,70 @@ Phase 1 verification confirmed seamless interoperability across the complete Med
 
 Phase 1 E2E verification is **100% COMPLETE**. All 6 required tests and all 10 timeline steps (T0–T10) have been validated against live running services. All 450 existing tests pass with 0 regressions.
 
-Ready to proceed to **Phase 2: Duplicate Controller Cleanup**.
+---
+
+## Phase 3: Critical Database Reconciliation & Unit Normalization Verification
+
+**Execution Date:** 2026-10-14  
+**Status:** **100% VERIFIED & COMPLETED**  
+**Total Test Suites Passing:** **618 / 618** (170 .NET backend + 202 Python agent + 78 Flutter mobile + 168 Web vitest)  
+**Linters & Compilers:** **0 issues / 0 warnings** (`flutter analyze`, `tsc -b && vite build`)
+
+### 1. Root Cause & Problem Resolution
+- **Two Parallel Catalogs in PostgreSQL:**
+  - `ApplicationDbContext` mapped to PascalCase `"Medicines"` (8 rows, included `Unit` column with `"tablet"`, `"capsule"`, `"BOTTLE"`).
+  - `MediStockDbContext` mapped to lowercase `medicines` (6 rows, had `UnitOfMeasure` column with `"capsules"`, `"tablets"`).
+  - UUID `77777777-7777-7777-7777-777777777777` collided: Azithromycin 250 mg in `"Medicines"` vs duplicate Ceftriaxone in `medicines`.
+  - Joining `"InventoryBalances"` on `medicines` produced only 1/8 matches; on `"Medicines"` it produced 8/8 matches.
+- **Approach A (Synchronize & Bridge) Implemented:**
+  - Created point-in-time database backups: `"InventoryBalances_backup_20261014"`, `"Medicines_backup_20261014"`, and `medicines_backup_20261014`.
+  - Created idempotent migration script `backend/scripts/reconcile_medicines.sql` and restore script `backend/scripts/restore_backup.sql`.
+  - Reconciled `medicines` table: corrected UUID `77777777-...` to Azithromycin 250 mg and inserted missing 7 medicines from `"Medicines"`.
+  - Both catalog tables now join 100% (8/8) with `"InventoryBalances"`.
+
+### 2. Backend DTO & Service Unit Normalization (.NET 8)
+- Updated `backend/src/MediStock.Api/Features/Inventory/DTOs/InventoryResponse.cs`:
+  - Added `string Unit`, `string UnitDisplay`, and `string? PackBreakdown = null`.
+- Updated `backend/src/MediStock.Api/Features/Inventory/Services/InventoryService.cs`:
+  - Implemented `Pluralize()` and `FormatUnitDisplay()` with canonical singular/plural rules (`1 tablet` vs `110 tablets`, `1 capsule` vs `12 capsules`, `bottles`, `vials`).
+  - Updated `GetAllAsync` and `Map` to populate `Unit` and `UnitDisplay`.
+- Live API verification (`GET /api/inventory`):
+  - `12 capsules`, `1 tablet`, `110 tablets`, `150 tablets`, `90 capsules`, `420 tablets`, `34 tablets`.
+- Regression: `dotnet test backend/tests/MediStock.UnitTests` -> 170/170 passing.
+
+### 3. Flutter Mobile Client Normalization
+- Updated `mobile/lib/shared/models/inventory_model.dart`:
+  - Added `unit`, `unitDisplay`, and `packBreakdown` fields with JSON serialization and fallback unit display formatting.
+- Updated `mobile/lib/features/facility_user/inventory/inventory_list_screen.dart`:
+  - Replaced hardcoded `"units"` with `item.unitDisplay`.
+- Updated `mobile/lib/features/redistribution/models/transfer_models.dart` & `mobile/lib/shared/models/transfer_model.dart`:
+  - Added `primaryUnitOfMeasure` and `quantityDisplay` getters.
+- Updated `mobile/lib/features/redistribution/screens/transfer_list_screen.dart`, `mobile/lib/features/redistribution/screens/transfer_tracking_screen.dart`, and `mobile/lib/features/facility_user/requests/request_list_screen.dart`:
+  - Replaced raw integer quantities with `item.quantityDisplay`.
+- Regression: `flutter test mobile/test` -> 78/78 passing; `flutter analyze mobile` -> 0 issues.
+
+### 4. Web Application Normalization (React / TypeScript)
+- Updated `web/src/types/inventory.ts`:
+  - Added `unit?: string; unitDisplay?: string; packBreakdown?: string | null;` to `Inventory` interface.
+- Updated `web/src/pages/InventoryPage.tsx`:
+  - Table stock cell displays `item.unitDisplay ?? item.quantityOnHand`.
+- Updated `web/src/pages/DashboardPage.tsx`:
+  - Low stock warning displays `Available: {item.unitDisplay ?? `${item.quantityOnHand} units`}`.
+- Regression: `vitest run` in `web/` -> 168/168 passing; `tsc -b && vite build` -> clean build.
+
+### 5. AI Agent Service Verification (FastAPI + LangGraph)
+- Verified candidate discovery against reconciled PostgreSQL database with `X-Internal-Token`.
+- Regression: `pytest agent-service/tests` -> 202 passing, 1 skipped.
+
+### 6. Full End-to-End Suite Verification Summary
+
+| Suite / Component | Verification Command | Target Result | Actual Result | Status |
+|---|---|---|---|---|
+| **E2E Lifecycle Pipeline** | `python scratch/test_e2e_lifecycle.py` | T0 through T9 end-to-end | Completed and Verified (T0 - T9) | **PASSED** |
+| **.NET 8 Backend API** | `dotnet test backend/tests/MediStock.UnitTests` | 170 tests passing | 170 passed, 0 failed | **PASSED** |
+| **FastAPI Agent Service** | `pytest agent-service/tests` | 202 tests passing | 202 passed, 1 skipped | **PASSED** |
+| **Flutter Mobile App** | `flutter test mobile/test` | 78 tests passing | 78 passed, 0 failed | **PASSED** |
+| **Flutter Static Analysis** | `flutter analyze mobile` | 0 issues | No issues found! | **PASSED** |
+| **React Web App** | `npm test` in `web/` | 168 tests passing | 168 passed, 0 failed | **PASSED** |
+| **React TypeScript Build** | `npm run build` in `web/` | 0 type errors | Clean build (2.37s) | **PASSED** |
+| **Total Test Count** | Across all 4 test suites | **618 tests** | **618 / 618 (100%)** | **PASSED** |
