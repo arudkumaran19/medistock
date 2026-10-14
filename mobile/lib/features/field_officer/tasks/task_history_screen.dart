@@ -1,88 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/status_chip.dart';
+import 'data/officer_task_repository.dart';
 
-class TaskHistoryScreen extends StatefulWidget {
+class TaskHistoryScreen extends ConsumerStatefulWidget {
   const TaskHistoryScreen({super.key});
 
   @override
-  State<TaskHistoryScreen> createState() => _TaskHistoryScreenState();
+  ConsumerState<TaskHistoryScreen> createState() => _TaskHistoryScreenState();
 }
 
-class _TaskHistoryScreenState extends State<TaskHistoryScreen> {
-  final bool _isLoading = false;
-  String? _errorMessage;
-
-  final List<Map<String, String>> _mockHistory = [
-    {
-      'id': '#REQ-2024-8810',
-      'medicine': 'Paracetamol 650mg Tablets',
-      'route': 'MedPlus Guindy Hub ➔ Apollo Anna Nagar',
-      'date': 'Today, 02:30 PM',
-      'distance': '14.2 km',
-    },
-    {
-      'id': '#REQ-2024-8790',
-      'medicine': 'Amoxicillin 500mg Capsules',
-      'route': 'Tambaram Depot ➔ Kilpauk Govt Hospital',
-      'date': 'Yesterday, 11:15 AM',
-      'distance': '22.8 km',
-    },
-  ];
-
+class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Officer Delivery History')),
-        body: const LoadingView(label: 'Loading...'),
-      );
-    }
-    if (_errorMessage != null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Officer Delivery History')),
-        body: ErrorView(
-          message: _errorMessage!,
-          onRetry: () => setState(() => _errorMessage = null),
-        ),
-      );
-    }
-    if (_mockHistory.isEmpty) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Officer Delivery History')),
-        body: const EmptyView(message: 'No items'),
-      );
-    }
+    final tasksAsync = ref.watch(assignedTasksProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Officer Delivery History'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _HistoryCard(
-            id: '#REQ-2024-8810',
-            medicine: 'Paracetamol 650mg Tablets',
-            route: 'MedPlus Guindy Hub ➔ Apollo Anna Nagar',
-            date: 'Today, 02:30 PM',
-            distance: '14.2 km',
-          ),
-          SizedBox(height: 12),
-          _HistoryCard(
-            id: '#REQ-2024-8790',
-            medicine: 'Amoxicillin 500mg Capsules',
-            route: 'Tambaram Depot ➔ Kilpauk Govt Hospital',
-            date: 'Yesterday, 11:15 AM',
-            distance: '22.8 km',
-          ),
-        ],
+      body: tasksAsync.when(
+        loading: () => const LoadingView(label: 'Loading tasks...'),
+        error: (err, _) => ErrorView(
+          message: 'Failed to load task history: $err',
+          onRetry: () => ref.refresh(assignedTasksProvider),
+        ),
+        data: (tasks) {
+          if (tasks.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: () async => ref.refresh(assignedTasksProvider),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 120),
+                  EmptyView(message: 'No assigned deliveries found'),
+                ],
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async => ref.refresh(assignedTasksProvider),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: tasks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final task = tasks[index];
+                final medicineTitle = task.items.isNotEmpty
+                    ? task.items.map((i) => '${i.itemName} (${i.requestedQuantity})').join(', ')
+                    : 'Transfer #${task.transferNumber}';
+                final route = '${task.sourceFacilityName} ➔ ${task.destinationFacilityName}';
+                final dateStr = '${task.createdAt.day}/${task.createdAt.month}/${task.createdAt.year}';
+
+                return InkWell(
+                  onTap: () => context.push('/officer/active/${task.id}'),
+                  borderRadius: BorderRadius.circular(16),
+                  child: _HistoryCard(
+                    id: '#${task.transferNumber}',
+                    medicine: medicineTitle,
+                    route: route,
+                    date: dateStr,
+                    status: task.status,
+                    distance: 'Live Tracked',
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -93,6 +84,7 @@ class _HistoryCard extends StatelessWidget {
   final String medicine;
   final String route;
   final String date;
+  final String status;
   final String distance;
 
   const _HistoryCard({
@@ -100,6 +92,7 @@ class _HistoryCard extends StatelessWidget {
     required this.medicine,
     required this.route,
     required this.date,
+    required this.status,
     required this.distance,
   });
 
@@ -119,7 +112,7 @@ class _HistoryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(id, style: AppTextStyles.titleSmall.copyWith(color: AppColors.secondary)),
-              const StatusChip(status: 'DELIVERED'),
+              StatusChip(status: status.toUpperCase()),
             ],
           ),
           const SizedBox(height: 8),

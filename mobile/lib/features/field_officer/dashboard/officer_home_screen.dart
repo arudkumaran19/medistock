@@ -6,6 +6,7 @@ import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../tasks/data/officer_task_repository.dart';
 import '../tasks/incoming_task_modal.dart';
 
 class OfficerHomeScreen extends ConsumerStatefulWidget {
@@ -54,12 +55,20 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => IncomingTaskModal(
         taskData: taskData,
-        onAccept: () {
+        onAccept: () async {
           Navigator.pop(context);
-          context.push('/officer/active/$transferId');
+          try {
+            await ref.read(officerTaskRepositoryProvider).acceptTask(transferId);
+          } catch (_) {}
+          if (context.mounted) {
+            context.push('/officer/active/$transferId');
+          }
         },
-        onDecline: () {
+        onDecline: () async {
           Navigator.pop(context);
+          try {
+            await ref.read(officerTaskRepositoryProvider).declineTask(transferId);
+          } catch (_) {}
         },
       ),
     );

@@ -101,8 +101,9 @@ class _NewRequestWizardState extends State<NewRequestWizard> {
         requireAuth: false,
       );
 
-      if (response != null && response is Map && response['id'] != null) {
-        _createdRequestId = response['transferNumber']?.toString() ?? 'REQ-2024-8845';
+      final respData = response is Map ? (response['data'] ?? response) : null;
+      if (respData is Map && respData['id'] != null) {
+        _createdRequestId = respData['transferNumber']?.toString() ?? respData['id']?.toString() ?? 'REQ-2024-8845';
       }
     } catch (_) {}
 

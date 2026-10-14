@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/network/signalr_client.dart';
 
@@ -59,3 +60,8 @@ class LocationPublisher {
     _isPublishing = false;
   }
 }
+
+final locationPublisherProvider = Provider<LocationPublisher>((ref) {
+  return LocationPublisher();
+});
+

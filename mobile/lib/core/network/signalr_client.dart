@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:signalr_core/signalr_core.dart';
 import '../config/app_config.dart';
 import '../storage/secure_storage.dart';
@@ -30,7 +31,10 @@ class SignalRClient {
     if (isConnected) return;
 
     final token = await _storage.getToken();
-    final hubUrl = AppConfig.signalRHubUrl;
+    final baseUrl = AppConfig.signalRHubUrl;
+    final hubUrl = (token != null && token.isNotEmpty)
+        ? '$baseUrl?access_token=$token'
+        : baseUrl;
 
     _hubConnection = HubConnectionBuilder()
         .withUrl(
@@ -131,6 +135,18 @@ class SignalRClient {
     }
   }
 
+  Future<void> joinManagerGroup() async {
+    if (isConnected) {
+      await _hubConnection?.invoke('JoinManagerGroup');
+    }
+  }
+
+  Future<void> leaveManagerGroup() async {
+    if (isConnected) {
+      await _hubConnection?.invoke('LeaveManagerGroup');
+    }
+  }
+
   Future<void> sendLocationUpdate(String transferId, double lat, double lng) async {
     if (isConnected) {
       await _hubConnection?.invoke('SendLocationUpdate', args: [transferId, lat, lng]);
@@ -153,3 +169,8 @@ class SignalRClient {
     _shortageAlertController.close();
   }
 }
+
+final signalRClientProvider = Provider<SignalRClient>((ref) {
+  return SignalRClient();
+});
+

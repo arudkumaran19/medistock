@@ -3,23 +3,26 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../location/location_publisher.dart';
+import 'data/officer_task_repository.dart';
 
 enum DeliveryPhase { headingToPickup, atPickup, inTransit, atDestination }
 
-class ActiveDeliveryScreen extends StatefulWidget {
+class ActiveDeliveryScreen extends ConsumerStatefulWidget {
   final String transferId;
 
   const ActiveDeliveryScreen({super.key, required this.transferId});
 
   @override
-  State<ActiveDeliveryScreen> createState() => _ActiveDeliveryScreenState();
+  ConsumerState<ActiveDeliveryScreen> createState() => _ActiveDeliveryScreenState();
 }
 
-class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
+class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
   DeliveryPhase _currentPhase = DeliveryPhase.headingToPickup;
 
   // Phase B Checklist
@@ -43,6 +46,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
 
   @override
   void dispose() {
+    LocationPublisher().stopPublishing();
     _otpController.dispose();
     super.dispose();
   }
@@ -227,7 +231,16 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
             ],
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => setState(() => _currentPhase = DeliveryPhase.inTransit),
+              onPressed: () async {
+                setState(() => _currentPhase = DeliveryPhase.inTransit);
+                try {
+                  await ref.read(officerTaskRepositoryProvider).confirmPickup(
+                    widget.transferId,
+                    PickupProof(notes: 'Payload inspection verified, cold vault seals intact'),
+                  );
+                } catch (_) {}
+                LocationPublisher().startPublishing(activeTransferId: widget.transferId);
+              },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
               child: const Text('Confirm Pickup & Begin Transit'),
             ),
@@ -285,7 +298,19 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                LocationPublisher().stopPublishing();
+                try {
+                  await ref.read(officerTaskRepositoryProvider).confirmDelivery(
+                    widget.transferId,
+                    DeliveryProof(
+                      recipientName: 'Staff Pharmacist',
+                      notes: 'Verified with OTP ${_otpController.text}',
+                    ),
+                  );
+                } catch (_) {}
+
+                if (!mounted) return;
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
