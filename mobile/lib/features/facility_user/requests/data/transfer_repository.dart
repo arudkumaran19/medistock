@@ -33,6 +33,15 @@ class CreateTransferRequest {
   };
 }
 
+String toBackendStatus(String uiStatus) {
+  const map = {
+    'InTransit': 'Dispatched',
+    'Delivered': 'Received',
+    'Pending': 'Requested',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
 class TransferRepository {
   final Dio _dio;
 
@@ -43,8 +52,10 @@ class TransferRepository {
     int page = 1,
     int pageSize = 20,
   }) async {
+    final backendStatus = status != null ? toBackendStatus(status) : null;
     final resp = await _dio.get('/api/transfers', queryParameters: {
-      if (status != null && status != 'All') 'status': status,
+      if (backendStatus != null && backendStatus != 'All' && backendStatus != 'ALL')
+        'status': backendStatus,
       'page': page,
       'pageSize': pageSize,
     });

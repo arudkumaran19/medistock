@@ -3,6 +3,15 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../models/transfer_models.dart';
 
+String toBackendStatus(String uiStatus) {
+  const map = {
+    'InTransit': 'Dispatched',
+    'Delivered': 'Received',
+    'Pending': 'Requested',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
 class TransferApiService {
   final ApiClient _apiClient;
 
@@ -21,7 +30,7 @@ class TransferApiService {
       'pageSize': pageSize,
     };
     if (status != null && status.isNotEmpty && status != 'ALL') {
-      queryParams['status'] = status;
+      queryParams['status'] = toBackendStatus(status);
     }
     if (facilityId != null && facilityId.isNotEmpty) {
       queryParams['facilityId'] = facilityId;

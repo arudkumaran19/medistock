@@ -7,6 +7,15 @@ import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/status_chip.dart';
 import 'data/transfer_repository.dart';
 
+String toBackendStatus(String uiStatus) {
+  const map = {
+    'InTransit': 'Dispatched',
+    'Delivered': 'Received',
+    'Pending': 'Requested',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
 class RequestListScreen extends ConsumerStatefulWidget {
   const RequestListScreen({super.key});
 
@@ -71,18 +80,19 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
   }
 
   Widget _buildRequestList({String? status}) {
-    final requestsAsync = ref.watch(myRequestsProvider(status));
+    final backendStatus = status != null ? toBackendStatus(status) : null;
+    final requestsAsync = ref.watch(myRequestsProvider(backendStatus));
 
     return requestsAsync.when(
       loading: () => const LoadingView(label: 'Loading requisitions...'),
       error: (err, _) => ErrorView(
         message: 'Failed to load requests: $err',
-        onRetry: () => ref.refresh(myRequestsProvider(status)),
+        onRetry: () => ref.refresh(myRequestsProvider(backendStatus)),
       ),
       data: (items) {
         if (items.isEmpty) {
           return RefreshIndicator(
-            onRefresh: () async => ref.refresh(myRequestsProvider(status)),
+            onRefresh: () async => ref.refresh(myRequestsProvider(backendStatus)),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: const [
