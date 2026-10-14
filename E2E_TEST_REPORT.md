@@ -187,3 +187,59 @@ Phase 1 E2E verification is **100% COMPLETE**. All 6 required tests and all 10 t
 | **React Web App** | `npm test` in `web/` | 168 tests passing | 168 passed, 0 failed | **PASSED** |
 | **React TypeScript Build** | `npm run build` in `web/` | 0 type errors | Clean build (2.37s) | **PASSED** |
 | **Total Test Count** | Across all 4 test suites | **618 tests** | **618 / 618 (100%)** | **PASSED** |
+
+---
+
+## Phase 4: Shortage Alert -> Flutter User Flow & Real-Time SignalR Verification
+
+**Execution Date:** 2026-10-15  
+**Scope:** Real-time Shortage Alert propagation from Manager (Web/API) -> SignalR Hub -> Flutter Mobile Facility Users.  
+**Overall Status:** **PASSED (100%)**
+
+### Problem Addressed
+1. **SignalR WebSocket CORS Failure:** Chrome blocked SignalR negotiation and WebSocket upgrade because CORS policy lacked `AllowCredentials()`.
+2. **Orphaned Shortage Broadcasts:** Shortage alerts were previously broadcast only to `facility_{facilityId}_users`. If the affected hospital had no registered users assigned directly to its ID, alerts were dropped.
+3. **Flutter Alerts Screen Mock Data:** `alerts_screen.dart` relied on hardcoded `_mockAlerts` list and lacked live REST integration and SignalR listeners.
+
+### Solution & Key Changes Applied
+
+#### 1. Backend CORS & SignalR Configuration (`2257614`)
+- **File:** `backend/src/MediStock.Api/Program.cs`
+- Added explicit `MobileApp` CORS policy allowing origins `http://localhost:5173`, `http://localhost:3000`, `http://localhost:5050`, `http://127.0.0.1:5173`, `http://127.0.0.1:5050` with `.AllowAnyMethod().AllowAnyHeader().AllowCredentials()`.
+- Configured SignalR options: `EnableDetailedErrors = true`, `KeepAliveInterval = 15s`, `ClientTimeoutInterval = 30s`.
+- Ordered middleware: `UseRouting()` -> `UseCors("MobileApp")` -> `UseAuthentication()` -> `UseAuthorization()` -> `MapHub<TransferHub>("/hubs/transfers").RequireCors("MobileApp").RequireAuthorization()`.
+
+#### 2. Backend Shortage Alert Multi-Group Broadcast (`8c9f857`)
+- **Files:** `backend/src/MediStock.Api/Features/Redistribution/Hubs/TransferHub.cs` & `backend/src/MediStock.Api/Features/Demand/Services/ShortageNotificationService.cs`
+- Added `JoinAllFacilityUsers()` and `LeaveAllFacilityUsers()` hub methods in `TransferHub`.
+- Updated `ShortageNotificationService.NotifyShortageAlertCreatedAsync` to broadcast `ShortageAlertCreated` to:
+  - `all_facility_users` (broadcasts to all mobile facility users regardless of facility assignment)
+  - `managers` (web dashboard managers)
+  - `facilityGroup` (`facility_{facilityId}_users` for backward compatibility)
+- Also triggers `NotificationCreated` broadcast to `all_facility_users` and `managers`.
+
+#### 3. Flutter Mobile SignalR Group Registration (`2d18b42`)
+- **Files:** `mobile/lib/core/storage/secure_storage.dart` & `mobile/lib/core/network/signalr_client.dart`
+- Added `getUserRole()` in `SecureStorage`.
+- Configured automatic reconnect policy with intervals `[0, 2000, 5000, 10000, 30000]`.
+- On connection and reconnection, users with role `facility_user` or `manager` automatically invoke `JoinAllFacilityUsers`.
+- Added `joinAllFacilityUsers()` and `leaveAllFacilityUsers()` methods on `SignalRClient`.
+
+#### 4. Flutter Alerts Screen Real API & Live SignalR Integration (`93ed68d`)
+- **Files:**
+  - `mobile/lib/features/facility_user/alerts/models/shortage_alert_model.dart`: Data model with JSON parsing for `ShortageAlertModel`.
+  - `mobile/lib/features/facility_user/alerts/data/shortage_repository.dart`: REST service querying `GET /api/shortages`.
+  - `mobile/lib/features/facility_user/alerts/alerts_provider.dart`: StateNotifier provider managing live alerts state and SignalR event injection.
+  - `mobile/lib/features/facility_user/alerts/alerts_screen.dart`: Converted from mock data to `ConsumerStatefulWidget` wired to `alertsProvider`, with pull-to-refresh, badge counters, and real-time subscription to `SignalRClient.onShortageAlertCreated`.
+
+### End-to-End Verification Matrix
+
+| Test Step | Description | Verification Method | Status |
+|---|---|---|---|
+| **Step 1** | Manager & Facility User Authentication | JWT tokens retrieved from `POST /api/auth/login` | **PASSED** |
+| **Step 2** | SignalR Negotiate with CORS & Credentials | `POST /hubs/transfers/negotiate?negotiateVersion=1` with `Origin: http://localhost:5173` | **PASSED (HTTP 200, Allow-Credentials: true)** |
+| **Step 3** | Manager Raises Shortage Alert | `POST /api/shortages` with `currentStock` & consumption parameters | **PASSED (HTTP 201/200)** |
+| **Step 4** | SignalR Alert Multi-Cast | Broadcast to `all_facility_users` group | **PASSED** |
+| **Step 5** | Facility User Retrieves Alerts via REST | `GET /api/shortages` with `Bearer <token>` | **PASSED (HTTP 200, 18 alerts visible)** |
+| **Step 6** | Unit Test Suites & Static Analysis | `dotnet test` (170/170), `flutter test` (78/78), `flutter analyze` (0 issues) | **PASSED (100%)** |
+
