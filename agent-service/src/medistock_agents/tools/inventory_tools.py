@@ -8,7 +8,7 @@ class BackendUnavailableError(RuntimeError):
 class InventoryBackend:
 	"""Controlled API adapter; the agent never connects to the database."""
 	def __init__(self, base_url: str | None = None, token: str | None = None) -> None:
-		self.base_url = (base_url or os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5182")).rstrip("/")
+		self.base_url = (base_url or os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5050")).rstrip("/")
 		self.token = token or os.getenv("MEDISTOCK_JWT_TOKEN")
 		self.timeout = httpx.Timeout(5.0)
 

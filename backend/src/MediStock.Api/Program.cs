@@ -409,6 +409,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<MediStock.Api.Features.Redistribution.Hubs.TransferHub>("/hubs/transfers").RequireAuthorization();
 
+app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();

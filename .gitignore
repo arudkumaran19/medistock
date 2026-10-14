@@ -1,8 +1,10 @@
 ## Visual Studio & .NET Build artifacts
 [Bb]in/
 [Oo]bj/
+[Pp]ublish/
 [Ll]og/
 [Ll]ogs/
+merge-disputed-backup/
 .vs/
 *.user
 *.suo

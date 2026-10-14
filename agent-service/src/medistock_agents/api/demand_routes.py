@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 SERVICE_TOKEN_HEADER = "X-Internal-Token"
 
 # The backend this service calls back into for its controlled tools.
-API_BASE_URL = os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5000")
+API_BASE_URL = os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5050")
 
 # Shared secret with the ASP.NET backend. Never committed; supplied by environment.
 AGENT_SERVICE_TOKEN = os.getenv("AGENT_SERVICE_TOKEN", "")
