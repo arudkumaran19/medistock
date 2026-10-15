@@ -4,8 +4,11 @@ using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
 using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Features.Redistribution.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Shortage endpoints of the frozen Demand API contract.
@@ -29,15 +32,21 @@ public class ShortageController : ControllerBase
     private readonly ShortageService _shortageService;
     private readonly ShortageEvaluationService _evaluationService;
     private readonly DemandValidator _validator;
+    private readonly IHubContext<TransferHub, ITransferHubClient> _hub;
+    private readonly ILogger<ShortageController>? _logger;
 
     public ShortageController(
         ShortageService shortageService,
         ShortageEvaluationService evaluationService,
-        DemandValidator validator)
+        DemandValidator validator,
+        IHubContext<TransferHub, ITransferHubClient> hub,
+        ILogger<ShortageController>? logger = null)
     {
         _shortageService = shortageService;
         _evaluationService = evaluationService;
         _validator = validator;
+        _hub = hub;
+        _logger = logger;
     }
 
     /// <summary>
@@ -165,28 +174,38 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse alert;
+        ShortageResponse response;
 
         try
         {
-            alert = await _shortageService.CreateShortageAsync(request, cancellationToken);
+            response = await _shortageService.CreateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
+        await _hub.Clients
+            .Group("all_facility_users")
+            .ShortageAlertCreated(response);
+
+        await _hub.Clients
+            .Group("managers")
+            .ShortageAlertCreated(response);
+
+        _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+
         // Raising an alert that is already active refreshes it rather than duplicating
         // it, so that case is a 200 on the existing resource, not a 201.
-        if (alert.ExistingAlertUpdated)
+        if (response.ExistingAlertUpdated)
         {
-            return Ok(new ApiResponse<ShortageResponse>(alert));
+            return Ok(new ApiResponse<ShortageResponse>(response));
         }
 
         return CreatedAtAction(
             nameof(GetShortageById),
-            new { id = alert.Id },
-            new ApiResponse<ShortageResponse>(alert));
+            new { id = response.Id },
+            new ApiResponse<ShortageResponse>(response));
     }
 
     /// <summary>
@@ -343,20 +362,30 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse alert;
+        ShortageResponse response;
 
         try
         {
-            alert = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
+            response = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
+        await _hub.Clients
+            .Group("all_facility_users")
+            .ShortageAlertCreated(response);
+
+        await _hub.Clients
+            .Group("managers")
+            .ShortageAlertCreated(response);
+
+        _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+
         return StatusCode(
             StatusCodes.Status201Created,
-            new ApiResponse<ShortageResponse>(alert));
+            new ApiResponse<ShortageResponse>(response));
     }
 
     private ErrorResponse Error(string code, string message) => new()
