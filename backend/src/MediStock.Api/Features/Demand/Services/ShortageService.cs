@@ -120,6 +120,29 @@ public class ShortageService
             .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
 
+        var medicineIds = items.Select(x => x.MedicineId).Distinct().ToList();
+        var facilityIds = items.Select(x => x.FacilityId).Distinct().ToList();
+
+        var medicines = await _db.Medicines.AsNoTracking()
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.Name, cancellationToken);
+
+        var facilities = await _db.Facilities.AsNoTracking()
+            .Where(f => facilityIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f.Name, cancellationToken);
+
+        foreach (var item in items)
+        {
+            if (medicines.TryGetValue(item.MedicineId, out var mName))
+            {
+                item.MedicineName = mName;
+            }
+            if (facilities.TryGetValue(item.FacilityId, out var fName))
+            {
+                item.FacilityName = fName;
+            }
+        }
+
         return new PagedResponse<ShortageResponse>(items, totalCount, page, pageSize);
     }
 
@@ -131,7 +154,18 @@ public class ShortageService
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return alert is null ? null : ToResponse(alert);
+        if (alert is null)
+        {
+            return null;
+        }
+
+        var response = ToResponse(alert);
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
+
+        return response;
     }
 
     /// <summary>
@@ -225,6 +259,10 @@ public class ShortageService
 
         var response = ToResponse(alert);
         response.ExistingAlertUpdated = existingUpdated;
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
 
         return response;
     }
@@ -591,6 +629,11 @@ public class ShortageService
             alert.RiskLevel);
 
         var response = ToResponse(alert);
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
+
         if (_notificationService != null)
         {
             await _notificationService.NotifyShortageAlertCreatedAsync(response, cancellationToken);

@@ -175,12 +175,20 @@ class _NewRequestWizardState extends State<NewRequestWizard> {
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.medication_rounded),
             ),
-            items: const [
-              DropdownMenuItem(value: 'Amoxicillin + Clavulanic Acid 625mg', child: Text('Amoxicillin + Clavulanic Acid 625mg')),
-              DropdownMenuItem(value: 'Meropenem 1g IV Injection', child: Text('Meropenem 1g IV Injection')),
-              DropdownMenuItem(value: 'Human Albumin 20% Infusion', child: Text('Human Albumin 20% Infusion')),
-              DropdownMenuItem(value: 'Cefixime 200mg Tablets', child: Text('Cefixime 200mg Tablets')),
-            ],
+            items: {
+              if (_selectedMedicine.trim().isNotEmpty) _selectedMedicine,
+              'Amoxicillin + Clavulanic Acid 625mg',
+              'Paracetamol 500 mg',
+              'Amoxicillin 250 mg',
+              'Azithromycin 250 mg',
+              'Cetirizine 10 mg',
+              'Ibuprofen 200 mg',
+              'Omeprazole 20 mg',
+              'Vitamin C',
+              'Meropenem 1g IV Injection',
+              'Human Albumin 20% Infusion',
+              'Cefixime 200mg Tablets',
+            }.map((med) => DropdownMenuItem(value: med, child: Text(med))).toList(),
             onChanged: (val) {
               if (val != null) setState(() => _selectedMedicine = val);
             },
