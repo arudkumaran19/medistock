@@ -303,13 +303,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MobileApp", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:3000",
-                "http://localhost:5050",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:5050"
-              )
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
