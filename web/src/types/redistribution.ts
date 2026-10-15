@@ -9,8 +9,7 @@ export type TransferStatus =
   | 'Cancelled'
   | 'Rejected'
   | 'Dispatched'
-  | 'Received'
-  | 'Assigned';
+  | 'Received';
 
 export type TransferPriority = 'Routine' | 'Urgent' | 'Emergency';
 

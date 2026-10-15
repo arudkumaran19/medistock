@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -111,7 +112,29 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            // Mode Switcher Tile
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary),
+                title: Text('Switch to Field Officer View', style: AppTextStyles.titleSmall),
+                subtitle: const Text('Access Field Officer tasks, route navigation, and delivery proofs'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                onTap: () async {
+                  await SecureStorageService().saveSelectedRole('FIELD_OFFICER');
+                  ref.read(authControllerProvider.notifier).selectRole('FIELD_OFFICER');
+                  if (context.mounted) {
+                    context.go('/officer/dashboard');
+                  }
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             // Logout Button
             OutlinedButton.icon(

@@ -25,7 +25,7 @@ class TaskHistoryScreen extends ConsumerStatefulWidget {
 
 class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
   String _selectedStatusFilter = 'ALL';
-  static const List<String> _filters = ['ALL', 'InTransit', 'Delivered', 'Assigned'];
+  static const List<String> _filters = ['ALL', 'Approved', 'Reserved', 'InTransit', 'Delivered'];
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Officer Delivery History'),
+        title: const Text('Officer Delivery Tasks'),
       ),
       body: tasksAsync.when(
         loading: () => const LoadingView(label: 'Loading tasks...'),

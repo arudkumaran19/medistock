@@ -95,3 +95,6 @@ MediStock-Architecture-Blueprint-Final.md
 # Local tooling
 .claude/
 *.tsbuildinfo
+backend/publish/
+scratch/
+**/scratch/

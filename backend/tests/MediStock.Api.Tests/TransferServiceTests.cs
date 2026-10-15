@@ -141,7 +141,7 @@ public class TransferServiceTests
         // 3. Approve Transfer Request internally (Requested -> Approved)
         var approveResult = await service.ApproveTransferInternalAsync(transferId, userId, "Approved by Central Coordinator");
         approveResult.Success.Should().BeTrue();
-        approveResult.Data!.Status.Should().BeOneOf(TransferStatus.Approved, TransferStatus.Assigned);
+        approveResult.Data!.Status.Should().Be(TransferStatus.Approved);
 
         // 4. Reserve Inventory at Source (Approved -> Reserved)
         var transferItem = approveResult.Data.Items.First();
@@ -684,6 +684,70 @@ public class TransferServiceTests
         workflowMock.Verify(w => w.StartPlanningWorkflowAsync(It.IsAny<StartWorkflowRequest>(), default), Times.Once);
         result.Data!.WorkflowRunId.Should().Be(runId);
     }
+
+    [Fact]
+    public async Task CreateTransfer_AppearsInList_WithCorrectStatusAndDetails()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        db.Facilities.Add(new Facility { Id = destFacilityId, Name = "Jaffna Teaching Hospital", City = "Jaffna", Latitude = 9.66, Longitude = 80.01, IsActive = true });
+        db.Facilities.Add(new Facility { Id = sourceFacilityId, Name = "Colombo National Hospital", City = "Colombo", Latitude = 6.92, Longitude = 79.86, IsActive = true });
+        db.Medicines.Add(new Medicine { Id = medicineId, Name = "Amoxicillin 250mg", UnitOfMeasure = "capsules" });
+        await db.SaveChangesAsync();
+
+        var routingMock = new Mock<IRoutingService>();
+        routingMock.Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse { DistanceKm = 25m, DurationMinutes = 30m, Provider = "OpenRouteService", PolylineGeometry = "test_polyline" });
+
+        var service = new TransferService(
+            db,
+            routingMock.Object,
+            new Mock<ICandidateFacilityService>().Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object);
+
+        // Act 1: Create Transfer (e.g. from Flutter wizard)
+        var createRequest = new CreateTransferRequest
+        {
+            DestinationFacilityId = destFacilityId,
+            Priority = TransferPriority.Urgent,
+            Notes = "Urgent shortage response",
+            MedicineId = medicineId,
+            MedicineName = "Amoxicillin 250mg",
+            RequestedQuantity = 100,
+            UnitOfMeasure = "capsules"
+        };
+
+        var createResult = await service.CreateTransferAsync(createRequest, userId);
+        createResult.Success.Should().BeTrue();
+        createResult.Data.Should().NotBeNull();
+        var createdId = createResult.Data!.Id;
+
+        // Act 2: Verify it appears in the Transfers list
+        var listResult = await service.GetTransfersAsync(1, 20, null, null, null, null, null);
+        listResult.Items.Should().Contain(t => t.Id == createdId);
+        var listed = listResult.Items.First(t => t.Id == createdId);
+        listed.Status.Should().Be(TransferStatus.Draft);
+        listed.DestinationFacilityName.Should().Be("Jaffna Teaching Hospital");
+        listed.Priority.Should().Be(TransferPriority.Urgent);
+
+        // Act 3: Propose candidate source facility (AI agent workflow step)
+        var proposeResult = await service.ProposeCandidateInternalAsync(createdId, sourceFacilityId, userId);
+        proposeResult.Success.Should().BeTrue();
+
+        // Act 4: Verify it appears in the Proposed list on Management Dashboard
+        var proposedList = await service.GetTransfersAsync(1, 20, null, null, null, null, TransferStatus.Proposed);
+        proposedList.Items.Should().Contain(t => t.Id == createdId);
+        var proposedItem = proposedList.Items.First(t => t.Id == createdId);
+        proposedItem.SourceFacilityId.Should().Be(sourceFacilityId);
+        proposedItem.SourceFacilityName.Should().Be("Colombo National Hospital");
+    }
 }
+
 
 

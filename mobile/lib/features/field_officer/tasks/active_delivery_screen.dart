@@ -8,6 +8,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../shared/models/transfer_model.dart';
+import '../../../shared/widgets/state_views.dart';
+import '../../facility_user/requests/data/transfer_repository.dart';
 import '../location/location_publisher.dart';
 import 'data/officer_task_repository.dart';
 
@@ -26,9 +29,9 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
   DeliveryPhase _currentPhase = DeliveryPhase.headingToPickup;
 
   // Phase B Checklist
-  bool _item1Checked = true;
-  bool _item2Checked = true;
+  final Set<String> _checkedItems = {};
   String? _proofPhotoPath;
+  bool _isAccepting = false;
 
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
@@ -51,114 +54,229 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
     super.dispose();
   }
 
+  Future<void> _handleAcceptTask() async {
+    setState(() => _isAccepting = true);
+    try {
+      await ref.read(officerTaskRepositoryProvider).acceptTask(widget.transferId);
+      ref.invalidate(transferByIdProvider(widget.transferId));
+      ref.invalidate(assignedTasksProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Task accepted! Inventory reserved at supplying facility.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to accept task: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAccepting = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(_getPhaseTitle()),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.warning_amber_rounded, color: AppColors.error),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Dispatched issue report to District Supply Command!')),
-              );
-            },
-          ),
-        ],
+    final transferAsync = ref.watch(transferByIdProvider(widget.transferId));
+
+    return transferAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Loading Task...')),
+        body: const LoadingView(label: 'Loading task dispatch data...'),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Phase Stepper Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.surface,
-              child: Row(
-                children: [
-                  _PhaseChip(label: '1. Heading to Pickup', isActive: _currentPhase == DeliveryPhase.headingToPickup, isDone: _currentPhase.index > 0),
-                  _PhaseChip(label: '2. At Pickup', isActive: _currentPhase == DeliveryPhase.atPickup, isDone: _currentPhase.index > 1),
-                  _PhaseChip(label: '3. In Transit', isActive: _currentPhase == DeliveryPhase.inTransit, isDone: _currentPhase.index > 2),
-                  _PhaseChip(label: '4. Destination', isActive: _currentPhase == DeliveryPhase.atDestination, isDone: false),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Map View
-                    SizedBox(
-                      height: 240,
-                      child: FlutterMap(
-                        options: MapOptions(
-                          initialCenter: const LatLng(13.0450, 80.2050),
-                          initialZoom: 12.8,
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.medistock.app',
-                          ),
-                          PolylineLayer(
-                            polylines: [
-                              Polyline(
-                                points: const [
-                                  LatLng(13.0125, 80.1982),
-                                  LatLng(13.0450, 80.2050),
-                                  LatLng(13.0827, 80.2707),
-                                ],
-                                strokeWidth: 5,
-                                color: AppColors.secondary,
-                              ),
-                            ],
-                          ),
-                          MarkerLayer(
-                            markers: const [
-                              Marker(
-                                point: LatLng(13.0125, 80.1982),
-                                child: Icon(Icons.store_rounded, color: AppColors.success, size: 30),
-                              ),
-                              Marker(
-                                point: LatLng(13.0827, 80.2707),
-                                child: Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 30),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: _buildPhaseContent(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+      error: (err, _) => Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Task Details')),
+        body: ErrorView(
+          message: 'Failed to load task details: $err',
+          onRetry: () => ref.refresh(transferByIdProvider(widget.transferId)),
         ),
       ),
+      data: (transfer) {
+        final statusLower = transfer.status.toLowerCase();
+        final isApproved = statusLower == 'approved';
+        final isReserved = statusLower == 'reserved';
+        final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
+        final isDelivered = statusLower == 'delivered' || statusLower == 'received';
+
+        // Auto-sync phase with backend status if advanced
+        if (isInTransit && _currentPhase.index < DeliveryPhase.inTransit.index) {
+          _currentPhase = DeliveryPhase.inTransit;
+        } else if (isDelivered && _currentPhase != DeliveryPhase.atDestination) {
+          _currentPhase = DeliveryPhase.atDestination;
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Text('${transfer.transferNumber} • ${_getPhaseTitle()}'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Dispatched issue report to District Supply Command!')),
+                  );
+                },
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Phase Stepper Bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  color: AppColors.surface,
+                  child: Row(
+                    children: [
+                      _PhaseChip(label: '1. Pickup', isActive: _currentPhase == DeliveryPhase.headingToPickup, isDone: _currentPhase.index > 0),
+                      _PhaseChip(label: '2. Inspection', isActive: _currentPhase == DeliveryPhase.atPickup, isDone: _currentPhase.index > 1),
+                      _PhaseChip(label: '3. In Transit', isActive: _currentPhase == DeliveryPhase.inTransit, isDone: _currentPhase.index > 2),
+                      _PhaseChip(label: '4. Deliver', isActive: _currentPhase == DeliveryPhase.atDestination, isDone: isDelivered),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // Map View
+                        SizedBox(
+                          height: 220,
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: LatLng(transfer.currentLatitude != 0 ? transfer.currentLatitude : 6.9271, transfer.currentLongitude != 0 ? transfer.currentLongitude : 79.8612),
+                              initialZoom: 12.0,
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName: 'com.medistock.app',
+                              ),
+                              PolylineLayer(
+                                polylines: [
+                                  Polyline(
+                                    points: [
+                                      const LatLng(6.9271, 79.8612),
+                                      const LatLng(7.2906, 80.6337),
+                                    ],
+                                    strokeWidth: 4,
+                                    color: AppColors.secondary,
+                                  ),
+                                ],
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  const Marker(
+                                    point: LatLng(6.9271, 79.8612),
+                                    child: Icon(Icons.warehouse_rounded, color: AppColors.success, size: 28),
+                                  ),
+                                  const Marker(
+                                    point: LatLng(7.2906, 80.6337),
+                                    child: Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 28),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Unaccepted / Approved task prompt
+                              if (isApproved)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondaryLight,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: AppColors.secondary),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('ASSIGNED MISSION PENDING ACCEPTANCE', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Manager has approved this redistribution transfer. Accept the assignment to reserve inventory and begin logistics execution.',
+                                        style: AppTextStyles.bodyMedium,
+                                      ),
+                                      const SizedBox(height: 14),
+                                      ElevatedButton(
+                                        onPressed: _isAccepting ? null : _handleAcceptTask,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.secondary,
+                                          minimumSize: const Size(double.infinity, 44),
+                                        ),
+                                        child: _isAccepting
+                                            ? const SizedBox(
+                                                height: 20,
+                                                width: 20,
+                                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                              )
+                                            : const Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.check_circle_rounded),
+                                                  SizedBox(width: 8),
+                                                  Text('Accept Task (Reserve Transfer)'),
+                                                ],
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              _buildPhaseContent(transfer, isApproved, isReserved, isInTransit, isDelivered),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   String _getPhaseTitle() {
     switch (_currentPhase) {
       case DeliveryPhase.headingToPickup:
-        return 'Phase A: Heading to Pickup';
+        return 'Pickup';
       case DeliveryPhase.atPickup:
-        return 'Phase B: At Pickup & Inspection';
+        return 'Inspection';
       case DeliveryPhase.inTransit:
-        return 'Phase C: In Transit to Destination';
+        return 'In Transit';
       case DeliveryPhase.atDestination:
-        return 'Phase D: Delivery & Verification';
+        return 'Destination';
     }
   }
 
-  Widget _buildPhaseContent() {
+  Widget _buildPhaseContent(TransferModel transfer, bool isApproved, bool isReserved, bool isInTransit, bool isDelivered) {
+    final sourceName = transfer.sourceFacilityName.isNotEmpty ? transfer.sourceFacilityName : 'Regional Supply Depot';
+    final destName = transfer.destinationFacilityName.isNotEmpty ? transfer.destinationFacilityName : 'Receiving Facility';
+
     switch (_currentPhase) {
       case DeliveryPhase.headingToPickup:
         return Column(
@@ -175,20 +293,22 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PICKUP LOCATION', style: AppTextStyles.badge.copyWith(color: AppColors.success)),
-                        Text('Kilpauk Medical Depot, Bay 4', style: AppTextStyles.titleSmall),
-                        Text('3.2 km away • Estimated 8 mins drive', style: AppTextStyles.bodySmall),
+                        Text('PICKUP LOCATION (SOURCE)', style: AppTextStyles.badge.copyWith(color: AppColors.success)),
+                        Text(sourceName, style: AppTextStyles.titleSmall),
+                        Text('Stock verified and reserved for transfer', style: AppTextStyles.bodySmall),
                       ],
                     ),
                   ),
-                  IconButton(icon: const Icon(Icons.phone_rounded, color: AppColors.secondary), onPressed: () {}),
                 ],
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => setState(() => _currentPhase = DeliveryPhase.atPickup),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                minimumSize: const Size(double.infinity, 46),
+              ),
               child: const Text('I Have Arrived at Pickup Depot'),
             ),
           ],
@@ -199,21 +319,38 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Payload Inspection Checklist', style: AppTextStyles.titleLarge),
+            const SizedBox(height: 6),
+            Text('Verify cold vault packaging and quantity before departure.', style: AppTextStyles.bodyMedium),
             const SizedBox(height: 12),
-            CheckboxListTile(
-              title: Text('Insulin Glargine 100IU/ml (8 vials)', style: AppTextStyles.titleSmall),
-              subtitle: const Text('Batch #INS-908 • Seals Intact'),
-              value: _item1Checked,
-              activeColor: AppColors.secondary,
-              onChanged: (val) => setState(() => _item1Checked = val!),
-            ),
-            CheckboxListTile(
-              title: Text('Meropenem 1g IV (20 vials)', style: AppTextStyles.titleSmall),
-              subtitle: const Text('Batch #MER-112 • Cold Vault Verified'),
-              value: _item2Checked,
-              activeColor: AppColors.secondary,
-              onChanged: (val) => setState(() => _item2Checked = val!),
-            ),
+
+            if (transfer.items.isNotEmpty)
+              ...transfer.items.map((item) {
+                final key = item.id.isNotEmpty ? item.id : item.itemName;
+                final isChecked = _checkedItems.contains(key);
+                return CheckboxListTile(
+                  title: Text('${item.itemName} (${item.requestedQuantity} ${item.unitOfMeasure})', style: AppTextStyles.titleSmall),
+                  subtitle: const Text('Intact seal verified'),
+                  value: isChecked,
+                  activeColor: AppColors.secondary,
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _checkedItems.add(key);
+                      } else {
+                        _checkedItems.remove(key);
+                      }
+                    });
+                  },
+                );
+              })
+            else
+              CheckboxListTile(
+                title: const Text('Cargo payload inspection verified', style: TextStyle(fontWeight: FontWeight.bold)),
+                value: _checkedItems.contains('default'),
+                activeColor: AppColors.secondary,
+                onChanged: (val) => setState(() => val == true ? _checkedItems.add('default') : _checkedItems.remove('default')),
+              ),
+
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _takePhoto,
@@ -238,10 +375,15 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                     widget.transferId,
                     PickupProof(notes: 'Payload inspection verified, cold vault seals intact'),
                   );
+                  ref.invalidate(transferByIdProvider(widget.transferId));
+                  ref.invalidate(assignedTasksProvider);
                 } catch (_) {}
                 LocationPublisher().startPublishing(activeTransferId: widget.transferId);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                minimumSize: const Size(double.infinity, 46),
+              ),
               child: const Text('Confirm Pickup & Begin Transit'),
             ),
           ],
@@ -270,10 +412,28 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('DESTINATION HUB', style: AppTextStyles.badge.copyWith(color: AppColors.primary)),
+                  const SizedBox(height: 4),
+                  Text(destName, style: AppTextStyles.titleSmall),
+                  const SizedBox(height: 4),
+                  Text('En route with active cold-chain monitoring', style: AppTextStyles.bodySmall),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => setState(() => _currentPhase = DeliveryPhase.atDestination),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                minimumSize: const Size(double.infinity, 46),
+              ),
               child: const Text('I Have Arrived at Destination Hub'),
             ),
           ],
@@ -285,7 +445,7 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
           children: [
             Text('Recipient OTP Verification', style: AppTextStyles.titleLarge),
             const SizedBox(height: 6),
-            Text('Enter 4-digit code provided by receiving pharmacist.', style: AppTextStyles.bodyMedium),
+            Text('Enter 4-digit code provided by receiving pharmacist at $destName.', style: AppTextStyles.bodyMedium),
             const SizedBox(height: 16),
             TextField(
               controller: _otpController,
@@ -308,6 +468,8 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                       notes: 'Verified with OTP ${_otpController.text}',
                     ),
                   );
+                  ref.invalidate(transferByIdProvider(widget.transferId));
+                  ref.invalidate(assignedTasksProvider);
                 } catch (_) {}
 
                 if (!mounted) return;
@@ -329,7 +491,10 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                minimumSize: const Size(double.infinity, 46),
+              ),
               child: const Text('Complete Delivery & Verify OTP'),
             ),
           ],
@@ -359,13 +524,13 @@ class _PhaseChip extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
         child: Center(
           child: Text(
             label,
-            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
             overflow: TextOverflow.ellipsis,
           ),
         ),

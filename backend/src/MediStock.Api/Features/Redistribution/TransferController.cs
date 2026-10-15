@@ -104,28 +104,6 @@ public class TransferController : ControllerBase
     }
 
     /// <summary>
-    /// 4b. POST /api/transfers/{id}/approve - Manager approves proposed/requested transfer
-    /// </summary>
-    [HttpPost("{id:guid}/approve")]
-    [Consumes(MediaTypeNames.Application.Json)]
-    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ApproveTransfer(
-        [FromRoute] Guid id,
-        [FromBody] SubmitTransferNotesDto? body = null,
-        CancellationToken ct = default)
-    {
-        var approverId = GetCurrentUserId();
-        var result = await _transferService.ApproveTransferInternalAsync(id, approverId, body?.Notes, ct);
-        if (!result.Success)
-        {
-            return BadRequest(new ErrorResponse(result.Message, "APPROVAL_FAILED", result.Errors));
-        }
-
-        return Ok(result);
-    }
-
-    /// <summary>
     /// 5. POST /api/transfers/{id}/reserve - Reserve source facility stock for approved transfer
     /// </summary>
     [HttpPost("{id:guid}/reserve")]
@@ -232,56 +210,6 @@ public class TransferController : ControllerBase
         }
 
         return Ok(result);
-    }
-
-    /// <summary>
-    /// PATCH /api/transfers/{id}/status - Update transfer status (e.g. InTransit or Delivered)
-    /// </summary>
-    [HttpPatch("{id:guid}/status")]
-    [Consumes(MediaTypeNames.Application.Json)]
-    [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UpdateTransferStatus(
-        [FromRoute] Guid id,
-        [FromBody] UpdateTransferStatusDto request,
-        CancellationToken ct = default)
-    {
-        var userId = GetCurrentUserId();
-        var statusStr = request.Status?.Trim();
-
-        if (string.Equals(statusStr, "InTransit", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(statusStr, "Dispatched", StringComparison.OrdinalIgnoreCase))
-        {
-            var dispatchReq = new DispatchTransferRequest
-            {
-                UserId = userId,
-                Notes = request.Proof != null ? System.Text.Json.JsonSerializer.Serialize(request.Proof) : null
-            };
-            var result = await _transferService.DispatchTransferAsync(id, dispatchReq, ct);
-            if (!result.Success)
-            {
-                return BadRequest(new ErrorResponse(result.Message, "STATUS_UPDATE_FAILED", result.Errors));
-            }
-            return Ok(result);
-        }
-
-        if (string.Equals(statusStr, "Delivered", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(statusStr, "Received", StringComparison.OrdinalIgnoreCase))
-        {
-            var receiveReq = new ReceiveTransferRequest
-            {
-                ReceivedByUserId = userId,
-                Notes = request.Proof != null ? System.Text.Json.JsonSerializer.Serialize(request.Proof) : null
-            };
-            var result = await _transferService.ReceiveTransferAsync(id, receiveReq, ct);
-            if (!result.Success)
-            {
-                return BadRequest(new ErrorResponse(result.Message, "STATUS_UPDATE_FAILED", result.Errors));
-            }
-            return Ok(result);
-        }
-
-        return BadRequest(new ErrorResponse($"Unsupported status transition to '{statusStr}'", "INVALID_STATUS"));
     }
 
 

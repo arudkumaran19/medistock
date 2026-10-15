@@ -11,6 +11,8 @@ class CreateTransferRequest {
   final int? requestedQuantity;
   final String? priority;
   final String? notes;
+  final String? sourceShortageAlertId;
+  final List<Map<String, dynamic>>? items;
 
   CreateTransferRequest({
     required this.destinationFacilityId,
@@ -20,6 +22,8 @@ class CreateTransferRequest {
     this.requestedQuantity,
     this.priority,
     this.notes,
+    this.sourceShortageAlertId,
+    this.items,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +34,8 @@ class CreateTransferRequest {
     if (requestedQuantity != null) 'requestedQuantity': requestedQuantity,
     if (priority != null) 'priority': priority,
     if (notes != null) 'notes': notes,
+    if (sourceShortageAlertId != null) 'sourceShortageAlertId': sourceShortageAlertId,
+    if (items != null) 'items': items,
   };
 }
 
@@ -79,6 +85,24 @@ class TransferRepository {
 
   Future<TransferModel> createRequest(CreateTransferRequest req) async {
     final resp = await _dio.post('/api/transfers', data: req.toJson());
+    final data = resp.data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    return TransferModel.fromJson(payload as Map<String, dynamic>);
+  }
+
+  Future<TransferModel> submitRequest(String id, [String? notes]) async {
+    final resp = await _dio.post('/api/transfers/$id/request', data: {
+      if (notes != null) 'notes': notes,
+    });
+    final data = resp.data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    return TransferModel.fromJson(payload as Map<String, dynamic>);
+  }
+
+  Future<TransferModel> confirmReceipt(String id, [String? notes]) async {
+    final resp = await _dio.post('/api/transfers/$id/receive', data: {
+      if (notes != null) 'notes': notes,
+    });
     final data = resp.data;
     final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);

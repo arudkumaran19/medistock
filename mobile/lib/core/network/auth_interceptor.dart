@@ -15,7 +15,11 @@ class AuthInterceptor extends Interceptor {
     if (_readToken != null) {
       return await _readToken();
     }
-    return await _storage.getToken();
+    try {
+      return await _storage.getToken().timeout(const Duration(milliseconds: 100));
+    } catch (_) {
+      return null;
+    }
   }
 
   /// For http-based API calls (Redistribution Slice)

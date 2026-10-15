@@ -33,7 +33,9 @@ class _VerifyShortageScreenState extends State<VerifyShortageScreen> {
 
     if (!mounted) return;
 
-    final medicineName = widget.shortageAlert['medicineName']?.toString() ?? 'Amoxicillin + Clavulanic Acid 625mg';
+    final medicineId = widget.shortageAlert['medicineId']?.toString();
+    final facilityId = widget.shortageAlert['facilityId']?.toString();
+    final medicineName = widget.shortageAlert['medicineName']?.toString() ?? 'Amoxicillin 250 mg';
     final leadTime = widget.shortageAlert['leadTimeDays'] is num ? (widget.shortageAlert['leadTimeDays'] as num).toInt() : 10;
     final daysRemaining = widget.shortageAlert['daysRemaining'] is num ? (widget.shortageAlert['daysRemaining'] as num).toInt() : 2;
     final avgConsumption = widget.shortageAlert['averageDailyConsumption'] is num ? (widget.shortageAlert['averageDailyConsumption'] as num).toDouble() : 20.0;
@@ -47,7 +49,9 @@ class _VerifyShortageScreenState extends State<VerifyShortageScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => NewRequestWizard(
+          prefillMedicineId: medicineId,
           prefillMedicineName: medicineName,
+          prefillDestinationFacilityId: facilityId,
           prefillQuantity: calcQty,
           prefillUrgency: urgency,
           prefillNotes: 'Auto-raised from shortage alert #alert-${alertId.substring(0, alertId.length > 8 ? 8 : alertId.length)}',

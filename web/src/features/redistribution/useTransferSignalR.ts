@@ -35,16 +35,9 @@ export function useTransferSignalR({
   useEffect(() => {
     if (!enabled) return;
 
-    // Resolve an absolute URL to ensure compatibility across JSDOM and browsers
-    let hubBase = import.meta.env.VITE_API_BASE_URL || '';
-    if (!hubBase && typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') {
-      hubBase = window.location.origin;
-    }
-    if (!hubBase || hubBase.startsWith('/')) {
-      hubBase = 'http://localhost:5000';
-    }
-
-    const hubUrl = `${hubBase}/hubs/transfers`;
+    // Resolve backend hub base URL matching apiClient
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+    const hubUrl = apiBase ? `${apiBase}/hubs/transfers` : '/hubs/transfers';
 
     let connection: signalR.HubConnection;
     try {

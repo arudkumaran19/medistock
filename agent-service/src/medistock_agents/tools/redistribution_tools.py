@@ -209,17 +209,32 @@ def getFacilityInventory(facility_id: UUID, medicine_id: UUID) -> FacilityInvent
     except Exception as exc:
         logger.warning("Failed to fetch inventory from backend API: %s", exc)
 
-    # 2. Query real PostgreSQL database as secondary check
+    # 2. Query real PostgreSQL database as secondary check (InventoryBalances)
     conn = _get_db_connection()
     if conn:
         try:
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        'SELECT "StockOnHand", "SafetyStockThreshold", "ReservedStock" FROM facility_inventories WHERE "FacilityId" = %s AND "MedicineId" = %s LIMIT 1;',
-                        (facility_id, medicine_id)
-                    )
-                    row = cur.fetchone()
+                    row = None
+                    try:
+                        cur.execute(
+                            '''
+                            SELECT ib."QuantityOnHand", m."MinimumStockLevel", ib."QuantityReserved"
+                            FROM "InventoryBalances" ib
+                            JOIN "Medicines" m ON ib."MedicineId" = m."Id"
+                            WHERE ib."FacilityId" = %s AND ib."MedicineId" = %s LIMIT 1;
+                            ''',
+                            (facility_id, medicine_id)
+                        )
+                        row = cur.fetchone()
+                    except Exception:
+                        conn.rollback()
+                        cur.execute(
+                            'SELECT "StockOnHand", "SafetyStockThreshold", "ReservedStock" FROM facility_inventories WHERE "FacilityId" = %s AND "MedicineId" = %s LIMIT 1;',
+                            (facility_id, medicine_id)
+                        )
+                        row = cur.fetchone()
+
                     if row:
                         stock_on_hand = int(row[0])
                         safety_stock = int(row[1])
@@ -255,6 +270,22 @@ def calculateDistance(
     """Tool 3: Computes transit road distance and duration between two facilities."""
     src_loc = getFacilityLocation(source_facility_id)
     dst_loc = getFacilityLocation(destination_facility_id)
+
+    # Requirement 2: Never compute a route from/to (0,0)
+    if (src_loc.latitude == 0 and src_loc.longitude == 0) or (dst_loc.latitude == 0 and dst_loc.longitude == 0):
+        logger.warning(
+            "calculateDistance refused: invalid coordinates (0,0) for src %s (%s,%s) or dst %s (%s,%s)",
+            source_facility_id, src_loc.latitude, src_loc.longitude,
+            destination_facility_id, dst_loc.latitude, dst_loc.longitude
+        )
+        return DistanceCalculationResult(
+            source_facility_id=source_facility_id,
+            destination_facility_id=destination_facility_id,
+            distance_km=9999.0,
+            duration_minutes=9999.0,
+            provider="CoordinatesGuard",
+        )
+
     return compute_route_distance(
         source_facility_id,
         destination_facility_id,
@@ -332,6 +363,12 @@ def getCandidateFacilities(
                     fid = UUID(item_fac)
                     fac_name = item.get("facilityName") or item.get("FacilityName") or "Facility"
                     loc = getFacilityLocation(fid)
+
+                    # Requirement 2: Coordinates guard - candidate facility must have valid coordinates
+                    if (loc.latitude == 0 and loc.longitude == 0) or loc.latitude is None or loc.longitude is None:
+                        logger.warning("Candidate facility %s (%s) skipped due to invalid coordinates (0,0)", fid, fac_name)
+                        continue
+
                     if loc and loc.facility_name.startswith("Hospital Facility") and fac_name != "Facility":
                         loc.facility_name = fac_name
 
@@ -362,6 +399,8 @@ def getCandidateFacilities(
             logger.warning("Failed to fetch candidate facilities via backend API: %s", exc)
 
     # 2. Query real database if available and known_facilities is not explicitly overriding
+    # NOTE: Agent reads DB directly from InventoryBalances as a known limitation because InternalToolsController
+    # only exposes Demand vertical endpoints (consumption/forecast), not Inventory/Redistribution tools.
     if not known_facilities:
         conn = _get_db_connection()
         if conn:
@@ -370,16 +409,20 @@ def getCandidateFacilities(
                     with conn.cursor() as cur:
                         rows = None
                         try:
+                            # Primary Option B query: InventoryBalances joined with Facilities and Medicines
                             cur.execute(
                                 '''
                                 SELECT f."Id", f."Name", f."City", f."Latitude", f."Longitude",
-                                       fi."StockOnHand", fi."SafetyStockThreshold", fi."ReservedStock"
+                                       ib."QuantityOnHand", m."MinimumStockLevel", ib."QuantityReserved"
                                 FROM "Facilities" f
-                                JOIN facility_inventories fi ON f."Id" = fi."FacilityId"
+                                JOIN "InventoryBalances" ib ON f."Id" = ib."FacilityId"
+                                JOIN "Medicines" m ON ib."MedicineId" = m."Id"
                                 WHERE f."IsActive" = TRUE
-                                  AND fi."MedicineId" = %s
+                                  AND ib."MedicineId" = %s
                                   AND f."Id" != %s
-                                  AND (fi."StockOnHand" - fi."SafetyStockThreshold" - fi."ReservedStock") > 0;
+                                  AND NOT (f."Latitude" = 0 AND f."Longitude" = 0)
+                                  AND f."Latitude" IS NOT NULL AND f."Longitude" IS NOT NULL
+                                  AND (ib."QuantityOnHand" - m."MinimumStockLevel" - ib."QuantityReserved") > 0;
                                 ''',
                                 (medicine_id, destination_facility_id)
                             )
@@ -390,11 +433,13 @@ def getCandidateFacilities(
                                 '''
                                 SELECT f."Id", f."Name", f."City", f."Latitude", f."Longitude",
                                        fi."StockOnHand", fi."SafetyStockThreshold", fi."ReservedStock"
-                                FROM facilities f
+                                FROM "Facilities" f
                                 JOIN facility_inventories fi ON f."Id" = fi."FacilityId"
                                 WHERE f."IsActive" = TRUE
                                   AND fi."MedicineId" = %s
                                   AND f."Id" != %s
+                                  AND NOT (f."Latitude" = 0 AND f."Longitude" = 0)
+                                  AND f."Latitude" IS NOT NULL AND f."Longitude" IS NOT NULL
                                   AND (fi."StockOnHand" - fi."SafetyStockThreshold" - fi."ReservedStock") > 0;
                                 ''',
                                 (medicine_id, destination_facility_id)
@@ -409,6 +454,12 @@ def getCandidateFacilities(
                                 city = row[2] or "Unknown"
                                 lat = float(row[3])
                                 lng = float(row[4])
+
+                                # Requirement 2: Coordinates guard
+                                if (lat == 0 and lng == 0) or lat is None or lng is None:
+                                    logger.warning("Candidate facility %s (%s) skipped due to invalid coordinates (0,0)", fid, fac_name)
+                                    continue
+
                                 stock_on_hand = int(row[5])
                                 safety_stock = int(row[6])
                                 reserved_stock = int(row[7])

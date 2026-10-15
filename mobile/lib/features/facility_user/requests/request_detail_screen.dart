@@ -1,23 +1,31 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../shared/widgets/state_views.dart';
+import '../../../shared/widgets/status_chip.dart';
+import 'data/transfer_repository.dart';
 
-class RequestDetailScreen extends StatefulWidget {
+class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
 
   const RequestDetailScreen({super.key, required this.requestId});
 
   @override
-  State<RequestDetailScreen> createState() => _RequestDetailScreenState();
+  ConsumerState<RequestDetailScreen> createState() => _RequestDetailScreenState();
 }
 
-class _RequestDetailScreenState extends State<RequestDetailScreen> {
+class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   final SignalRClient _signalRClient = SignalRClient();
-  LatLng _vehiclePos = const LatLng(13.0450, 80.2050); // Animated position along Chennai corridor
-  double _coreTemp = 4.2;
+  final MapController _mapController = MapController();
+
+  StreamSubscription? _locationSub;
+  LatLng? _liveVehiclePos;
+  bool _isConfirming = false;
 
   @override
   void initState() {
@@ -26,322 +34,406 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   }
 
   void _connectSignalR() async {
-    await _signalRClient.connect();
-    await _signalRClient.joinTransferGroup(widget.requestId);
+    try {
+      await _signalRClient.connect();
+      await _signalRClient.joinTransferGroup(widget.requestId);
 
-    _signalRClient.onTransferLocationUpdated.listen((data) {
-      if (mounted && data['latitude'] != null && data['longitude'] != null) {
-        setState(() {
-          _vehiclePos = LatLng((data['latitude'] as num).toDouble(), (data['longitude'] as num).toDouble());
-        });
-      }
-    });
+      _locationSub = _signalRClient.onTransferLocationUpdated.listen((data) {
+        if (!mounted) return;
+        final tid = data['transferId']?.toString();
+        if (tid == null || tid.isEmpty || tid.toLowerCase() == widget.requestId.toLowerCase()) {
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            setState(() {
+              _liveVehiclePos = LatLng(lat, lng);
+            });
+            _mapController.move(_liveVehiclePos!, _mapController.camera.zoom);
+          }
+        }
+      });
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _locationSub?.cancel();
     _signalRClient.leaveTransferGroup(widget.requestId);
     super.dispose();
   }
 
+  Future<void> _handleConfirmReceipt() async {
+    setState(() => _isConfirming = true);
+    try {
+      await ref.read(transferRepositoryProvider).confirmReceipt(widget.requestId, 'Confirmed by destination facility pharmacist');
+      ref.invalidate(transferByIdProvider(widget.requestId));
+      ref.invalidate(myRequestsProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Delivery confirmed! Medicine stock restocked at destination facility.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to confirm receipt: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isConfirming = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final transferAsync = ref.watch(transferByIdProvider(widget.requestId));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('REQ-2024-8842', style: AppTextStyles.titleSmall),
-            Text('Critical Insulin & Cold-Chain', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
-          ],
+        title: transferAsync.when(
+          data: (t) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.transferNumber, style: AppTextStyles.titleSmall),
+              Text(
+                t.items.isNotEmpty ? t.items.first.itemName : 'Medicine Requisition',
+                style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
+              ),
+            ],
+          ),
+          loading: () => const Text('Loading requisition...'),
+          error: (_, __) => const Text('Transfer Requisition'),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: AppColors.warningLight, borderRadius: BorderRadius.circular(8)),
-            child: Text('Urgent Cold-Chain', style: AppTextStyles.badge.copyWith(color: AppColors.warning)),
+          transferAsync.maybeWhen(
+            data: (t) => Container(
+              margin: const EdgeInsets.only(right: 16),
+              child: StatusChip(status: t.status.toUpperCase()),
+            ),
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Live Interactive Map View
-            SizedBox(
-              height: 260,
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    options: MapOptions(
-                      initialCenter: const LatLng(13.0500, 80.2100),
-                      initialZoom: 12.5,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.medistock.app',
-                      ),
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: const [
-                              LatLng(13.0125, 80.1982), // Tambaram Depot
-                              LatLng(13.0450, 80.2050), // Koyambedu Corridors
-                              LatLng(13.0827, 80.2707), // Apollo Anna Nagar
-                            ],
-                            strokeWidth: 4.5,
-                            color: AppColors.primary,
-                          ),
-                        ],
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          const Marker(
-                            point: LatLng(13.0125, 80.1982),
-                            child: Icon(Icons.store_rounded, color: AppColors.success, size: 28),
-                          ),
-                          Marker(
-                            point: _vehiclePos,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                              child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
-                            ),
-                          ),
-                          const Marker(
-                            point: LatLng(13.0827, 80.2707),
-                            child: Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 28),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.speed_rounded, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text('24 mins ETA • 3.8 km away', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      body: transferAsync.when(
+        loading: () => const LoadingView(label: 'Loading transfer tracking details...'),
+        error: (err, _) => ErrorView(
+          message: 'Failed to load transfer: $err',
+          onRetry: () => ref.refresh(transferByIdProvider(widget.requestId)),
+        ),
+        data: (transfer) {
+          final vehiclePos = _liveVehiclePos ??
+              (transfer.currentLatitude != 0 && transfer.currentLongitude != 0
+                  ? LatLng(transfer.currentLatitude, transfer.currentLongitude)
+                  : const LatLng(6.9271, 79.8612)); // Colombo default
 
-            Padding(
-              padding: const EdgeInsets.all(20),
+          const destPos = LatLng(7.2906, 80.6337); // Kandy default
+          const sourcePos = LatLng(6.9271, 79.8612); // Colombo default
+
+          final statusLower = transfer.status.toLowerCase();
+          final isDelivered = statusLower == 'delivered' || statusLower == 'received';
+          final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
+          final canConfirm = isInTransit || statusLower == 'reserved' || statusLower == 'approved';
+
+          return RefreshIndicator(
+            onRefresh: () async => ref.refresh(transferByIdProvider(widget.requestId)),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Officer Contact Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
+                  // Live Interactive Map View
+                  SizedBox(
+                    height: 260,
+                    child: Stack(
                       children: [
-                        const CircleAvatar(
-                          radius: 22,
-                          backgroundColor: AppColors.secondaryLight,
-                          child: Icon(Icons.person_rounded, color: AppColors.secondary),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Rajesh Kumar (Officer)', style: AppTextStyles.titleSmall),
-                              Text('Vehicle: TN-09-CB-4491 • Cryo-Pod 302', style: AppTextStyles.bodySmall),
-                            ],
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: vehiclePos,
+                            initialZoom: 11.5,
                           ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.medistock.app',
+                            ),
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: [sourcePos, vehiclePos, destPos],
+                                  strokeWidth: 4.0,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: sourcePos,
+                                  child: const Icon(Icons.warehouse_rounded, color: AppColors.secondary, size: 28),
+                                ),
+                                Marker(
+                                  point: vehiclePos,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                    ),
+                                    child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 18),
+                                  ),
+                                ),
+                                Marker(
+                                  point: destPos,
+                                  child: const Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 28),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.phone_rounded, color: AppColors.primary),
-                          onPressed: () {},
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isInTransit ? Icons.sensors_rounded : Icons.info_outline_rounded,
+                                  size: 14,
+                                  color: isInTransit ? AppColors.primary : AppColors.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isInTransit ? 'Live Telemetry Active' : 'Status: ${transfer.status}',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // COLD-CHAIN TELEMETRY CARD
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primaryLight.withOpacity(0.4)),
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Active Cold-Chain Telemetry', style: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryDark)),
-                            Text('Live Sync: 4s ago', style: AppTextStyles.bodySmall),
-                          ],
+                        // Logistics Transfer Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('REQUISITION MANIFEST', style: AppTextStyles.badge.copyWith(color: AppColors.primary)),
+                              const SizedBox(height: 8),
+                              ...transfer.items.map((item) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(item.itemName, style: AppTextStyles.titleMedium),
+                                    ),
+                                    Text(
+                                      '${item.requestedQuantity} ${item.unitOfMeasure}',
+                                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryLight),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                              const Divider(height: 20),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_rounded, size: 16, color: AppColors.secondary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'From: ${transfer.sourceFacilityName.isNotEmpty ? transfer.sourceFacilityName : "Proposed by Planning Agent"}',
+                                      style: AppTextStyles.bodySmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.flag_rounded, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'To: ${transfer.destinationFacilityName}',
+                                      style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _TelemetryBox(label: 'Core Temp', value: '${_coreTemp}°C', sub: 'Optimal 2°-8°C', color: AppColors.success),
-                            const SizedBox(width: 8),
-                            const _TelemetryBox(label: 'Humidity', value: '45%', sub: 'Safe Range (RH)', color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            const _TelemetryBox(label: 'Vibration', value: '0.12g', sub: 'Shock: Normal', color: AppColors.secondary),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                  // RECIPIENT VERIFICATION OTP
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Recipient Verification OTP', style: AppTextStyles.titleSmall),
-                            Text('Provide upon courier arrival', style: AppTextStyles.bodySmall),
-                          ],
-                        ),
+                        // Officer Information (if assigned)
+                        if (transfer.officerName != null && transfer.officerName!.isNotEmpty && transfer.officerName != 'Assigned Officer')
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: AppColors.secondaryLight,
+                                  child: Icon(Icons.person_rounded, color: AppColors.secondary),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(transfer.officerName!, style: AppTextStyles.titleSmall),
+                                      Text(transfer.officerPhone ?? 'Certified Field Officer', style: AppTextStyles.bodySmall),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 24),
+
+                        // Chain of Custody Timeline
+                        Text('Chain of Custody', style: AppTextStyles.titleLarge),
                         const SizedBox(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _OtpBox(digit: '4'),
-                            _OtpBox(digit: '8'),
-                            _OtpBox(digit: '2'),
-                            _OtpBox(digit: '9'),
-                          ],
+
+                        _CustodyStep(
+                          title: '1. Requisition Submitted',
+                          desc: 'Request formally raised from facility demand and alert.',
+                          isDone: true,
                         ),
-                        const SizedBox(height: 8),
-                        Text('Encrypted Handshake • Single-Use Medical Chain Token', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                        _CustodyStep(
+                          title: '2. Source Proposal & Review',
+                          desc: statusLower == 'draft' || statusLower == 'requested'
+                              ? 'Analyzing candidate supplying facilities...'
+                              : 'Optimal supplying facility proposed by Planning Agent.',
+                          isDone: statusLower != 'draft' && statusLower != 'requested',
+                          isCurrent: statusLower == 'proposed',
+                        ),
+                        _CustodyStep(
+                          title: '3. Manager Approved & Task Reserved',
+                          desc: 'Redistribution manager approved and officer reserved assignment.',
+                          isDone: statusLower == 'approved' || statusLower == 'reserved' || isInTransit || isDelivered,
+                          isCurrent: statusLower == 'approved' || statusLower == 'reserved',
+                        ),
+                        _CustodyStep(
+                          title: '4. Dispatched / In Transit',
+                          desc: 'Cargo in transit with active GPS telemetry stream.',
+                          isDone: isDelivered || isInTransit,
+                          isCurrent: isInTransit,
+                        ),
+                        _CustodyStep(
+                          title: '5. Delivered & Inventory Restocked',
+                          desc: 'Goods received at facility dock and stock adjusted.',
+                          isDone: isDelivered,
+                          isCurrent: isDelivered,
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // Confirm Receipt Button
+                        if (isDelivered)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.successLight,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_circle_rounded, color: AppColors.success),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Delivery Completed & Stock Restocked',
+                                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (canConfirm)
+                          ElevatedButton(
+                            onPressed: _isConfirming ? null : _handleConfirmReceipt,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                            child: _isConfirming
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.inventory_2_rounded),
+                                      SizedBox(width: 8),
+                                      Text('Confirm Goods Receipt & Restock'),
+                                    ],
+                                  ),
+                          ),
                       ],
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // CHAIN OF CUSTODY TIMELINE
-                  Text('Chain of Custody', style: AppTextStyles.titleLarge),
-                  const SizedBox(height: 12),
-                  const _CustodyItem(title: 'Requisition Submitted', time: '08:30 AM', desc: 'Signed by Apollo Pharmacy Anna Nagar (ID: EXP-408)', isDone: true),
-                  const _CustodyItem(title: 'Tambaram Depot Admin Approval', time: '08:45 AM', desc: 'Cold vault release authorized by Dr. S. Ramanathan', isDone: true),
-                  const _CustodyItem(title: 'Dispatched to Field Officer', time: '09:10 AM', desc: 'Rajesh Kumar (EPO-88) accepted priority dispatch', isDone: true),
-                  const _CustodyItem(title: 'Cargo Verified & Sealed', time: '09:30 AM', desc: 'Batch #AMX0-2024-09 locked in Cryo-Pod 302', isDone: true),
-                  const _CustodyItem(title: 'In Transit — Moving Corridors', time: '09:52 AM', desc: 'Passing Koyambedu Junction towards 100 Feet Rd', isDone: true, isCurrent: true),
-                  const _CustodyItem(title: 'Arrival at Facility Bay 2', time: '10:16 AM (ETA)', desc: 'Staging area notified for sterile intake transfer', isDone: false),
-                  const _CustodyItem(title: 'Delivered & OTP Handshake', time: 'Pending', desc: 'Biometric signature & temperature validation report', isDone: false),
-
-                  const SizedBox(height: 28),
-
-                  ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Delivery Confirmed & Stock Automatically Updated in Inventory!')),
-                      );
-                    },
-                    child: const Text('Confirm Goods Receipt (Unlock Geofence)'),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-class _TelemetryBox extends StatelessWidget {
-  final String label;
-  final String value;
-  final String sub;
-  final Color color;
-
-  const _TelemetryBox({required this.label, required this.value, required this.sub, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-        child: Column(
-          children: [
-            Text(label, style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
-            const SizedBox(height: 2),
-            Text(value, style: AppTextStyles.titleMedium.copyWith(color: color, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(sub, style: AppTextStyles.bodySmall.copyWith(fontSize: 9)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OtpBox extends StatelessWidget {
-  final String digit;
-
-  const _OtpBox({required this.digit});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 52,
-      decoration: BoxDecoration(
-        color: AppColors.primarySurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.primary),
-      ),
-      child: Center(
-        child: Text(digit, style: AppTextStyles.displayMedium.copyWith(color: AppColors.primaryDark)),
-      ),
-    );
-  }
-}
-
-class _CustodyItem extends StatelessWidget {
+class _CustodyStep extends StatelessWidget {
   final String title;
-  final String time;
   final String desc;
   final bool isDone;
   final bool isCurrent;
 
-  const _CustodyItem({
+  const _CustodyStep({
     required this.title,
-    required this.time,
     required this.desc,
     required this.isDone,
     this.isCurrent = false,
@@ -355,11 +447,23 @@ class _CustodyItem extends StatelessWidget {
         Column(
           children: [
             Icon(
-              isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              isDone
+                  ? Icons.check_circle_rounded
+                  : isCurrent
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
               size: 20,
-              color: isDone ? (isCurrent ? AppColors.secondary : AppColors.success) : AppColors.textMuted,
+              color: isDone
+                  ? AppColors.success
+                  : isCurrent
+                      ? AppColors.secondary
+                      : AppColors.textMuted,
             ),
-            Container(width: 2, height: 40, color: isDone ? AppColors.success : AppColors.border),
+            Container(
+              width: 2,
+              height: 38,
+              color: isDone ? AppColors.success : AppColors.border,
+            ),
           ],
         ),
         const SizedBox(width: 12),
@@ -367,16 +471,20 @@ class _CustodyItem extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(title, style: AppTextStyles.titleSmall.copyWith(color: isCurrent ? AppColors.secondary : AppColors.textPrimary)),
-                  Text(time, style: AppTextStyles.bodySmall),
-                ],
+              Text(
+                title,
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: isCurrent
+                      ? AppColors.secondary
+                      : isDone
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                  fontWeight: isCurrent || isDone ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
               const SizedBox(height: 2),
-              Text(desc, style: AppTextStyles.bodyMedium),
-              const SizedBox(height: 14),
+              Text(desc, style: AppTextStyles.bodySmall),
+              const SizedBox(height: 12),
             ],
           ),
         ),

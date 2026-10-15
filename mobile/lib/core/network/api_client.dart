@@ -13,7 +13,7 @@ class ApiClient {
     String? authToken,
   })  : baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
         _httpClient = httpClient ?? http.Client(),
-        _authInterceptor = authInterceptor ?? AuthInterceptor(),
+        _authInterceptor = authInterceptor ?? AuthInterceptor(readToken: () async => authToken),
         _instanceAuthToken = authToken;
 
   final String baseUrl;
@@ -33,7 +33,13 @@ class ApiClient {
   }
 
   Future<String?> _getOrRequireToken({bool requireAuth = true}) async {
-    final token = await _storage.getToken() ?? authToken;
+    String? token;
+    try {
+      token = await _storage.getToken().timeout(const Duration(milliseconds: 100));
+    } catch (_) {
+      // Platform channels like flutter_secure_storage may not be available in headless test environments
+    }
+    token ??= authToken;
     if (requireAuth && (token == null || token.isEmpty)) {
       throw AuthException('No authentication token found. Please log in.');
     }

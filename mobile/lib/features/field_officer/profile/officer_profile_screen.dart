@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -79,7 +80,29 @@ class OfficerProfileScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            // Mode Switcher Tile
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                title: Text('Switch to Facility User View', style: AppTextStyles.titleSmall),
+                subtitle: const Text('Access facility inventory, requisitions, and shortage alerts'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                onTap: () async {
+                  await SecureStorageService().saveSelectedRole('FACILITYUSER');
+                  ref.read(authControllerProvider.notifier).selectRole('FACILITYUSER');
+                  if (context.mounted) {
+                    context.go('/user/dashboard');
+                  }
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             OutlinedButton.icon(
               onPressed: () async {
