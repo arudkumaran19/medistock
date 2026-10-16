@@ -58,3 +58,5 @@ agent-service/edge_cases_test.py
 agent-service/notebooks/
 MediStock-Architecture-Blueprint-Final.md
 .fake
+
+/.agents/
