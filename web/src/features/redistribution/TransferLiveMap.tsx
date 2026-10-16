@@ -128,12 +128,6 @@ function BoundsController({ points }: { points: [number, number][] }) {
   return null;
 }
 
-import {
-  SRI_LANKA_CENTER_LATITUDE,
-  SRI_LANKA_CENTER_LONGITUDE,
-  SRI_LANKA_DEFAULT_ZOOM,
-} from '../../constants/geo';
-
 export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   sourceFacilityName,
   sourceCoords,
@@ -145,6 +139,31 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   durationMinutes,
   status,
 }) => {
+  // Construct polyline points: source -> waypoints -> destination
+  const polylinePoints = useMemo<[number, number][]>(() => {
+    if (!sourceCoords || !destinationCoords) return [];
+    const pts: [number, number][] = [sourceCoords];
+    if (waypoints && waypoints.length > 0) {
+      waypoints.forEach((w) => {
+        pts.push([w.latitude, w.longitude]);
+      });
+    }
+    pts.push(destinationCoords);
+    return pts;
+  }, [sourceCoords, destinationCoords, waypoints]);
+
+  const allPoints = useMemo<[number, number][]>(() => {
+    const pts = [...polylinePoints];
+    if (vehicleCoords) {
+      pts.push(vehicleCoords);
+    }
+    return pts;
+  }, [polylinePoints, vehicleCoords]);
+
+  const sourceIcon = useMemo(() => createSourceIcon(sourceFacilityName), [sourceFacilityName]);
+  const destIcon = useMemo(() => createDestIcon(destinationFacilityName), [destinationFacilityName]);
+  const vehicleIcon = useMemo(() => createVehicleIcon(), []);
+
   const hasValidCoords =
     sourceCoords &&
     destinationCoords &&
@@ -183,29 +202,6 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
       </div>
     );
   }
-  // Construct polyline points: source -> waypoints -> destination
-  const polylinePoints = useMemo<[number, number][]>(() => {
-    const pts: [number, number][] = [sourceCoords];
-    if (waypoints && waypoints.length > 0) {
-      waypoints.forEach((w) => {
-        pts.push([w.latitude, w.longitude]);
-      });
-    }
-    pts.push(destinationCoords);
-    return pts;
-  }, [sourceCoords, destinationCoords, waypoints]);
-
-  const allPoints = useMemo<[number, number][]>(() => {
-    const pts = [...polylinePoints];
-    if (vehicleCoords) {
-      pts.push(vehicleCoords);
-    }
-    return pts;
-  }, [polylinePoints, vehicleCoords]);
-
-  const sourceIcon = useMemo(() => createSourceIcon(sourceFacilityName), [sourceFacilityName]);
-  const destIcon = useMemo(() => createDestIcon(destinationFacilityName), [destinationFacilityName]);
-  const vehicleIcon = useMemo(() => createVehicleIcon(), []);
 
   const isJSDOM =
     typeof navigator !== 'undefined' &&

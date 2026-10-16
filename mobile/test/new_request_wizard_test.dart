@@ -68,6 +68,7 @@ void main() {
     final continueButton = find.text('Continue to Review');
     expect(continueButton, findsOneWidget);
     await tester.ensureVisible(continueButton);
+    await tester.pumpAndSettle();
     await tester.tap(continueButton);
     await tester.pumpAndSettle();
 

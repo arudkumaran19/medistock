@@ -54,6 +54,16 @@ class MedicineOption {
       unit: json['unit']?.toString() ?? 'units',
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MedicineOption &&
+          runtimeType == other.runtimeType &&
+          id.toLowerCase() == other.id.toLowerCase();
+
+  @override
+  int get hashCode => id.toLowerCase().hashCode;
 }
 
 class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
@@ -94,12 +104,26 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       text: widget.prefillNotes ?? 'Replenishment request submitted for facility inventory.',
     );
 
+    if (widget.prefillMedicineId != null && widget.prefillMedicineId!.isNotEmpty) {
+      final initialMedicine = MedicineOption(
+        id: widget.prefillMedicineId!,
+        name: widget.prefillMedicineName ?? 'Selected Medicine',
+        code: '',
+        unit: 'units',
+      );
+      _selectedMedicine = initialMedicine;
+      _availableMedicines = [initialMedicine];
+      _isLoadingMedicines = false;
+    }
+
     _loadMedicines();
   }
 
   Future<void> _loadMedicines() async {
     setState(() {
-      _isLoadingMedicines = true;
+      if (_availableMedicines.isEmpty) {
+        _isLoadingMedicines = true;
+      }
       _errorMessage = null;
     });
 
@@ -119,13 +143,15 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
       if (medicines.isNotEmpty) {
         _availableMedicines = medicines;
-      } else {
+      } else if (_availableMedicines.isEmpty) {
         _errorMessage = 'No medicines returned from catalog.';
         _availableMedicines = [];
       }
     } catch (e) {
-      _errorMessage = 'Failed to load medicines: ${e.toString().replaceAll("Exception: ", "")}';
-      _availableMedicines = [];
+      if (_availableMedicines.isEmpty) {
+        _errorMessage = 'Failed to load medicines: ${e.toString().replaceAll("Exception: ", "")}';
+        _availableMedicines = [];
+      }
     }
 
     // Match prefill medicine
@@ -136,11 +162,19 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       final query = widget.prefillMedicineName!.toLowerCase();
       matched = _availableMedicines.where((m) => m.name.toLowerCase().contains(query) || query.contains(m.name.toLowerCase())).firstOrNull;
     }
-    matched ??= _availableMedicines.firstOrNull;
+
+    if (matched != null) {
+      _selectedMedicine = matched;
+    } else if (_selectedMedicine != null) {
+      if (!_availableMedicines.any((m) => m.id.toLowerCase() == _selectedMedicine!.id.toLowerCase())) {
+        _availableMedicines.insert(0, _selectedMedicine!);
+      }
+    } else {
+      _selectedMedicine = _availableMedicines.firstOrNull;
+    }
 
     if (mounted) {
       setState(() {
-        _selectedMedicine = matched;
         _isLoadingMedicines = false;
       });
     }
@@ -162,11 +196,13 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       return;
     }
 
-    _pageController.animateToPage(
-      step - 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        step - 1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
     setState(() => _currentStep = step);
   }
 
