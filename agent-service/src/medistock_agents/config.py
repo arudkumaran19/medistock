@@ -43,8 +43,18 @@ class Settings:
 
     # ASP.NET Core Authoritative Backend API
     medistock_api_base_url: str = os.getenv(
-        "MEDISTOCK_API_BASE_URL", "http://localhost:5182"
+        "MEDISTOCK_API_BASE_URL", "http://localhost:5050"
     ).rstrip("/")
+
+    # Internal service token shared between the .NET API and this agent service.
+    # Set via AgentService__ServiceToken in the .env. When empty, internal-token
+    # validation is skipped (dev-friendly) but a warning is logged.
+    internal_service_token: str = os.getenv("AGENT_SERVICE_TOKEN", "")
+
+    # JWT Authentication settings (shared with ASP.NET Core API)
+    jwt_signing_key: str = os.getenv("JWT_SIGNING_KEY") or os.getenv("Jwt__SigningKey", "")
+    jwt_issuer: str = os.getenv("JWT_ISSUER") or os.getenv("Jwt__Issuer", "MediStock.Api")
+    jwt_audience: str = os.getenv("JWT_AUDIENCE") or os.getenv("Jwt__Audience", "MediStock.Client")
 
     # Timeouts
     agent_timeout_seconds: float = float(os.getenv("AGENT_TIMEOUT_SECONDS", "30"))
@@ -74,9 +84,13 @@ def get_settings(reload: bool = False) -> Settings:
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3"),
             medistock_api_base_url=os.getenv(
-                "MEDISTOCK_API_BASE_URL", "http://localhost:5182"
+                "MEDISTOCK_API_BASE_URL", "http://localhost:5050"
             ).rstrip("/"),
             agent_timeout_seconds=float(os.getenv("AGENT_TIMEOUT_SECONDS", "30")),
             llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "30")),
+            internal_service_token=os.getenv("AGENT_SERVICE_TOKEN", ""),
+            jwt_signing_key=os.getenv("JWT_SIGNING_KEY") or os.getenv("Jwt__SigningKey", ""),
+            jwt_issuer=os.getenv("JWT_ISSUER") or os.getenv("Jwt__Issuer", "MediStock.Api"),
+            jwt_audience=os.getenv("JWT_AUDIENCE") or os.getenv("Jwt__Audience", "MediStock.Client"),
         )
     return _settings

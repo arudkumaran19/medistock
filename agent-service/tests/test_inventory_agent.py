@@ -1,11 +1,43 @@
+import base64
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 from medistock_agents.api import routes
 from medistock_agents.agents.inventory_agent import InventoryAgent
+from medistock_agents.config import get_settings
 from medistock_agents.models.agent_models import ActionType, InventoryAction
 from medistock_agents.main import app
 from medistock_agents.tools.inventory_tools import BackendUnavailableError, InventoryBackend
+
+from medistock_agents.safety.rbac import create_signed_jwt
+
+# The route enforces the internal service token when one is configured (as it is in
+# .env), so these tests must present it exactly as the ASP.NET proxy does.
+INTERNAL_TOKEN = get_settings().internal_service_token
+
+
+def _make_user_token(role: str = "StoreOfficer") -> str:
+    """A signed JWT carrying the role claim verified by the cryptographic guard."""
+    return create_signed_jwt(
+        {
+            "sub": "test-user",
+            "role": [role],
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role": role,
+        }
+    )
+
+
+def _agent_headers(role: str = "StoreOfficer") -> dict[str, str]:
+    headers = {}
+    if INTERNAL_TOKEN:
+        headers["X-Internal-Token"] = INTERNAL_TOKEN
+    headers["X-User-Token"] = _make_user_token(role)
+    return headers
+
+
 class FakeBackend:
+
 	def __init__(self, include_demo_balances=False): self.transaction_scopes = []; self.execute_calls = []; self.include_demo_balances = include_demo_balances
 	async def get_inventory(self):
 		rows = [{"medicineName": "Test", "medicineId": "m", "facilityId": "f", "facilityName": "Central Facility", "quantityOnHand": 0, "quantityReserved": 0, "isBelowMinimum": True}]
@@ -118,11 +150,15 @@ def test_transaction_history_is_not_classified_as_a_mutation():
 def test_exact_mutation_request_through_agent_api_route_requires_approval(monkeypatch):
 	backend = FakeBackend(include_demo_balances=True)
 	monkeypatch.setattr(routes, "InventoryBackend", lambda: backend)
-	response = TestClient(app).post("/api/inventory-agent/run", json={
-		"action_type": "ask",
-		"payload": {"question": "Adjust Vitamin C stock by 10 units."},
-		"approved": False,
-	})
+	response = TestClient(app).post(
+		"/api/inventory-agent/run",
+		json={
+			"action_type": "ask",
+			"payload": {"question": "Adjust Vitamin C stock by 10 units."},
+			"approved": False,
+		},
+		headers=_agent_headers(),
+	)
 	assert response.status_code == 200
 	body = response.json()
 	assert body["approval_required"] is True
@@ -156,11 +192,15 @@ async def test_transaction_history_supports_other_medicine_and_facility():
 def test_exact_transaction_history_request_through_agent_api_route(monkeypatch):
 	backend = FakeBackend()
 	monkeypatch.setattr(routes, "InventoryBackend", lambda: backend)
-	response = TestClient(app).post("/api/inventory-agent/run", json={
-		"action_type": "ask",
-		"payload": {"question": "Show me the transaction history for VITC-DEMO at Central Facility."},
-		"approved": False,
-	})
+	response = TestClient(app).post(
+		"/api/inventory-agent/run",
+		json={
+			"action_type": "ask",
+			"payload": {"question": "Show me the transaction history for VITC-DEMO at Central Facility."},
+			"approved": False,
+		},
+		headers=_agent_headers(),
+	)
 	assert response.status_code == 200
 	body = response.json()
 	assert "supplier delivery" in body["answer"]
