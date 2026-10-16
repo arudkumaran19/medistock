@@ -88,6 +88,26 @@ public class TransferOperationsController : ControllerBase
         return BadRequest(new ErrorResponse($"Unsupported status transition to '{statusStr}'", "INVALID_STATUS"));
     }
 
+    /// <summary>
+    /// GET /api/transfers/route-preview - Calculate route and road distance between any two facilities
+    /// </summary>
+    [HttpGet("route-preview")]
+    [ProducesResponseType(typeof(ApiResponse<RouteResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetRoutePreview(
+        [FromQuery] Guid sourceFacilityId,
+        [FromQuery] Guid destinationFacilityId,
+        CancellationToken ct = default)
+    {
+        var result = await _transferService.CalculateRoutePreviewAsync(sourceFacilityId, destinationFacilityId, ct);
+        if (!result.Success)
+        {
+            return BadRequest(new ErrorResponse(result.Message, "ROUTING_FAILED", result.Errors));
+        }
+
+        return Ok(result);
+    }
+
     private Guid GetCurrentUserId()
     {
         var subClaim = User?.FindFirst("sub")?.Value ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

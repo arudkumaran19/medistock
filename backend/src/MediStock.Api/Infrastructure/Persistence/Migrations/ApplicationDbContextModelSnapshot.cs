@@ -17,7 +17,7 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -42,6 +42,12 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -53,6 +59,43 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Facilities", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.Medicine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GenericName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresRefrigeration")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Medicine");
                 });
 
             modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
@@ -217,10 +260,21 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("CurrentStock")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("DaysRemaining")
+                    b.Property<int?>("DaysRemaining")
+                        .IsRequired()
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("DemandForecastId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DismissReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("DismissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DismissedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("FacilityId")
@@ -237,6 +291,9 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("ProjectedStockoutDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RelatedTransferId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("RequiresTransfer")
                         .HasColumnType("boolean");
@@ -267,6 +324,9 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RiskLevel")
                         .HasDatabaseName("IX_ShortageAlerts_RiskLevel");
+
+                    b.HasIndex("FacilityId", "MedicineId", "DismissedAt")
+                        .HasDatabaseName("IX_ShortageAlerts_Facility_Medicine_DismissedAt");
 
                     b.HasIndex("FacilityId", "Status", "GeneratedAt")
                         .HasDatabaseName("IX_ShortageAlerts_Facility_Status_GeneratedAt");
@@ -536,6 +596,58 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.ReplenishmentRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PurchaseOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RequestedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SourceTransferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacilityId");
+
+                    b.HasIndex("MedicineId");
+
+                    b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("SourceTransferId");
+
+                    b.ToTable("replenishment_requests", (string)null);
+                });
+
             modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -583,6 +695,53 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AllocatedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BatchNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MedicineName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ReceivedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RequestedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TransferRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicineId");
+
+                    b.HasIndex("TransferRequestId");
+
+                    b.ToTable("TransferItem");
+                });
+
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -592,87 +751,80 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ApprovedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BatchNumber")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
+                    b.Property<DateTime?>("AssignedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DeliveredAtUtc")
+                    b.Property<Guid?>("AssignedOfficerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("DestinationFacilityId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("DispatchedAtUtc")
+                    b.Property<DateTime?>("DispatchedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal?>("EstimatedDistanceKm")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal?>("EstimatedDurationMinutes")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
+                        .HasColumnType("numeric");
 
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
+                    b.Property<double?>("LastLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("LastLocationAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("LastLongitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<int>("Quantity")
+                    b.Property<int>("Priority")
                         .HasColumnType("integer");
 
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("RequestedByUserId")
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RequestedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RoutePolyline")
+                        .HasColumnType("text");
+
                     b.Property<string>("RoutingProvider")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("SourceFacilityId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TransferNumber")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("text");
 
-                    b.Property<DateTime>("UpdatedAtUtc")
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("WorkflowRunId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("DestinationFacilityId");
 
-                    b.HasIndex("MedicineId");
-
                     b.HasIndex("SourceFacilityId");
 
-                    b.HasIndex("TransferNumber")
-                        .IsUnique();
-
-                    b.HasIndex("Status", "CreatedAtUtc")
-                        .HasDatabaseName("IX_TransferRequests_Status_CreatedAt");
-
-                    b.ToTable("TransferRequests", (string)null);
+                    b.ToTable("TransferRequests");
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferStatusHistory", b =>
@@ -681,37 +833,32 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("ChangedAtUtc")
+                    b.Property<DateTime>("ChangedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ChangedByEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid?>("ChangedByUserId")
+                    b.Property<Guid>("ChangedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("FromStatus")
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
+                    b.Property<int?>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("text");
 
                     b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("TransferRequestId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TransferRequestId", "ChangedAtUtc");
+                    b.HasIndex("TransferRequestId");
 
-                    b.ToTable("TransferStatusHistory", (string)null);
+                    b.ToTable("TransferStatusHistory");
                 });
 
             modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", b =>
@@ -1054,24 +1201,71 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
+            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.ReplenishmentRequest", b =>
                 {
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "Facility")
                         .WithMany()
-                        .HasForeignKey("DestinationFacilityId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MediStock.Api.Features.Inventory.Models.Medicine", null)
+                    b.HasOne("MediStock.Api.Domain.Entities.Medicine", "Medicine")
                         .WithMany()
                         .HasForeignKey("MedicineId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
+                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", "PurchaseOrder")
                         .WithMany()
-                        .HasForeignKey("SourceFacilityId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("PurchaseOrderId");
+
+                    b.HasOne("MediStock.Api.Features.Redistribution.Models.TransferRequest", "SourceTransfer")
+                        .WithMany()
+                        .HasForeignKey("SourceTransferId");
+
+                    b.Navigation("Facility");
+
+                    b.Navigation("Medicine");
+
+                    b.Navigation("PurchaseOrder");
+
+                    b.Navigation("SourceTransfer");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferItem", b =>
+                {
+                    b.HasOne("MediStock.Api.Domain.Entities.Medicine", "Medicine")
+                        .WithMany()
+                        .HasForeignKey("MedicineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediStock.Api.Features.Redistribution.Models.TransferRequest", "TransferRequest")
+                        .WithMany("Items")
+                        .HasForeignKey("TransferRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Medicine");
+
+                    b.Navigation("TransferRequest");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
+                {
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "DestinationFacility")
+                        .WithMany()
+                        .HasForeignKey("DestinationFacilityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "SourceFacility")
+                        .WithMany()
+                        .HasForeignKey("SourceFacilityId");
+
+                    b.Navigation("DestinationFacility");
+
+                    b.Navigation("SourceFacility");
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferStatusHistory", b =>
@@ -1168,6 +1362,8 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
                 {
+                    b.Navigation("Items");
+
                     b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618

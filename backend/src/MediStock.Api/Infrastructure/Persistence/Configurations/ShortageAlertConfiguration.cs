@@ -36,6 +36,9 @@ public class ShortageAlertConfiguration : IEntityTypeConfiguration<ShortageAlert
         builder.Property(x => x.ResolutionReason)
             .HasMaxLength(256);
 
+        builder.Property(x => x.DismissReason)
+            .HasMaxLength(500);
+
         // The forecast an alert was derived from. Left as a plain nullable key rather
         // than a required relationship so an alert recalculated from a caller-supplied
         // stock figure is still valid.
@@ -49,5 +52,8 @@ public class ShortageAlertConfiguration : IEntityTypeConfiguration<ShortageAlert
 
         builder.HasIndex(x => x.RiskLevel)
             .HasDatabaseName("IX_ShortageAlerts_RiskLevel");
+
+        builder.HasIndex(x => new { x.FacilityId, x.MedicineId, x.DismissedAt })
+            .HasDatabaseName("IX_ShortageAlerts_Facility_Medicine_DismissedAt");
     }
 }

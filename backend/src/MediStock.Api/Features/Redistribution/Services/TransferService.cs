@@ -892,6 +892,27 @@ public class TransferService : ITransferService
         return ApiResponse<RouteResponse>.Ok(route, "Route calculated successfully.");
     }
 
+    public async Task<ApiResponse<RouteResponse>> CalculateRoutePreviewAsync(
+        Guid sourceFacilityId,
+        Guid destinationFacilityId,
+        CancellationToken ct = default)
+    {
+        var sourceFacility = await _dbContext.Facilities.FindAsync(new object[] { sourceFacilityId }, ct);
+        if (sourceFacility == null)
+        {
+            return ApiResponse<RouteResponse>.Fail($"Source facility {sourceFacilityId} not found.");
+        }
+
+        var destinationFacility = await _dbContext.Facilities.FindAsync(new object[] { destinationFacilityId }, ct);
+        if (destinationFacility == null)
+        {
+            return ApiResponse<RouteResponse>.Fail($"Destination facility {destinationFacilityId} not found.");
+        }
+
+        var route = await _routingService.CalculateRouteAsync(sourceFacility, destinationFacility, ct);
+        return ApiResponse<RouteResponse>.Ok(route, "Route preview calculated successfully.");
+    }
+
     // =========================================================================
     // INTERNAL WORKFLOW TRANSITIONS (Triggered by WorkflowController / ApprovalService)
     // =========================================================================

@@ -69,7 +69,7 @@ public class TransferNotificationService : ITransferNotificationService
     {
         if (notification == null) return;
 
-        var transferGroupName = TransferHub.GetTransferGroupName(notification.TransferId.ToString());
+        var transferGroupName = TransferHub.GetTransferGroupName(notification.TransferId?.ToString() ?? "global");
 
         try
         {

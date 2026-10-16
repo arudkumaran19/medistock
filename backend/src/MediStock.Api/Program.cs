@@ -388,7 +388,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     var mediStockDb = services.GetRequiredService<MediStockDbContext>();
-    await DbInitializer.InitializeAsync(mediStockDb, logger);
+    await DbInitializer.InitializeAsync(mediStockDb, logger, app.Configuration);
 
     SeedData.Apply(appDb);
     DemandSeedData.Apply(appDb);

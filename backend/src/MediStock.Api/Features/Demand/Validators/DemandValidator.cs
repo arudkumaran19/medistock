@@ -262,6 +262,27 @@ public class DemandValidator
         return DemandValidationResult.Valid();
     }
 
+    public DemandValidationResult ValidateShortageQuery(ShortageQuery query)
+    {
+        if (query is null)
+        {
+            return DemandValidationResult.Valid();
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            var status = query.Status.Trim();
+            if (!ShortageAlertStatuses.IsSupported(status) && !string.Equals(status, "active", StringComparison.OrdinalIgnoreCase))
+            {
+                return DemandValidationResult.Invalid(
+                    UnsupportedStatusCode,
+                    $"status must be one of {string.Join(", ", ShortageAlertStatuses.All)}, or 'active'.");
+            }
+        }
+
+        return DemandValidationResult.Valid();
+    }
+
     /// <summary>
     /// Clamps paging to the frozen convention so a caller cannot request an unbounded page.
     /// </summary>

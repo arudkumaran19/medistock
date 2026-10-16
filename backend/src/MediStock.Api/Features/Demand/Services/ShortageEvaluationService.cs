@@ -104,7 +104,18 @@ public class ShortageEvaluationService
                 medicineId,
                 calculation,
                 demandForecastId: null,
-                cancellationToken);
+                bypassDismissalGuard: false,
+                cancellationToken: cancellationToken);
+
+            if (alert is null)
+            {
+                return new ShortageEvaluationResult(
+                    facilityId,
+                    medicineId,
+                    ShortageEvaluationOutcomes.Skipped,
+                    "Shortage alert creation suppressed: dismissed as false positive and condition has not worsened.",
+                    null);
+            }
 
             _logger.LogInformation(
                 "Auto shortage check {Outcome} alert {AlertId} facility {FacilityId} medicine {MedicineId}: " +

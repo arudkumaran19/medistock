@@ -242,6 +242,40 @@ public class DemandValidatorTests
         normalisedPageSize.Should().Be(expectedPageSize);
     }
 
+    [Theory]
+    [InlineData("OPEN")]
+    [InlineData("ACKNOWLEDGED")]
+    [InlineData("RESOLVED")]
+    [InlineData("DISMISSED")]
+    public void ValidateShortageUpdateRequest_AcceptsSupportedStatuses(string status)
+    {
+        var result = _validator.ValidateShortageUpdateRequest(new ShortageUpdateRequest { Status = status });
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("OPEN")]
+    [InlineData("ACKNOWLEDGED")]
+    [InlineData("RESOLVED")]
+    [InlineData("DISMISSED")]
+    [InlineData("active")]
+    [InlineData("ACTIVE")]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ValidateShortageQuery_AcceptsValidStatuses(string? status)
+    {
+        var result = _validator.ValidateShortageQuery(new ShortageQuery { Status = status });
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ValidateShortageQuery_RejectsInvalidStatus()
+    {
+        var result = _validator.ValidateShortageQuery(new ShortageQuery { Status = "INVALID_STATUS" });
+        result.IsValid.Should().BeFalse();
+        result.Code.Should().Be(DemandValidator.UnsupportedStatusCode);
+    }
+
     private static ConsumptionRequest ValidConsumption() => new()
     {
         FacilityId = Guid.NewGuid(),

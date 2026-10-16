@@ -221,4 +221,76 @@ public class RoutingServiceTests
         result.DurationMinutes.Should().Be(120m);
         result.Waypoints.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task OrsFailure_500InternalServerError_FallsBackToHaversine()
+    {
+        // Arrange: Mock HttpClient returning HTTP 500 Internal Server Error
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.InternalServerError,
+                Content = new StringContent("Server Error")
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var inMemoryConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new[]
+            {
+                new System.Collections.Generic.KeyValuePair<string, string?>("OpenRouteService:ApiKey", "test-api-key")
+            })
+            .Build();
+
+        var loggerMock = new Mock<ILogger<RoutingService>>();
+        var service = new RoutingService(httpClient, inMemoryConfig, loggerMock.Object);
+
+        // Act
+        var result = await service.CalculateRouteAsync(_colomboFacility, _galleFacility);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.IsFallback.Should().BeTrue();
+        result.Provider.Should().Be(Constants.HaversineFallbackProvider);
+    }
+
+    [Fact]
+    public async Task OrsFailure_InvalidJsonPayload_FallsBackToHaversine()
+    {
+        // Arrange: Mock HttpClient returning 200 OK with malformed / invalid JSON
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("<html><body>Unexpected HTML / Unparseable response</body></html>", Encoding.UTF8, "application/json")
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var inMemoryConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new[]
+            {
+                new System.Collections.Generic.KeyValuePair<string, string?>("OpenRouteService:ApiKey", "test-api-key")
+            })
+            .Build();
+
+        var loggerMock = new Mock<ILogger<RoutingService>>();
+        var service = new RoutingService(httpClient, inMemoryConfig, loggerMock.Object);
+
+        // Act
+        var result = await service.CalculateRouteAsync(_colomboFacility, _galleFacility);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.IsFallback.Should().BeTrue();
+        result.Provider.Should().Be(Constants.HaversineFallbackProvider);
+    }
 }

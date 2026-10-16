@@ -52,11 +52,25 @@ public class ShortageResponse
     /// "Stock now covers lead time".</summary>
     public string? ResolutionReason { get; set; }
 
+    public DateTime? DismissedAt { get; set; }
+
+    public Guid? DismissedByUserId { get; set; }
+
+    public string? DismissReason { get; set; }
+
     /// <summary>
     /// True when raising this alert refreshed an existing OPEN or ACKNOWLEDGED alert
     /// for the same facility and medicine instead of creating a duplicate.
     /// </summary>
     public bool ExistingAlertUpdated { get; set; }
+}
+
+/// <summary>
+/// Body of POST /api/shortages/{id}/dismiss.
+/// </summary>
+public class ShortageDismissRequest
+{
+    public string? Reason { get; set; }
 }
 
 /// <summary>

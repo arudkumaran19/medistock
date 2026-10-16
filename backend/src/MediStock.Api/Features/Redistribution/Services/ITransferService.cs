@@ -37,6 +37,8 @@ public interface ITransferService
 
     Task<ApiResponse<RouteResponse>> GetRouteForTransferAsync(Guid transferId, CancellationToken ct = default);
 
+    Task<ApiResponse<RouteResponse>> CalculateRoutePreviewAsync(Guid sourceFacilityId, Guid destinationFacilityId, CancellationToken ct = default);
+
     // Internal workflow / orchestration transitions (triggered by WorkflowController / ApprovalService)
     Task<ApiResponse<TransferResponse>> ApproveTransferInternalAsync(Guid transferId, Guid approverUserId, string? notes = null, CancellationToken ct = default);
 
