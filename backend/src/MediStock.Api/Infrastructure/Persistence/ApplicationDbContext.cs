@@ -1,6 +1,8 @@
 using MediStock.Api.Domain.Entities;
+using MediStock.Api.Features.Demand.Models;
 using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Features.Workflow.Models;
 using MediStock.Api.Infrastructure.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -28,6 +30,32 @@ public sealed class ApplicationDbContext
     public DbSet<MedicineBatch> MedicineBatches => Set<MedicineBatch>();
     public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
     public DbSet<StockTransaction> StockTransactions => Set<StockTransaction>();
+
+    // Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+    // Blueprint section 33 (Demand tables). The entity configurations live in
+    // Infrastructure/Persistence/Configurations/ and are picked up automatically by
+    // ApplyConfigurationsFromAssembly below, so nothing else here needs to change.
+    public DbSet<ConsumptionRecord> ConsumptionRecords => Set<ConsumptionRecord>();
+    public DbSet<DemandForecast> DemandForecasts => Set<DemandForecast>();
+    public DbSet<ReorderRule> ReorderRules => Set<ReorderRule>();
+    public DbSet<ShortageAlert> ShortageAlerts => Set<ShortageAlert>();
+    public DbSet<ShortageStatusHistory> ShortageStatusHistories => Set<ShortageStatusHistory>();
+
+    // Redistribution vertical (Member 3). Additive: two tables, configured in
+    // TransferRequestConfiguration.cs.
+    public DbSet<Features.Redistribution.Models.TransferRequest> TransferRequests => Set<Features.Redistribution.Models.TransferRequest>();
+    public DbSet<Features.Redistribution.Models.TransferStatusHistory> TransferStatusHistory => Set<Features.Redistribution.Models.TransferStatusHistory>();
+
+    // Workflow & Multi-Agent Orchestration
+    public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
+    public DbSet<WorkflowPlanStep> WorkflowPlanSteps => Set<WorkflowPlanStep>();
+    public DbSet<Approval> Approvals => Set<Approval>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<SystemAuditLog> SystemAuditLogs => Set<SystemAuditLog>();
+    public DbSet<AppNotification> AppNotifications => Set<AppNotification>();
+    public DbSet<AgentExecution> AgentExecutions => Set<AgentExecution>();
+    public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
+    public DbSet<ValidationResult> ValidationResults => Set<ValidationResult>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -88,6 +116,42 @@ public sealed class ApplicationDbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        builder.Entity<SystemAuditLog>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Timestamp);
+            entity.HasIndex(x => x.Action);
+            entity.HasIndex(x => x.ResourceType);
+            entity.HasIndex(x => x.ActorEmail);
+            entity.HasIndex(x => x.CorrelationId);
+            entity.Property(x => x.Action).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.ResourceType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Outcome).HasMaxLength(32).IsRequired();
+        });
 
+        builder.Entity<ShortageStatusHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.ShortageAlertId);
+            entity.HasIndex(x => x.ChangedAt);
+            entity.Property(x => x.FromStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ToStatus).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ChangedBy).HasMaxLength(256).IsRequired();
+        });
+
+        builder.Entity<AppNotification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.FacilityId);
+            entity.HasIndex(x => x.Role);
+            entity.HasIndex(x => x.IsRead);
+            entity.HasIndex(x => x.CreatedAtUtc);
+            entity.HasIndex(x => x.ShortageAlertId);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Severity).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.LinkUrl).HasMaxLength(500);
+        });
     }
 }

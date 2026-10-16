@@ -1,5 +1,6 @@
 using MediStock.Api.Features.Inventory.DTOs;
 using MediStock.Api.Domain.Entities;
+using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Infrastructure.Persistence;
 using MediStock.Api.Features.Inventory.Validators;
@@ -7,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediStock.Api.Features.Inventory.Services;
 
-public sealed class InventoryService(ApplicationDbContext db)
+public sealed class InventoryService(
+    ApplicationDbContext db,
+    ShortageEvaluationService? shortageEvaluationService = null)
 {
     public async Task<IReadOnlyList<InventoryResponse>> GetAllAsync(Guid? facilityId, CancellationToken cancellationToken, bool includeArchived = false)
     {
@@ -46,35 +49,107 @@ public sealed class InventoryService(ApplicationDbContext db)
         balance.UpdatedAtUtc = DateTime.UtcNow;
         db.StockTransactions.Add(new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, MedicineBatchId = batch.Id, Type = Domain.Enums.StockTransactionType.Receipt, Quantity = request.Quantity, BalanceAfter = balance.QuantityOnHand, Reason = "Stock received", CreatedAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync(cancellationToken);
+        if (shortageEvaluationService is not null)
+        {
+            await shortageEvaluationService.TryEvaluateAsync(request.FacilityId, request.MedicineId, cancellationToken);
+        }
         return Map(balance, medicine, await db.Facilities.FindAsync([request.FacilityId], cancellationToken) ?? throw new InventoryException("FACILITY_NOT_FOUND", "Facility was not found."));
     }
 
     public async Task<InventoryResponse> AdjustAsync(AdjustStockRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Reason)) throw new InventoryException("REASON_REQUIRED", "An adjustment reason is required.");
-        var balance = await db.InventoryBalances.Include(x => x.Medicine).Include(x => x.Facility).FirstOrDefaultAsync(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId, cancellationToken) ?? throw new InventoryException("INVENTORY_NOT_FOUND", "Inventory balance was not found.");
-        if (!balance.Medicine.IsActive) throw new InventoryException("MEDICINE_INACTIVE", "Medicine is archived and cannot be adjusted.");
-        var newQuantity = balance.QuantityOnHand + request.QuantityDelta;
-        if (newQuantity < balance.QuantityReserved) throw new InventoryException("NEGATIVE_AVAILABLE_STOCK", "Adjustment would make available stock negative.");
-        balance.QuantityOnHand = newQuantity;
-        balance.UpdatedAtUtc = DateTime.UtcNow;
-        db.StockTransactions.Add(new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, Type = Domain.Enums.StockTransactionType.Adjustment, Quantity = request.QuantityDelta, BalanceAfter = newQuantity, Reason = request.Reason.Trim(), CreatedAtUtc = DateTime.UtcNow });
-        await db.SaveChangesAsync(cancellationToken);
-        return Map(balance);
+
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            var balance = await db.InventoryBalances.Include(x => x.Medicine).Include(x => x.Facility).FirstOrDefaultAsync(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId, cancellationToken) ?? throw new InventoryException("INVENTORY_NOT_FOUND", "Inventory balance was not found.");
+            if (!balance.Medicine.IsActive) throw new InventoryException("MEDICINE_INACTIVE", "Medicine is archived and cannot be adjusted.");
+            var newQuantity = balance.QuantityOnHand + request.QuantityDelta;
+            if (newQuantity < balance.QuantityReserved) throw new InventoryException("NEGATIVE_AVAILABLE_STOCK", "Adjustment would make available stock negative.");
+            balance.QuantityOnHand = newQuantity;
+            balance.UpdatedAtUtc = DateTime.UtcNow;
+
+            List<MedicineBatch>? batchesToUpdate = null;
+            if (request.QuantityDelta < 0)
+            {
+                var outstanding = -request.QuantityDelta;
+                batchesToUpdate = await db.MedicineBatches
+                    .Where(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId && x.QuantityOnHand > 0)
+                    .OrderBy(x => x.ExpiryDateUtc)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var batch in batchesToUpdate)
+                {
+                    if (outstanding <= 0) break;
+                    var drawn = Math.Min(batch.QuantityOnHand, outstanding);
+                    batch.QuantityOnHand -= drawn;
+                    outstanding -= drawn;
+                }
+            }
+
+            var transaction = new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, Type = Domain.Enums.StockTransactionType.Adjustment, Quantity = request.QuantityDelta, BalanceAfter = newQuantity, Reason = request.Reason.Trim(), CreatedAtUtc = DateTime.UtcNow };
+            db.StockTransactions.Add(transaction);
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                if (shortageEvaluationService is not null)
+                {
+                    await shortageEvaluationService.TryEvaluateAsync(request.FacilityId, request.MedicineId, cancellationToken);
+                }
+                return Map(balance);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maxRetries)
+            {
+                db.Entry(balance).State = EntityState.Detached;
+                db.Entry(transaction).State = EntityState.Detached;
+                if (batchesToUpdate != null)
+                {
+                    foreach (var b in batchesToUpdate) db.Entry(b).State = EntityState.Detached;
+                }
+                await Task.Delay(20 * attempt, cancellationToken);
+            }
+        }
+
+        throw new InventoryException("CONCURRENCY_CONFLICT", "The stock balance was concurrently modified. Please retry.");
     }
 
     public async Task<InventoryResponse> ReserveAsync(ReserveStockRequest request, CancellationToken cancellationToken)
     {
         InventoryValidator.ValidateQuantity(request.Quantity);
         if (string.IsNullOrWhiteSpace(request.Reason)) throw new InventoryException("REASON_REQUIRED", "A reservation reason is required.");
-        var balance = await db.InventoryBalances.Include(x => x.Medicine).Include(x => x.Facility).FirstOrDefaultAsync(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId, cancellationToken) ?? throw new InventoryException("INVENTORY_NOT_FOUND", "Inventory balance was not found.");
-        if (!balance.Medicine.IsActive) throw new InventoryException("MEDICINE_INACTIVE", "Medicine is archived and cannot be reserved.");
-        if (request.Quantity > balance.AvailableQuantity) throw new InventoryException("INSUFFICIENT_STOCK", "Reservation exceeds available stock.");
-        balance.QuantityReserved += request.Quantity;
-        balance.UpdatedAtUtc = DateTime.UtcNow;
-        db.StockTransactions.Add(new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, Type = Domain.Enums.StockTransactionType.Reservation, Quantity = request.Quantity, BalanceAfter = balance.AvailableQuantity, Reason = request.Reason.Trim(), CreatedAtUtc = DateTime.UtcNow });
-        await db.SaveChangesAsync(cancellationToken);
-        return Map(balance);
+
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            var balance = await db.InventoryBalances.Include(x => x.Medicine).Include(x => x.Facility).FirstOrDefaultAsync(x => x.MedicineId == request.MedicineId && x.FacilityId == request.FacilityId, cancellationToken) ?? throw new InventoryException("INVENTORY_NOT_FOUND", "Inventory balance was not found.");
+            if (!balance.Medicine.IsActive) throw new InventoryException("MEDICINE_INACTIVE", "Medicine is archived and cannot be reserved.");
+            if (request.Quantity > balance.AvailableQuantity) throw new InventoryException("INSUFFICIENT_STOCK", "Reservation exceeds available stock.");
+            balance.QuantityReserved += request.Quantity;
+            balance.UpdatedAtUtc = DateTime.UtcNow;
+
+            var transaction = new StockTransaction { Id = Guid.NewGuid(), MedicineId = request.MedicineId, FacilityId = request.FacilityId, Type = Domain.Enums.StockTransactionType.Reservation, Quantity = request.Quantity, BalanceAfter = balance.AvailableQuantity, Reason = request.Reason.Trim(), CreatedAtUtc = DateTime.UtcNow };
+            db.StockTransactions.Add(transaction);
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                if (shortageEvaluationService is not null)
+                {
+                    await shortageEvaluationService.TryEvaluateAsync(request.FacilityId, request.MedicineId, cancellationToken);
+                }
+                return Map(balance);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maxRetries)
+            {
+                db.Entry(balance).State = EntityState.Detached;
+                db.Entry(transaction).State = EntityState.Detached;
+                await Task.Delay(20 * attempt, cancellationToken);
+            }
+        }
+
+        throw new InventoryException("CONCURRENCY_CONFLICT", "The stock balance was concurrently modified. Please retry.");
     }
 
     public async Task<IReadOnlyList<BatchResponse>> GetExpiringAsync(int days, CancellationToken cancellationToken)

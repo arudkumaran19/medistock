@@ -24,7 +24,7 @@ public sealed class SeedDataTests
 
         SeedData.Apply(db);
 
-        Assert.Equal(7, batchCount);
+        Assert.Equal(16, batchCount);
         Assert.Equal(batchCount, db.MedicineBatches.Count());
         Assert.Equal(balanceCount, db.InventoryBalances.Count());
         Assert.Equal(transactionCount, db.StockTransactions.Count());

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MediStock.Api.Common.Audit;
 using MediStock.Api.Features.Auth.DTOs;
 using MediStock.Api.Features.Auth.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,13 +14,16 @@ public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly CurrentUserService _currentUserService;
+    private readonly IAuditService _auditService;
 
     public AuthController(
         AuthService authService,
-        CurrentUserService currentUserService)
+        CurrentUserService currentUserService,
+        IAuditService auditService)
     {
         _authService = authService;
         _currentUserService = currentUserService;
+        _auditService = auditService;
     }
 
     [HttpPost("register")]
@@ -31,6 +35,17 @@ public sealed class AuthController : ControllerBase
         var response = await _authService.RegisterAsync(
             request,
             cancellationToken);
+
+        await _auditService.LogAsync(
+            action: "USER_REGISTERED",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            details: new { response.Email, Roles = response.Roles },
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         return Ok(response);
     }
@@ -47,6 +62,17 @@ public sealed class AuthController : ControllerBase
 
         if (response is null)
         {
+            await _auditService.LogAsync(
+                action: "USER_LOGIN_FAILED",
+                resourceType: "Auth",
+                resourceId: null,
+                outcome: "FAILURE",
+                reason: "Invalid email or password",
+                actorEmail: request.Email,
+                actorRole: "Anonymous",
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
             return Unauthorized(new
             {
                 success = false,
@@ -58,8 +84,20 @@ public sealed class AuthController : ControllerBase
             });
         }
 
+        await _auditService.LogAsync(
+            action: "USER_LOGIN_SUCCESS",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            details: new { response.Email, Roles = response.Roles },
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
         return Ok(response);
     }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Refresh(
@@ -72,6 +110,16 @@ public sealed class AuthController : ControllerBase
 
         if (response is null)
         {
+            await _auditService.LogAsync(
+                action: "TOKEN_REFRESH_FAILED",
+                resourceType: "Auth",
+                resourceId: null,
+                outcome: "FAILURE",
+                reason: "Invalid or expired refresh token",
+                actorRole: "Anonymous",
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
             return Unauthorized(new
             {
                 success = false,
@@ -83,8 +131,19 @@ public sealed class AuthController : ControllerBase
             });
         }
 
+        await _auditService.LogAsync(
+            action: "TOKEN_REFRESH_SUCCESS",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
         return Ok(response);
     }
+
     [HttpPost("logout")]
     [AllowAnonymous]
     public async Task<IActionResult> Logout(
@@ -94,6 +153,14 @@ public sealed class AuthController : ControllerBase
         await _authService.LogoutAsync(
             request,
             cancellationToken);
+
+        await _auditService.LogAsync(
+            action: "USER_LOGOUT",
+            resourceType: "Auth",
+            resourceId: null,
+            outcome: "SUCCESS",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         return NoContent();
     }

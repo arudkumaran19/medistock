@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using MediStock.Api.Common;
+using MediStock.Api.Configuration;
 using MediStock.Api.Features.Auth.Services;
 using MediStock.Api.Features.Inventory.Services;
 using MediStock.Api.Features.Procurement.Services;
@@ -14,7 +15,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
+using MediStock.Api.Features.Demand.Services;
+using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Infrastructure.AI;
+using Microsoft.Extensions.Options;
 
 // ============================================================
 // Load backend/.env for local development.
@@ -110,6 +116,7 @@ builder.Services
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
+    options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     if (builder.Environment.IsEnvironment("Testing") ||
         builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
     {
@@ -196,6 +203,7 @@ builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<FacilityAuthorizationService>();
 builder.Services.AddScoped<PolicyValidationService>();
+builder.Services.AddScoped<MediStock.Api.Common.Audit.IAuditService, MediStock.Api.Common.Audit.AuditService>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -230,7 +238,73 @@ builder.Services
             };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // 1. AI Coordinator Access: Authenticated healthcare users across valid roles
+    options.AddPolicy("CoordinatorAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.FacilityManager) ||
+                   ctx.User.IsInRole("FacilityManager") ||
+                   ctx.User.IsInRole(Constants.Roles.StoreOfficer) ||
+                   ctx.User.IsInRole("OperationalStaff") ||
+                   ctx.User.IsInRole("StoreOfficer") ||
+                   ctx.User.IsInRole("StoreOperator") ||
+                   ctx.User.IsInRole(Constants.Roles.SupplierOfficer) ||
+                   ctx.User.IsInRole("SupplierOfficer");
+        }));
+
+    // 2. Add-Medicine and Expiry Management: Administrator (all privileges) & Store Officer (assigned-store operations)
+    options.AddPolicy("AddMedicineAndExpiryAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.StoreOfficer) ||
+                   ctx.User.IsInRole("OperationalStaff") ||
+                   ctx.User.IsInRole("StoreOfficer") ||
+                   ctx.User.IsInRole("StoreOperator");
+        }));
+
+    // 3. Facility Inventory Visibility: Administrator, Facility Manager & Store Officer. Supplier Officer restricted.
+    options.AddPolicy("FacilityInventoryAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.FacilityManager) ||
+                   ctx.User.IsInRole("FacilityManager") ||
+                   ctx.User.IsInRole(Constants.Roles.StoreOfficer) ||
+                   ctx.User.IsInRole("OperationalStaff") ||
+                   ctx.User.IsInRole("StoreOfficer") ||
+                   ctx.User.IsInRole("StoreOperator");
+        }));
+
+    // 4. Procurement & Transfer Approvals: Administrator and Facility Manager within assigned authority. Store & Supplier Officers cannot approve.
+    options.AddPolicy("ProcurementApprovalAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.FacilityManager) ||
+                   ctx.User.IsInRole("FacilityManager");
+        }));
+
+    // 5. User & System Administration: Strictly restricted to Administrator
+    options.AddPolicy("UserAdministrationAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator");
+        }));
+});
 
 
 // ============================================================
@@ -241,6 +315,52 @@ builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<StockTransactionService>();
 builder.Services.AddScoped<MedicineService>();
+
+// ---------------------------------------------------------------------------
+// Demand & Shortage vertical - Sathurstiga S. (IT24103156).
+// Additive registrations only; nothing above is changed.
+// ---------------------------------------------------------------------------
+builder.Services.AddScoped<ConsumptionService>();
+builder.Services.AddScoped<ForecastService>();
+builder.Services.AddScoped<ShortageService>();
+builder.Services.AddScoped<ShortageEvaluationService>();
+builder.Services.AddScoped<DemandValidator>();
+builder.Services.AddScoped<MediStock.Api.Features.Notifications.Services.INotificationService, MediStock.Api.Features.Notifications.Services.NotificationService>();
+
+// ---------------------------------------------------------------------------
+// Redistribution vertical (Member 3). Additive registrations only.
+// ---------------------------------------------------------------------------
+builder.Services.AddSingleton<MediStock.Api.Features.Redistribution.Services.RoutingService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.CandidateFacilityService>();
+builder.Services.AddScoped<MediStock.Api.Features.Redistribution.Services.TransferService>();
+
+// Internal agent service (blueprint section 37). Infrastructure/AI has no assigned
+// owner in the blueprint; added so the Demand & Shortage Agent is reachable from
+// ASP.NET Core rather than being a library nothing can invoke.
+builder.Services.Configure<AgentServiceOptions>(
+    builder.Configuration.GetSection(AgentServiceOptions.SectionName));
+
+builder.Services.AddHttpClient<AgentServiceClient>((serviceProvider, client) =>
+{
+    var agentOptions = serviceProvider
+        .GetRequiredService<IOptions<AgentServiceOptions>>()
+        .Value;
+
+    // An unconfigured or malformed base URL must not stop the API starting. The agent
+    // is advisory, so leave the address unset and report a safe failure instead.
+    if (Uri.TryCreate(agentOptions.BaseUrl, UriKind.Absolute, out var agentBaseAddress))
+    {
+        client.BaseAddress = agentBaseAddress;
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(
+        agentOptions.TimeoutSeconds > 0 ? agentOptions.TimeoutSeconds : 30);
+});
+
+// ============================================================
+// Workflow & Multi-Agent Orchestration
+// ============================================================
+builder.Services.AddWorkflowServices();
 
 
 // ============================================================
@@ -255,6 +375,13 @@ builder.Services.AddProblemDetails();
 // CORS
 // ============================================================
 
+// Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
+// Localhost stays allowed for local development, exactly as before.
+var deployedOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Select(origin => origin.TrimEnd('/'))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("LocalWeb", policy =>
@@ -263,6 +390,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(origin =>
             {
                 if (string.IsNullOrEmpty(origin)) return false;
+                if (deployedOrigins.Contains(origin.TrimEnd('/'))) return true;
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
                     return uri.Host == "localhost" || uri.Host == "127.0.0.1";
@@ -340,6 +468,15 @@ using (var scope = app.Services.CreateScope())
     }
 
     SeedData.Apply(db);
+
+    // Demand & Shortage seed data (Sathurstiga S., IT24103156). Applied after the
+    // shared reference data so facilities and medicines already exist.
+    DemandSeedData.Apply(db);
+
+    // Additive demo volume: extra formulary, stock movements, suppliers and purchase
+    // orders. Deterministic, idempotent and skipped entirely outside local dev/test,
+    // so it never seeds production and never overwrites user records.
+    await DemoVolumeSeed.ApplyAsync(db, app.Environment);
 }
 
 await SeedUsers.SeedAsync(app.Services);
@@ -350,10 +487,13 @@ await SeedUsers.SeedAsync(app.Services);
 // ============================================================
 
 app.UseExceptionHandler();
+app.UseCorrelationId();
 
 app.UseCors("LocalWeb");
 
-if (app.Environment.IsDevelopment())
+// Swagger stays on in deployed builds: the assignment requires a working Swagger URL
+// for evaluators. Set Swagger__Enabled=false to switch it off.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
