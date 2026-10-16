@@ -9,6 +9,7 @@ from medistock_agents.safety.loop_guard import LoopGuard
 @pytest.fixture(autouse=True)
 def mock_llm_for_coordinator(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("MEDISTOCK_API_BASE_URL", "http://127.0.0.1:59999")
 
 
 @pytest.mark.asyncio

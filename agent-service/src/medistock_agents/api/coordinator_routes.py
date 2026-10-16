@@ -27,14 +27,18 @@ def _check_internal_token(x_internal_token: str | None) -> None:
         raise HTTPException(status_code=403, detail="Forbidden: invalid internal token")
 
 
-def _authorise(authorization: str | None) -> None:
-    """Enforce RBAC before the Coordinator retrieves data or delegates to any agent."""
-    token = None
+def _extract_user_token(x_user_token: str | None, authorization: str | None) -> str | None:
+    if x_user_token and x_user_token.strip():
+        return x_user_token.strip()
     if authorization and authorization.lower().startswith("bearer "):
-        token = authorization[7:].strip()
+        return authorization[7:].strip()
+    return None
 
+
+def _authorise(user_token: str | None) -> None:
+    """Enforce RBAC before the Coordinator retrieves data or delegates to any agent."""
     try:
-        require_role(token, COORDINATOR_ALLOWED_ROLES, "the MediStock AI Coordinator")
+        require_role(user_token, COORDINATOR_ALLOWED_ROLES, "the MediStock AI Coordinator")
     except AccessDenied as error:
         raise HTTPException(status_code=error.status, detail=error.message) from error
 
@@ -58,10 +62,12 @@ class CoordinatorChatRequest(BaseModel):
 async def run_coordinator(
     request: CoordinatorRunRequest,
     x_internal_token: str | None = Header(None),
+    x_user_token: str | None = Header(None),
     authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     _check_internal_token(x_internal_token)
-    _authorise(authorization)
+    user_token = _extract_user_token(x_user_token, authorization)
+    _authorise(user_token)
 
     agent = CoordinatorAgent()
     return await agent.run(
@@ -77,10 +83,12 @@ async def run_coordinator(
 async def chat_coordinator(
     request: CoordinatorChatRequest,
     x_internal_token: str | None = Header(None),
+    x_user_token: str | None = Header(None),
     authorization: str | None = Header(None),
 ) -> dict[str, Any]:
     _check_internal_token(x_internal_token)
-    _authorise(authorization)
+    user_token = _extract_user_token(x_user_token, authorization)
+    _authorise(user_token)
 
     agent = CoordinatorAgent()
     result = await agent.run(
