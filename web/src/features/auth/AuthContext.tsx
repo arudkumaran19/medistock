@@ -11,6 +11,10 @@ interface AuthContextType {
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
+  hasExactRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
+  isCoordinatorAuthorized: () => boolean;
+  canManageMedicineAndExpiry: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -98,6 +102,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.roles.includes(role) || user.roles.includes("ADMIN") || user.roles.includes("Administrator");
   }
 
+  function hasExactRole(role: string): boolean {
+    if (!user) return false;
+    return user.roles.some((r) => r.toLowerCase() === role.toLowerCase());
+  }
+
+  function hasAnyRole(roles: string[]): boolean {
+    if (!user) return false;
+    const lowerRoles = roles.map((r) => r.toLowerCase());
+    return user.roles.some((r) => lowerRoles.includes(r.toLowerCase()));
+  }
+
+  function isCoordinatorAuthorized(): boolean {
+    if (!user) return false;
+    return user.roles.some((r) =>
+      [
+        "admin",
+        "administrator",
+        "facilitymanager",
+        "facility_manager",
+        "store_officer",
+        "storeofficer",
+        "operationalstaff",
+        "storeoperator",
+        "supplier_officer",
+        "supplierofficer",
+      ].includes(r.toLowerCase())
+    );
+  }
+
+  function canManageMedicineAndExpiry(): boolean {
+    if (!user) return false;
+    return user.roles.some((r) =>
+      [
+        "admin",
+        "administrator",
+        "store_officer",
+        "storeofficer",
+        "operationalstaff",
+        "storeoperator",
+      ].includes(r.toLowerCase())
+    );
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -109,6 +156,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         hasRole,
+        hasExactRole,
+        hasAnyRole,
+        isCoordinatorAuthorized,
+        canManageMedicineAndExpiry,
       }}
     >
       {children}
@@ -129,6 +180,10 @@ const defaultAuthContext: AuthContextType = {
   register: async () => {},
   logout: async () => {},
   hasRole: () => true,
+  hasExactRole: () => true,
+  hasAnyRole: () => true,
+  isCoordinatorAuthorized: () => true,
+  canManageMedicineAndExpiry: () => true,
 };
 
 export function useAuth(): AuthContextType {

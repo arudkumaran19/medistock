@@ -1,4 +1,4 @@
-@import './design-system.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 /* ============================================================
    Global Reset & Base
@@ -921,4 +921,16 @@ a:hover {
 
 .animate-spin {
   animation: spin 0.75s linear infinite;
+}
+
+/* ─── Coordinator AI Floating Assistant ──────────────────── */
+@keyframes chatPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
