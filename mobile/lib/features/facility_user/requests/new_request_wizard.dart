@@ -67,7 +67,6 @@ class MedicineOption {
 }
 
 class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
-  final PageController _pageController = PageController();
   late final ApiClient _apiClient;
 
   int _currentStep = 1;
@@ -182,7 +181,6 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     _quantityController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -196,13 +194,6 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       return;
     }
 
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        step - 1,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
     setState(() => _currentStep = step);
   }
 
@@ -323,18 +314,13 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               ),
 
             Expanded(
-              child: _isLoadingMedicines
+              child: _isLoadingMedicines && _availableMedicines.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : _currentStep == 3
                       ? _buildSuccessView()
-                      : PageView(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            _buildStep1MedicineAndQuantity(),
-                            _buildStep2ReviewAndConfirm(),
-                          ],
-                        ),
+                      : _currentStep == 2
+                          ? _buildStep2ReviewAndConfirm()
+                          : _buildStep1MedicineAndQuantity(),
             ),
           ],
         ),
