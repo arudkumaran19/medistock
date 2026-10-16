@@ -12,13 +12,10 @@ class AppConstants {
     return 'http://localhost:5050';
   }
 
-  // Default Test User for Field Technician / Logistics Officer
-  static const String defaultFieldUserId = '00000000-0000-0000-0000-000000000002';
-
-  // Seed Facility IDs (Matching DbInitializer in Backend)
-  static const String defaultDestinationFacilityId = 'a0000000-0000-0000-0000-000000000003'; // Teaching Hospital Kandy
-  static const String defaultSourceFacilityId = 'a0000000-0000-0000-0000-000000000001'; // National Hospital Colombo
-  static const String defaultMedicineId = 'b0000000-0000-0000-0000-000000000005'; // Ceftriaxone 1g
+  // Neutral map center (Sri Lanka geographic center) for empty/loading map states
+  static const double sriLankaCenterLatitude = 7.8731;
+  static const double sriLankaCenterLongitude = 80.7718;
+  static const double sriLankaDefaultZoom = 7.0;
 }
 
 class AppColors {

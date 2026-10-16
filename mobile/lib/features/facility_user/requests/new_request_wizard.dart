@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_constants.dart' hide AppColors;
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -187,9 +186,21 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
     try {
       final user = ref.read(authControllerProvider).user;
-      final destinationFacilityId = widget.prefillDestinationFacilityId ??
-          user?.facilityId ??
-          AppConstants.defaultDestinationFacilityId;
+      final destinationFacilityId = widget.prefillDestinationFacilityId ?? user?.facilityId;
+
+      if (destinationFacilityId == null || destinationFacilityId.trim().isEmpty) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = 'Cannot submit: No destination facility found. Please ensure your user profile is assigned to a facility or launch the request from an active shortage alert.';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot submit: No facility assigned to user or alert.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
 
       final repo = ref.read(transferRepositoryProvider);
 
@@ -509,7 +520,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
   Widget _buildStep2ReviewAndConfirm() {
     final user = ref.watch(authControllerProvider).user;
-    final destFacility = user?.facilityName ?? 'Teaching Hospital Kandy (Destination)';
+    final hasDest = (widget.prefillDestinationFacilityId != null && widget.prefillDestinationFacilityId!.isNotEmpty) ||
+        (user?.facilityId != null && user!.facilityId!.isNotEmpty);
+    final destFacility = user?.facilityName ?? (widget.prefillDestinationFacilityId != null ? 'Alert Assigned Facility' : 'Not available');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -643,10 +656,33 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               ),
             ),
 
-          const SizedBox(height: 32),
+          if (!hasDest)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.error.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No receiving facility assigned to your user account or alert. Submission is blocked.',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
 
           ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitRequest,
+            onPressed: (_isSubmitting || !hasDest) ? null : _submitRequest,
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: _isSubmitting
                 ? const SizedBox(

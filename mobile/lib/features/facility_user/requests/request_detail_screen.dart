@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../redistribution/widgets/transfer_live_map_widget.dart';
 import 'data/transfer_repository.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
@@ -131,109 +132,90 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           onRetry: () => ref.refresh(transferByIdProvider(widget.requestId)),
         ),
         data: (transfer) {
-          final vehiclePos = _liveVehiclePos ??
+          final routeAsync = ref.watch(transferRouteProvider(widget.requestId));
+          final route = routeAsync.valueOrNull;
+
+          final sLat = route?.sourceLatitude;
+          final sLng = route?.sourceLongitude;
+          final LatLng? sourcePos = (sLat != null && sLng != null && sLat != 0 && sLng != 0)
+              ? LatLng(sLat, sLng)
+              : (route != null && route.waypoints.isNotEmpty && route.waypoints.first.latitude != 0)
+                  ? LatLng(route.waypoints.first.latitude, route.waypoints.first.longitude)
+                  : null;
+
+          final dLat = route?.destinationLatitude;
+          final dLng = route?.destinationLongitude;
+          final LatLng? destPos = (dLat != null && dLng != null && dLat != 0 && dLng != 0)
+              ? LatLng(dLat, dLng)
+              : (route != null && route.waypoints.isNotEmpty && route.waypoints.last.latitude != 0)
+                  ? LatLng(route.waypoints.last.latitude, route.waypoints.last.longitude)
+                  : null;
+
+          final LatLng? vehiclePos = _liveVehiclePos ??
               (transfer.currentLatitude != 0 && transfer.currentLongitude != 0
                   ? LatLng(transfer.currentLatitude, transfer.currentLongitude)
-                  : const LatLng(6.9271, 79.8612)); // Colombo default
-
-          const destPos = LatLng(7.2906, 80.6337); // Kandy default
-          const sourcePos = LatLng(6.9271, 79.8612); // Colombo default
+                  : null);
 
           final statusLower = transfer.status.toLowerCase();
           final isDelivered = statusLower == 'delivered' || statusLower == 'received';
           final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
           final canConfirm = isInTransit || statusLower == 'reserved' || statusLower == 'approved';
 
+          final hasValidMap = sourcePos != null && destPos != null;
+
           return RefreshIndicator(
-            onRefresh: () async => ref.refresh(transferByIdProvider(widget.requestId)),
+            onRefresh: () async {
+              ref.invalidate(transferByIdProvider(widget.requestId));
+              ref.invalidate(transferRouteProvider(widget.requestId));
+            },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Live Interactive Map View
-                  SizedBox(
-                    height: 260,
-                    child: Stack(
-                      children: [
-                        FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter: vehiclePos,
-                            initialZoom: 11.5,
+                  if (hasValidMap)
+                    TransferLiveMapWidget(
+                      sourceCoords: sourcePos,
+                      sourceFacilityName: transfer.sourceFacilityName.isNotEmpty
+                          ? transfer.sourceFacilityName
+                          : 'Origin Depot',
+                      destinationCoords: destPos,
+                      destinationFacilityName: transfer.destinationFacilityName.isNotEmpty
+                          ? transfer.destinationFacilityName
+                          : 'Destination Facility',
+                      vehicleCoords: vehiclePos,
+                      waypoints: route?.waypoints ?? const [],
+                      distanceKm: route?.distanceKm,
+                      durationMinutes: route?.durationMinutes,
+                      status: transfer.status,
+                    )
+                  else
+                    Container(
+                      height: 220,
+                      width: double.infinity,
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.location_off_rounded, size: 40, color: AppColors.textMuted),
+                          const SizedBox(height: 12),
+                          Text('Location unavailable', style: AppTextStyles.titleMedium),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Facility coordinates or transit route data are not available.',
+                            style: AppTextStyles.bodySmall,
+                            textAlign: TextAlign.center,
                           ),
-                          children: [
-                            TileLayer(
-                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.medistock.app',
-                            ),
-                            PolylineLayer(
-                              polylines: [
-                                Polyline(
-                                  points: [sourcePos, vehiclePos, destPos],
-                                  strokeWidth: 4.0,
-                                  color: AppColors.primary,
-                                ),
-                              ],
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: sourcePos,
-                                  child: const Icon(Icons.warehouse_rounded, color: AppColors.secondary, size: 28),
-                                ),
-                                Marker(
-                                  point: vehiclePos,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                                    ),
-                                    child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 18),
-                                  ),
-                                ),
-                                Marker(
-                                  point: destPos,
-                                  child: const Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 28),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isInTransit ? Icons.sensors_rounded : Icons.info_outline_rounded,
-                                  size: 14,
-                                  color: isInTransit ? AppColors.primary : AppColors.textMuted,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isInTransit ? 'Live Telemetry Active' : 'Status: ${transfer.status}',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
                   Padding(
                     padding: const EdgeInsets.all(20),

@@ -1,6 +1,6 @@
-import '../../../core/constants/app_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exceptions.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../models/transfer_models.dart';
 
 String toBackendStatus(String uiStatus) {
@@ -66,12 +66,14 @@ class TransferApiService {
     String? sourceFacilityId,
     String? notes,
   }) async {
+    final user = await SecureStorageService().getUser();
+    final userId = user?['userId']?.toString() ?? user?['id']?.toString() ?? '';
     final payload = {
       'destinationFacilityId': destinationFacilityId,
       'medicineId': medicineId,
       'requestedQuantity': requestedQuantity,
       'priority': priority,
-      'requestedByUserId': AppConstants.defaultFieldUserId,
+      if (userId.isNotEmpty) 'requestedByUserId': userId,
       if (sourceFacilityId != null && sourceFacilityId.isNotEmpty)
         'sourceFacilityId': sourceFacilityId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
@@ -134,8 +136,10 @@ class TransferApiService {
     String? discrepancyReason,
     String? notes,
   }) async {
+    final user = await SecureStorageService().getUser();
+    final userId = user?['userId']?.toString() ?? user?['id']?.toString() ?? '';
     final payload = {
-      'receivedByUserId': AppConstants.defaultFieldUserId,
+      if (userId.isNotEmpty) 'receivedByUserId': userId,
       'receivedQuantity': receivedQuantity,
       'batchNumber': batchNumber,
       'destinationFacilityId': destinationFacilityId,

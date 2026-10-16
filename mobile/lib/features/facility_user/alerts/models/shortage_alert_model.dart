@@ -9,6 +9,8 @@ class ShortageAlertModel {
   final String severity;
   final String message;
   final DateTime createdAt;
+  final String status;
+  final Map<String, dynamic> rawJson;
 
   ShortageAlertModel({
     required this.id,
@@ -21,33 +23,48 @@ class ShortageAlertModel {
     required this.severity,
     required this.message,
     required this.createdAt,
+    this.status = 'OPEN',
+    this.rawJson = const {},
   });
 
   factory ShortageAlertModel.fromJson(Map<String, dynamic> json) {
+    final parsedStock = json['currentStock'] ?? json['stockOnHand'] ?? json['quantityOnHand'];
+    final parsedQty = json['suggestedQuantity'] ?? json['reorderQuantity'] ?? json['shortageQuantity'] ?? json['threshold'];
+    final dateStr = json['createdAt']?.toString() ?? json['generatedAt']?.toString() ?? json['timestamp']?.toString() ?? '';
+
     return ShortageAlertModel(
       id: json['id']?.toString() ?? '',
       medicineId: json['medicineId']?.toString() ?? '',
       medicineName: json['medicineName']?.toString() ?? json['medicine']?['name']?.toString() ?? 'Medicine',
       facilityId: json['facilityId']?.toString() ?? '',
       facilityName: json['facilityName']?.toString() ?? json['facility']?['name']?.toString() ?? 'Facility',
-      currentStock: json['currentStock'] ?? json['stockOnHand'] ?? json['quantityOnHand'] ?? 0,
-      suggestedQuantity: json['suggestedQuantity'] ?? json['reorderQuantity'] ?? json['shortageQuantity'] ?? json['threshold'] ?? 100,
+      currentStock: parsedStock is num ? parsedStock.toInt() : (int.tryParse(parsedStock?.toString() ?? '') ?? 0),
+      suggestedQuantity: parsedQty is num ? parsedQty.toInt() : (int.tryParse(parsedQty?.toString() ?? '') ?? 100),
       severity: json['severity']?.toString() ?? json['riskLevel']?.toString() ?? 'Medium',
       message: json['message']?.toString() ?? json['reason']?.toString() ?? 'Shortage detected',
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? json['timestamp']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(dateStr) ?? DateTime.now(),
+      status: json['status']?.toString() ?? 'OPEN',
+      rawJson: json,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'medicineId': medicineId,
-    'medicineName': medicineName,
-    'facilityId': facilityId,
-    'facilityName': facilityName,
-    'currentStock': currentStock,
-    'suggestedQuantity': suggestedQuantity,
-    'severity': severity,
-    'message': message,
-    'createdAt': createdAt.toIso8601String(),
-  };
+  Map<String, dynamic> toJson() {
+    final map = Map<String, dynamic>.from(rawJson);
+    map.addAll({
+      'id': id,
+      'medicineId': medicineId,
+      'medicineName': medicineName,
+      'facilityId': facilityId,
+      'facilityName': facilityName,
+      'currentStock': currentStock,
+      'suggestedQuantity': suggestedQuantity,
+      'severity': severity,
+      'riskLevel': severity,
+      'message': message,
+      'createdAt': createdAt.toIso8601String(),
+      'generatedAt': createdAt.toIso8601String(),
+      'status': status,
+    });
+    return map;
+  }
 }

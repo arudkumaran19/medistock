@@ -8,8 +8,16 @@ class ShortageRepository {
 
   ShortageRepository(this._dio);
 
-  Future<List<ShortageAlertModel>> getMyAlerts() async {
-    final resp = await _dio.get('/api/shortages');
+  Future<List<ShortageAlertModel>> getMyAlerts({String? facilityId}) async {
+    final Map<String, dynamic> query = {};
+    if (facilityId != null && facilityId.isNotEmpty) {
+      query['facilityId'] = facilityId;
+    }
+
+    final resp = await _dio.get(
+      '/api/shortages',
+      queryParameters: query.isNotEmpty ? query : null,
+    );
     final data = resp.data;
     List list = [];
     if (data is Map<String, dynamic>) {
@@ -23,7 +31,26 @@ class ShortageRepository {
     } else if (data is List) {
       list = data;
     }
-    return list.map((j) => ShortageAlertModel.fromJson(j as Map<String, dynamic>)).toList();
+
+    var alerts = list.map((j) => ShortageAlertModel.fromJson(j as Map<String, dynamic>)).toList();
+
+    // Client-side facility scoping guard
+    if (facilityId != null && facilityId.isNotEmpty) {
+      alerts = alerts
+          .where((a) =>
+              a.facilityId.isEmpty ||
+              a.facilityId.toLowerCase() == facilityId.toLowerCase())
+          .toList();
+    }
+
+    return alerts;
+  }
+
+  Future<void> dismissShortage(String alertId, {String? reason}) async {
+    await _dio.post(
+      '/api/shortages/$alertId/dismiss',
+      data: {'reason': reason ?? 'Dismissed as false positive'},
+    );
   }
 }
 

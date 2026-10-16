@@ -73,21 +73,21 @@ class TransferModel {
     final rawItems = json['items'] as List<dynamic>? ?? [];
     return TransferModel(
       id: json['id']?.toString() ?? '',
-      transferNumber: json['transferNumber']?.toString() ?? json['code']?.toString() ?? 'REQ-2024-8842',
+      transferNumber: json['transferNumber']?.toString() ?? json['code']?.toString() ?? '',
       sourceFacilityId: json['sourceFacilityId']?.toString() ?? '',
-      sourceFacilityName: json['sourceFacilityName']?.toString() ?? 'Regional Warehouse',
+      sourceFacilityName: json['sourceFacilityName']?.toString() ?? 'Unknown Facility',
       destinationFacilityId: json['destinationFacilityId']?.toString() ?? '',
-      destinationFacilityName: json['destinationFacilityName']?.toString() ?? 'Primary Health Center',
+      destinationFacilityName: json['destinationFacilityName']?.toString() ?? 'Unknown Facility',
       status: json['status']?.toString() ?? 'Pending',
       priority: json['priority']?.toString() ?? 'Normal',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      officerName: json['officerName']?.toString() ?? 'Assigned Officer',
-      officerPhone: json['officerPhone']?.toString() ?? '+91 98765 43210',
-      currentLatitude: (json['currentLatitude'] as num?)?.toDouble() ?? (json['lastLatitude'] as num?)?.toDouble() ?? 13.0827,
-      currentLongitude: (json['currentLongitude'] as num?)?.toDouble() ?? (json['lastLongitude'] as num?)?.toDouble() ?? 80.2707,
-      otp: json['otp']?.toString() ?? '4829',
+      officerName: json['officerName']?.toString(),
+      officerPhone: json['officerPhone']?.toString(),
+      currentLatitude: (json['currentLatitude'] as num?)?.toDouble() ?? (json['lastLatitude'] as num?)?.toDouble() ?? 0.0,
+      currentLongitude: (json['currentLongitude'] as num?)?.toDouble() ?? (json['lastLongitude'] as num?)?.toDouble() ?? 0.0,
+      otp: json['otp']?.toString(),
       items: rawItems.map((e) => TransferItemModel.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }

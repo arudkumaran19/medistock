@@ -1,23 +1,29 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
+import 'alerts_provider.dart';
 import '../requests/new_request_wizard.dart';
 
-class VerifyShortageScreen extends StatefulWidget {
+class VerifyShortageScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> shortageAlert;
+  final Dio? dio;
 
   const VerifyShortageScreen({
     super.key,
     required this.shortageAlert,
+    this.dio,
   });
 
   @override
-  State<VerifyShortageScreen> createState() => _VerifyShortageScreenState();
+  ConsumerState<VerifyShortageScreen> createState() => _VerifyShortageScreenState();
 }
 
-class _VerifyShortageScreenState extends State<VerifyShortageScreen> {
+class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
   final ApiClient _apiClient = ApiClient();
   bool _isLoading = false;
 
@@ -66,13 +72,70 @@ class _VerifyShortageScreenState extends State<VerifyShortageScreen> {
     final alertId = widget.shortageAlert['id']?.toString() ?? '';
     if (alertId.isNotEmpty) {
       try {
-        await _apiClient.post('/api/shortages/$alertId/resolve', body: {});
-      } catch (_) {}
-    }
-    setState(() => _isLoading = false);
+        final dio = widget.dio ?? DioClient().dio;
+        await dio.post(
+          '/api/shortages/$alertId/dismiss',
+          data: {'reason': 'Dismissed as false positive'},
+        );
 
-    if (mounted) {
-      context.pop();
+        if (!mounted) return;
+        ref.read(alertsProvider.notifier).removeAlert(alertId);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shortage alert dismissed as false positive.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.pop();
+        return;
+      } on DioException catch (dioErr) {
+        if (!mounted) return;
+        final backendMsg = dioErr.response?.data?['error']?['message']?.toString() ??
+            dioErr.response?.data?['message']?.toString();
+
+        if (dioErr.response?.statusCode == 403) {
+          final displayMsg = backendMsg ?? 'Permission denied: You can only dismiss alerts for your own assigned facility.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              key: const Key('forbidden-error-snackbar'),
+              content: Text(displayMsg),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else if (dioErr.response?.statusCode == 409) {
+          final displayMsg = backendMsg ?? 'This alert cannot be dismissed because of a status conflict.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              key: const Key('conflict-error-snackbar'),
+              content: Text(displayMsg),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          final msg = backendMsg ??
+              dioErr.message ??
+              'Failed to dismiss shortage alert';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $msg'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (err) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unexpected error: $err'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 

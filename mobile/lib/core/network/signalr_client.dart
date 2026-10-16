@@ -18,12 +18,14 @@ class SignalRClient {
   final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _taskAssignedController = StreamController<Map<String, dynamic>>.broadcast();
   final _shortageAlertController = StreamController<Map<String, dynamic>>.broadcast();
+  final _shortageAlertDismissedController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTransferStatusChanged => _statusChangeController.stream;
   Stream<Map<String, dynamic>> get onTransferLocationUpdated => _locationUpdateController.stream;
   Stream<Map<String, dynamic>> get onNotificationCreated => _notificationController.stream;
   Stream<Map<String, dynamic>> get onTaskAssigned => _taskAssignedController.stream;
   Stream<Map<String, dynamic>> get onShortageAlertCreated => _shortageAlertController.stream;
+  Stream<Map<String, dynamic>> get onShortageAlertDismissed => _shortageAlertDismissedController.stream;
 
   bool get isConnected => _hubConnection?.state == HubConnectionState.connected;
 
@@ -56,6 +58,7 @@ class SignalRClient {
     _hubConnection?.on('NotificationCreated', _handleNotificationCreated);
     _hubConnection?.on('TaskAssigned', _handleTaskAssigned);
     _hubConnection?.on('ShortageAlertCreated', _handleShortageAlertCreated);
+    _hubConnection?.on('ShortageAlertDismissed', _handleShortageAlertDismissed);
 
     try {
       await _hubConnection?.start();
@@ -108,6 +111,12 @@ class SignalRClient {
   void _handleShortageAlertCreated(List<Object?>? args) {
     if (args != null && args.isNotEmpty && args[0] is Map) {
       _shortageAlertController.add(Map<String, dynamic>.from(args[0] as Map));
+    }
+  }
+
+  void _handleShortageAlertDismissed(List<Object?>? args) {
+    if (args != null && args.isNotEmpty && args[0] is Map) {
+      _shortageAlertDismissedController.add(Map<String, dynamic>.from(args[0] as Map));
     }
   }
 
@@ -191,6 +200,7 @@ class SignalRClient {
     _notificationController.close();
     _taskAssignedController.close();
     _shortageAlertController.close();
+    _shortageAlertDismissedController.close();
   }
 }
 

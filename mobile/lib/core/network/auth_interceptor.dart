@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import '../constants/app_constants.dart';
 import '../storage/secure_storage.dart';
 
 class AuthInterceptor extends Interceptor {
@@ -25,10 +24,17 @@ class AuthInterceptor extends Interceptor {
   /// For http-based API calls (Redistribution Slice)
   Future<Map<String, String>> getHeaders({Map<String, String>? extraHeaders}) async {
     final token = await _getToken();
+    Map<String, dynamic>? user;
+    try {
+      user = await _storage.getUser().timeout(const Duration(milliseconds: 100));
+    } catch (_) {
+      // Platform channels may not be available in test environments
+    }
+    final userId = user?['userId']?.toString() ?? user?['id']?.toString();
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'X-User-Id': AppConstants.defaultFieldUserId,
+      if (userId != null && userId.isNotEmpty) 'X-User-Id': userId,
     };
 
     if (token != null && token.isNotEmpty) {

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../shared/models/transfer_model.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../facility_user/requests/data/transfer_repository.dart';
+import '../../redistribution/widgets/transfer_live_map_widget.dart';
 import '../location/location_publisher.dart';
 import 'data/officer_task_repository.dart';
 
@@ -110,6 +110,31 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
         final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
         final isDelivered = statusLower == 'delivered' || statusLower == 'received';
 
+        final routeAsync = ref.watch(transferRouteProvider(widget.transferId));
+        final route = routeAsync.valueOrNull;
+
+        final sLat = route?.sourceLatitude;
+        final sLng = route?.sourceLongitude;
+        final LatLng? sourcePos = (sLat != null && sLng != null && sLat != 0 && sLng != 0)
+            ? LatLng(sLat, sLng)
+            : (route != null && route.waypoints.isNotEmpty && route.waypoints.first.latitude != 0)
+                ? LatLng(route.waypoints.first.latitude, route.waypoints.first.longitude)
+                : null;
+
+        final dLat = route?.destinationLatitude;
+        final dLng = route?.destinationLongitude;
+        final LatLng? destPos = (dLat != null && dLng != null && dLat != 0 && dLng != 0)
+            ? LatLng(dLat, dLng)
+            : (route != null && route.waypoints.isNotEmpty && route.waypoints.last.latitude != 0)
+                ? LatLng(route.waypoints.last.latitude, route.waypoints.last.longitude)
+                : null;
+
+        final LatLng? vehiclePos = (transfer.currentLatitude != 0 && transfer.currentLongitude != 0)
+            ? LatLng(transfer.currentLatitude, transfer.currentLongitude)
+            : null;
+
+        final hasValidMap = sourcePos != null && destPos != null;
+
         // Auto-sync phase with backend status if advanced
         if (isInTransit && _currentPhase.index < DeliveryPhase.inTransit.index) {
           _currentPhase = DeliveryPhase.inTransit;
@@ -154,45 +179,48 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                     child: Column(
                       children: [
                         // Map View
-                        SizedBox(
-                          height: 220,
-                          child: FlutterMap(
-                            options: MapOptions(
-                              initialCenter: LatLng(transfer.currentLatitude != 0 ? transfer.currentLatitude : 6.9271, transfer.currentLongitude != 0 ? transfer.currentLongitude : 79.8612),
-                              initialZoom: 12.0,
+                        if (hasValidMap)
+                          TransferLiveMapWidget(
+                            sourceCoords: sourcePos,
+                            sourceFacilityName: transfer.sourceFacilityName.isNotEmpty
+                                ? transfer.sourceFacilityName
+                                : 'Source Facility',
+                            destinationCoords: destPos,
+                            destinationFacilityName: transfer.destinationFacilityName.isNotEmpty
+                                ? transfer.destinationFacilityName
+                                : 'Destination Facility',
+                            vehicleCoords: vehiclePos,
+                            waypoints: route?.waypoints ?? const [],
+                            distanceKm: route?.distanceKm,
+                            durationMinutes: route?.durationMinutes,
+                            status: transfer.status,
+                          )
+                        else
+                          Container(
+                            height: 200,
+                            width: double.infinity,
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
                             ),
-                            children: [
-                              TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName: 'com.medistock.app',
-                              ),
-                              PolylineLayer(
-                                polylines: [
-                                  Polyline(
-                                    points: [
-                                      const LatLng(6.9271, 79.8612),
-                                      const LatLng(7.2906, 80.6337),
-                                    ],
-                                    strokeWidth: 4,
-                                    color: AppColors.secondary,
-                                  ),
-                                ],
-                              ),
-                              MarkerLayer(
-                                markers: [
-                                  const Marker(
-                                    point: LatLng(6.9271, 79.8612),
-                                    child: Icon(Icons.warehouse_rounded, color: AppColors.success, size: 28),
-                                  ),
-                                  const Marker(
-                                    point: LatLng(7.2906, 80.6337),
-                                    child: Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 28),
-                                  ),
-                                ],
-                              ),
-                            ],
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_off_rounded, size: 36, color: AppColors.textMuted),
+                                const SizedBox(height: 10),
+                                Text('Location unavailable', style: AppTextStyles.titleMedium),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Facility coordinates or transit route data are not available.',
+                                  style: AppTextStyles.bodySmall,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
 
                         Padding(
                           padding: const EdgeInsets.all(20),

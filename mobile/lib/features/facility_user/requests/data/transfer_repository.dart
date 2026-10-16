@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/transfer_model.dart';
+import '../../../redistribution/models/transfer_models.dart' show RouteDetails;
 
 class CreateTransferRequest {
   final String destinationFacilityId;
@@ -114,6 +115,20 @@ class TransferRepository {
     final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);
   }
+
+  Future<RouteDetails?> getRoute(String id) async {
+    try {
+      final resp = await _dio.get('/api/transfers/$id/route');
+      final data = resp.data;
+      final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+      if (payload is Map<String, dynamic>) {
+        return RouteDetails.fromJson(payload);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 final transferRepositoryProvider = Provider<TransferRepository>((ref) {
@@ -126,4 +141,8 @@ final myRequestsProvider = FutureProvider.autoDispose.family<List<TransferModel>
 
 final transferByIdProvider = FutureProvider.autoDispose.family<TransferModel, String>((ref, id) async {
   return ref.watch(transferRepositoryProvider).getById(id);
+});
+
+final transferRouteProvider = FutureProvider.autoDispose.family<RouteDetails?, String>((ref, id) async {
+  return ref.watch(transferRepositoryProvider).getRoute(id);
 });

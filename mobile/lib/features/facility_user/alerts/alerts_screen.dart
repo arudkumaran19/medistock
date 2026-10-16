@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/signalr_client.dart';
@@ -18,16 +20,40 @@ class AlertsScreen extends ConsumerStatefulWidget {
 
 class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   StreamSubscription? _shortageSub;
+  StreamSubscription? _shortageDismissedSub;
+  Timer? _pollTimer;
+
+  bool get _isTestEnvironment {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _initSignalR();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    if (_isTestEnvironment) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        ref.read(alertsProvider.notifier).load();
+      }
+    });
   }
 
   Future<void> _initSignalR() async {
-    await SignalRClient().connect();
-    await SignalRClient().joinAllFacilityUsers();
+    if (_isTestEnvironment) return;
+    try {
+      await SignalRClient().connect();
+      await SignalRClient().joinAllFacilityUsers();
+    } catch (_) {}
 
     _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
       if (mounted) {
@@ -35,17 +61,29 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         ref.read(alertsProvider.notifier).addOrUpdate(alert);
       }
     });
+
+    _shortageDismissedSub = SignalRClient().onShortageAlertDismissed.listen((data) {
+      if (mounted) {
+        final id = data['id']?.toString() ?? data['Id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          ref.read(alertsProvider.notifier).removeAlert(id);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _shortageSub?.cancel();
+    _shortageDismissedSub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final alertsAsync = ref.watch(alertsProvider);
+    final openedAlerts = ref.watch(openedAlertsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -82,13 +120,16 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 final urgency = isCritical ? 'CRITICAL' : 'WARNING';
                 final title = 'Shortage Risk: ${alert.medicineName}';
                 final description = 'Stock: ${alert.currentStock} • Recommended reorder: ${alert.suggestedQuantity} units. Facility: ${alert.facilityName}';
+                final isNew = !openedAlerts.contains(alert.id);
 
                 return _AlertCard(
                   title: title,
                   description: description,
                   urgency: urgency,
+                  isNew: isNew,
                   time: '${alert.createdAt.hour.toString().padLeft(2, '0')}:${alert.createdAt.minute.toString().padLeft(2, '0')}',
                   onTap: () {
+                    ref.read(openedAlertsProvider.notifier).markAsOpened(alert.id);
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => VerifyShortageScreen(shortageAlert: alert.toJson()),
@@ -109,6 +150,7 @@ class _AlertCard extends StatelessWidget {
   final String title;
   final String description;
   final String urgency;
+  final bool isNew;
   final String time;
   final VoidCallback onTap;
 
@@ -116,6 +158,7 @@ class _AlertCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.urgency,
+    required this.isNew,
     required this.time,
     required this.onTap,
   });
@@ -153,10 +196,33 @@ class _AlertCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(6)),
-                child: Text(urgency, style: AppTextStyles.badge.copyWith(color: Colors.white)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(6)),
+                    child: Text(urgency, style: AppTextStyles.badge.copyWith(color: Colors.white)),
+                  ),
+                  if (isNew) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      key: const Key('new-alert-chip'),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'NEW',
+                        style: AppTextStyles.badge.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Text(time, style: AppTextStyles.bodySmall),
             ],

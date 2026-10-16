@@ -45,24 +45,24 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
   @override
   Widget build(BuildContext context) {
     final data = widget.taskData;
-    final transferNumber = data?['transferNumber']?.toString() ?? data?['transferId']?.toString() ?? '#TR-20261005';
+    final transferNumber = data?['transferNumber']?.toString() ?? data?['transferId']?.toString() ?? 'Transfer';
     
     // Extract Pickup Info
     final pickupMap = data?['pickupLocation'] as Map<String, dynamic>?;
-    final pickupName = pickupMap?['name']?.toString() ?? data?['sourceFacilityName']?.toString() ?? 'National Hospital of Sri Lanka (Colombo)';
-    final pickupDistance = pickupMap?['distanceKm']?.toString() ?? '3.2';
+    final pickupName = pickupMap?['name']?.toString() ?? data?['sourceFacilityName']?.toString() ?? 'Source Facility';
+    final pickupDistance = pickupMap?['distanceKm']?.toString() ?? '—';
 
     // Extract Delivery Info
     final deliveryMap = data?['deliveryLocation'] as Map<String, dynamic>?;
-    final deliveryName = deliveryMap?['name']?.toString() ?? data?['destinationFacilityName']?.toString() ?? 'Teaching Hospital Karapitiya (Galle)';
+    final deliveryName = deliveryMap?['name']?.toString() ?? data?['destinationFacilityName']?.toString() ?? 'Destination Facility';
     
     // Extract Distance & Medicine Info
     final distanceMap = data?['distance'] as Map<String, dynamic>?;
-    final totalDistanceKm = distanceMap?['km']?.toString() ?? data?['estimatedDistanceKm']?.toString() ?? '119.5';
+    final totalDistanceKm = distanceMap?['km']?.toString() ?? data?['estimatedDistanceKm']?.toString() ?? '—';
     
     final itemsList = data?['medicineItems'] as List<dynamic>?;
     final firstItem = itemsList?.isNotEmpty == true ? itemsList!.first as Map<String, dynamic>? : null;
-    final medicineTitle = firstItem?['medicineName']?.toString() ?? 'Amoxicillin 500mg';
+    final medicineTitle = firstItem?['medicineName']?.toString() ?? 'Essential Medicines';
 
     return Container(
       padding: const EdgeInsets.all(24),
