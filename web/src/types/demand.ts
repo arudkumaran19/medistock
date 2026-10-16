@@ -83,9 +83,9 @@ export type ShortageRiskLevel = 'HIGH' | 'MEDIUM';
  * Not specified in the final blueprint: only OPEN appears in the blueprint example.
  * ACKNOWLEDGED and RESOLVED support the shortage management screen.
  */
-export type ShortageStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+export type ShortageStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'DISMISSED';
 
-export const SHORTAGE_STATUSES: ShortageStatus[] = ['OPEN', 'ACKNOWLEDGED', 'RESOLVED'];
+export const SHORTAGE_STATUSES: ShortageStatus[] = ['OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'DISMISSED'];
 
 export interface ShortageAlert {
   id: string;
@@ -107,6 +107,9 @@ export interface ShortageAlert {
   resolvedAt?: string | null;
   /** Set when the alert resolved itself, e.g. "Stock now covers lead time". */
   resolutionReason?: string | null;
+  dismissedAt?: string | null;
+  dismissedByUserId?: string | null;
+  dismissReason?: string | null;
   /** True when raising refreshed an existing OPEN/ACKNOWLEDGED alert. */
   existingAlertUpdated?: boolean;
 }

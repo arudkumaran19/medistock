@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import {
@@ -15,7 +15,6 @@ import {
   BadgeCheck,
   GitBranch,
   Users,
-  Truck,
   LogOut,
   ChevronDown,
   Menu,
@@ -87,11 +86,13 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Transfers",
         path: "/transfers",
         icon: <ArrowRightLeft size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
       },
       {
         label: "Transfer History",
         path: "/history",
         icon: <Clock size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
       },
     ],
   },
@@ -114,19 +115,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Consumption",
         path: "/demand/consumption",
         icon: <LineChart size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
-        roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
-      },
-    ],
-  },
-  {
-    // Redistribution vertical (Member 3). Store officers raise, dispatch and
-    // receive transfers; managers approve. Mirrors TransferController roles.
-    group: "Redistribution",
-    items: [
-      {
-        label: "Transfers",
-        path: "/redistribution/transfers",
-        icon: <Truck size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
         roles: ["OperationalStaff", "STORE_OFFICER", "FacilityManager", "FACILITY_MANAGER", "Administrator", "ADMIN"],
       },
     ],
@@ -209,7 +197,7 @@ function ProfileDropdown({
   roleAccent,
   onLogout,
 }: {
-  user: { email: string; roles?: string[] };
+  user: { email: string; roles?: string[]; facilities?: { id: string; name: string }[] };
   roleLabel: string;
   roleAccent: string;
   onLogout: () => void;
@@ -277,7 +265,7 @@ function ProfileDropdown({
               whiteSpace: "nowrap",
             }}
           >
-            {user.email}
+            {user.email || "Not available"}
           </p>
           <span
             style={{
@@ -288,7 +276,7 @@ function ProfileDropdown({
               margin: 0,
             }}
           >
-            {roleLabel}
+            {roleLabel || "Not available"}
           </span>
         </div>
         <ChevronDown
@@ -335,7 +323,13 @@ function ProfileDropdown({
                 wordBreak: "break-all",
               }}
             >
-              {user.email}
+              {user.email || "Not available"}
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
+              Role: <span style={{ color: roleAccent, fontWeight: 500 }}>{roleLabel || "Not available"}</span>
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
+              Facility: <span style={{ color: "#e2e8f0" }}>{user.facilities && user.facilities.length > 0 ? user.facilities.map((f) => f.name).join(", ") : "Not available"}</span>
             </p>
           </div>
           <button

@@ -128,6 +128,12 @@ function BoundsController({ points }: { points: [number, number][] }) {
   return null;
 }
 
+import {
+  SRI_LANKA_CENTER_LATITUDE,
+  SRI_LANKA_CENTER_LONGITUDE,
+  SRI_LANKA_DEFAULT_ZOOM,
+} from '../../constants/geo';
+
 export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   sourceFacilityName,
   sourceCoords,
@@ -139,6 +145,44 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   durationMinutes,
   status,
 }) => {
+  const hasValidCoords =
+    sourceCoords &&
+    destinationCoords &&
+    sourceCoords[0] !== 0 &&
+    sourceCoords[1] !== 0 &&
+    destinationCoords[0] !== 0 &&
+    destinationCoords[1] !== 0;
+
+  if (!hasValidCoords) {
+    return (
+      <div
+        data-testid="location-unavailable"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '240px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          backgroundColor: '#0f172a',
+          padding: '24px',
+          color: '#94a3b8',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', color: '#f8fafc' }}>
+          Location unavailable
+        </div>
+        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+          Facility coordinates or transit route data are not available for this transfer.
+        </div>
+      </div>
+    );
+  }
   // Construct polyline points: source -> waypoints -> destination
   const polylinePoints = useMemo<[number, number][]>(() => {
     const pts: [number, number][] = [sourceCoords];

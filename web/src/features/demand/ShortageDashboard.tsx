@@ -30,6 +30,7 @@ import { SkeletonMetrics, SkeletonRegion, SkeletonTable } from './components/Ske
 import { describeScan, formatDate, formatDaysRemaining, formatNumber } from './format';
 import { facilityName, knownFacilities, medicineName, optionLabel } from './reference';
 import { useDeleteShortage, useResolveShortage, useScanShortages, useShortages } from './hooks';
+import { useTransferSignalR } from '@/features/redistribution/useTransferSignalR';
 
 const PAGE_SIZE = 10;
 
@@ -42,9 +43,13 @@ export function ShortageDashboard({
   // arrive, which is what lets the facility dropdown list every facility.
   useReferenceData();
 
+  // Real-time updates: listen for shortage status changes and dismissals
+  useTransferSignalR({ isManager: true });
+
   // Every facility by default. This page used to be pinned to the demonstration
   // facility, so an alert raised anywhere else was saved but never shown here.
   const [facilityId, setFacilityId] = useState(initialFacilityId);
+  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [riskLevel, setRiskLevel] = useState<ShortageRiskLevel | ''>('');
@@ -58,6 +63,7 @@ export function ShortageDashboard({
   const query = useMemo(
     () => ({
       facilityId: facilityId || undefined,
+      status: status || undefined,
       page,
       pageSize: PAGE_SIZE,
       search: search || undefined,
@@ -65,7 +71,7 @@ export function ShortageDashboard({
       sortBy,
       sortOrder: 'desc' as const,
     }),
-    [facilityId, page, search, riskLevel, sortBy],
+    [facilityId, status, page, search, riskLevel, sortBy],
   );
 
   const { data, isLoading, isError, error, refetch } = useShortages(query);
@@ -311,6 +317,24 @@ export function ShortageDashboard({
                     <option value="">All</option>
                     <option value="HIGH">High</option>
                     <option value="MEDIUM">Medium</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  Status
+                  <select
+                    value={status}
+                    aria-label="Filter by status"
+                    onChange={(event) => {
+                      setStatus(event.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">Active (exclude dismissed)</option>
+                    <option value="OPEN">Open</option>
+                    <option value="ACKNOWLEDGED">Acknowledged</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="DISMISSED">Dismissed</option>
                   </select>
                 </label>
 

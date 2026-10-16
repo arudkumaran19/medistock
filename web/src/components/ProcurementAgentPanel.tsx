@@ -36,7 +36,7 @@ export function ProcurementAgentPanel({ onOrderCreated }: ProcurementAgentPanelP
 
   const phase = getPhase();
 
-  const samplePrompts = [
+  const suggestedPrompts = [
     "We need to replenish paracetamol because stock is running low.",
     "Which pending procurement requests require administrative approval?",
     "Check whether this procurement request complies with our storage and high-value policies.",
@@ -141,7 +141,7 @@ export function ProcurementAgentPanel({ onOrderCreated }: ProcurementAgentPanelP
       </form>
 
       <div className={styles.quickPrompts}>
-        {samplePrompts.map((p) => (
+        {suggestedPrompts.map((p) => (
           <button
             key={p}
             type="button"

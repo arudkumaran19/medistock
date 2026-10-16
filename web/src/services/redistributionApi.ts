@@ -42,6 +42,8 @@ function normalizeTransfer(t: any): TransferDto {
     dispatchedAt: t.dispatchedAt ?? null,
     deliveredAt: t.deliveredAt ?? null,
     workflowRunId: t.workflowRunId ?? null,
+    routingProvider: t.routingProvider ?? null,
+    routePolyline: t.routePolyline ?? null,
     items: t.items || [],
     statusHistories: t.statusHistories || t.statusHistory || [],
   };

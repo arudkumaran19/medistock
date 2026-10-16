@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { knownFacilities, knownMedicines, optionLabel, registerReferenceNames } from './reference';
+import { facilityName, knownFacilities, knownMedicines, optionLabel, registerReferenceNames } from './reference';
 
 describe('reference lists', () => {
   it('include medicines and facilities registered after import', () => {
@@ -21,17 +21,20 @@ describe('reference lists', () => {
     expect(knownFacilities().map((f) => f.name)).toContain('Central Facility');
   });
 
-  it('keep the seeded demonstration entries reachable', () => {
-    const ids = knownFacilities().map((f) => f.id);
+  it('marks seed-only entries so they are not mistaken for real stock when registered', () => {
+    registerReferenceNames(
+      [],
+      [{ id: 'b1000000-0000-0000-0000-000000000002', name: 'Teaching Hospital Kandy' }],
+    );
 
-    expect(ids).toContain('b1000000-0000-0000-0000-000000000002');
-  });
-
-  it('marks seed-only entries so they are not mistaken for real stock', () => {
     const demo = knownFacilities().find((f) => f.id === 'b1000000-0000-0000-0000-000000000002');
     const real = knownFacilities().find((f) => f.id === '11111111-1111-1111-1111-111111111111');
 
-    expect(demo && optionLabel(demo)).toBe('Hospital B (demo data)');
+    expect(demo && optionLabel(demo)).toBe('Teaching Hospital Kandy (demo data)');
     expect(real && optionLabel(real)).toBe('Central Facility');
+  });
+
+  it('does not show fake fallback names when unregistered', () => {
+    expect(facilityName('unknown-id')).toBe('unknown-…');
   });
 });

@@ -34,6 +34,8 @@ interface InventoryMedicineItem {
 interface FacilityOption {
   id: string;
   name: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export function ProcurementPriority() {
@@ -59,11 +61,12 @@ export function ProcurementPriority() {
         procurementApi.getSuppliers(undefined, true),
         apiRequest<FacilityOption[]>("/api/facilities"),
       ]);
+      const validFacilities = facList.filter((f) => f.latitude != null && f.longitude != null && (f.latitude !== 0 || f.longitude !== 0));
       setMedicines(medList);
       setSuppliers(supList);
-      setFacilities(facList);
-      if (facList.length > 0 && !selectedFacilityId) {
-        setSelectedFacilityId(facList[0].id);
+      setFacilities(validFacilities);
+      if (validFacilities.length > 0 && !selectedFacilityId) {
+        setSelectedFacilityId(validFacilities[0].id);
       }
       if (supList.length > 0 && !selectedSupplierId) {
         setSelectedSupplierId(supList[0].id);

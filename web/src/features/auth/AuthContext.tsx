@@ -55,12 +55,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.login(credentials);
       setToken(response.accessToken);
-      const authUser: AuthUser = {
-        userId: response.userId,
-        email: response.email,
-        roles: Array.from(response.roles),
-      };
-      setUser(authUser);
+      try {
+        const currentUser = await authApi.getCurrentUser();
+        setUser(currentUser);
+        localStorage.setItem("medistock_user", JSON.stringify(currentUser));
+      } catch {
+        const authUser: AuthUser = {
+          userId: response.userId,
+          email: response.email,
+          roles: Array.from(response.roles),
+          facilities: [],
+        };
+        setUser(authUser);
+        localStorage.setItem("medistock_user", JSON.stringify(authUser));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,12 +79,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.register(data);
       setToken(response.accessToken);
-      const authUser: AuthUser = {
-        userId: response.userId,
-        email: response.email,
-        roles: Array.from(response.roles),
-      };
-      setUser(authUser);
+      try {
+        const currentUser = await authApi.getCurrentUser();
+        setUser(currentUser);
+        localStorage.setItem("medistock_user", JSON.stringify(currentUser));
+      } catch {
+        const authUser: AuthUser = {
+          userId: response.userId,
+          email: response.email,
+          roles: Array.from(response.roles),
+          facilities: [],
+        };
+        setUser(authUser);
+        localStorage.setItem("medistock_user", JSON.stringify(authUser));
+      }
     } finally {
       setIsLoading(false);
     }
