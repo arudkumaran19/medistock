@@ -97,23 +97,35 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
   }
 
   LatLng get _sourceCoords {
-    if (_route?.sourceLatitude != null && _route?.sourceLongitude != null) {
+    if (_route?.sourceLatitude != null &&
+        _route?.sourceLongitude != null &&
+        _route!.sourceLatitude != 0 &&
+        _route!.sourceLongitude != 0) {
       return LatLng(_route!.sourceLatitude!, _route!.sourceLongitude!);
     }
     if (_route != null && _route!.waypoints.isNotEmpty) {
-      return LatLng(_route!.waypoints.first.latitude, _route!.waypoints.first.longitude);
+      final first = _route!.waypoints.first;
+      if (first.latitude != 0 && first.longitude != 0) {
+        return LatLng(first.latitude, first.longitude);
+      }
     }
-    return const LatLng(6.9271, 79.8612); // Colombo default
+    return const LatLng(0, 0);
   }
 
   LatLng get _destinationCoords {
-    if (_route?.destinationLatitude != null && _route?.destinationLongitude != null) {
+    if (_route?.destinationLatitude != null &&
+        _route?.destinationLongitude != null &&
+        _route!.destinationLatitude != 0 &&
+        _route!.destinationLongitude != 0) {
       return LatLng(_route!.destinationLatitude!, _route!.destinationLongitude!);
     }
     if (_route != null && _route!.waypoints.isNotEmpty) {
-      return LatLng(_route!.waypoints.last.latitude, _route!.waypoints.last.longitude);
+      final last = _route!.waypoints.last;
+      if (last.latitude != 0 && last.longitude != 0) {
+        return LatLng(last.latitude, last.longitude);
+      }
     }
-    return const LatLng(7.2906, 80.6337); // Kandy default
+    return const LatLng(0, 0);
   }
 
   double _calculateHaversineDistanceKm(
@@ -775,7 +787,7 @@ class _TransferTrackingScreenState extends State<TransferTrackingScreen> {
                               ),
                             ),
                             Text(
-                              '${_transfer.totalAllocatedQuantity > 0 ? _transfer.totalAllocatedQuantity : _transfer.totalRequestedQuantity} units',
+                              _transfer.quantityDisplay,
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,

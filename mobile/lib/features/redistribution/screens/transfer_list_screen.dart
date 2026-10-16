@@ -489,7 +489,7 @@ class _TransferListScreenState extends State<TransferListScreen> {
                       ),
                     ),
                     Text(
-                      '${t.totalAllocatedQuantity > 0 ? t.totalAllocatedQuantity : t.totalRequestedQuantity} units',
+                      t.quantityDisplay,
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,

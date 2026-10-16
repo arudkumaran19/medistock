@@ -30,6 +30,36 @@ vi.mock('@/services/demandApi', () => ({
   recalculateShortage: vi.fn(),
 }));
 
+vi.mock('./referenceApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./referenceApi')>();
+
+  return {
+    ...actual,
+    useReferenceData: () => ({
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+      facilities: [
+        { id: 'b1000000-0000-0000-0000-000000000002', code: 'CENTRAL', name: 'Central Facility' },
+      ],
+      medicines: [
+        { id: 'c1000000-0000-0000-0000-000000000001', code: 'AMOX-250', name: 'Amoxicillin 250 mg' },
+      ],
+    }),
+    useFacilities: () => ({
+      data: [{ id: 'b1000000-0000-0000-0000-000000000002', code: 'CENTRAL', name: 'Central Facility' }],
+      isLoading: false,
+      isError: false,
+    }),
+    useMedicines: () => ({
+      data: [{ id: 'c1000000-0000-0000-0000-000000000001', code: 'AMOX-250', name: 'Amoxicillin 250 mg' }],
+      isLoading: false,
+      isError: false,
+    }),
+  };
+});
+
 const { createForecast, getForecasts } = await import('@/services/demandApi');
 const mockGetForecasts = vi.mocked(getForecasts);
 const mockCreateForecast = vi.mocked(createForecast);

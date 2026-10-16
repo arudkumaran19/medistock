@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { useQueryClient } from '@tanstack/react-query';
 import { TransferDto, TransferLocationUpdate, TransferNotificationDto } from '../../types/redistribution';
 
 interface UseTransferSignalROptions {
@@ -8,6 +9,7 @@ interface UseTransferSignalROptions {
   onStatusChanged?: (transfer: TransferDto) => void;
   onLocationUpdated?: (location: TransferLocationUpdate) => void;
   onNotificationCreated?: (notification: TransferNotificationDto) => void;
+  onShortageDismissed?: (shortage: any) => void;
   enabled?: boolean;
 }
 
@@ -17,34 +19,37 @@ export function useTransferSignalR({
   onStatusChanged,
   onLocationUpdated,
   onNotificationCreated,
+  onShortageDismissed,
   enabled = true,
-}: UseTransferSignalROptions) {
+}: UseTransferSignalROptions = {}) {
+  let queryClient: any = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    queryClient = useQueryClient();
+  } catch {
+    queryClient = null;
+  }
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<string>('Disconnected');
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const onStatusChangedRef = useRef(onStatusChanged);
   const onLocationUpdatedRef = useRef(onLocationUpdated);
   const onNotificationCreatedRef = useRef(onNotificationCreated);
+  const onShortageDismissedRef = useRef(onShortageDismissed);
 
   useEffect(() => {
     onStatusChangedRef.current = onStatusChanged;
     onLocationUpdatedRef.current = onLocationUpdated;
     onNotificationCreatedRef.current = onNotificationCreated;
-  }, [onStatusChanged, onLocationUpdated, onNotificationCreated]);
+    onShortageDismissedRef.current = onShortageDismissed;
+  }, [onStatusChanged, onLocationUpdated, onNotificationCreated, onShortageDismissed]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    // Resolve an absolute URL to ensure compatibility across JSDOM and browsers
-    let hubBase = import.meta.env.VITE_API_BASE_URL || '';
-    if (!hubBase && typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') {
-      hubBase = window.location.origin;
-    }
-    if (!hubBase || hubBase.startsWith('/')) {
-      hubBase = 'http://localhost:5000';
-    }
-
-    const hubUrl = `${hubBase}/hubs/transfers`;
+    // Resolve backend hub base URL matching apiClient
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+    const hubUrl = apiBase ? `${apiBase}/hubs/transfers` : '/hubs/transfers';
 
     let connection: signalR.HubConnection;
     try {
@@ -134,6 +139,23 @@ export function useTransferSignalR({
 
       if (onNotificationCreatedRef.current) {
         onNotificationCreatedRef.current(mappedNotif);
+      }
+    });
+
+    connection.on('ShortageAlertDismissed', (shortage: any) => {
+      if (queryClient) {
+        queryClient.setQueriesData({ queryKey: ['demand', 'shortages'] }, (old: any) => {
+          if (!old || !old.items) return old;
+          return {
+            ...old,
+            items: old.items.filter((item: any) => item.id !== shortage.id),
+            total: Math.max(0, (old.total ?? old.items.length) - 1),
+          };
+        });
+        queryClient.invalidateQueries({ queryKey: ['demand', 'shortages'] });
+      }
+      if (onShortageDismissedRef.current) {
+        onShortageDismissedRef.current(shortage);
       }
     });
 

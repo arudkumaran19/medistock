@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -34,14 +35,14 @@ class OfficerProfileScreen extends ConsumerWidget {
                     radius: 36,
                     backgroundColor: AppColors.secondaryLight,
                     child: Text(
-                      user?.name.substring(0, 1) ?? 'R',
+                      user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'O',
                       style: AppTextStyles.displayMedium.copyWith(color: AppColors.secondary),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(user?.name ?? 'Rajesh Kumar', style: AppTextStyles.titleLarge),
+                  Text(user?.name ?? 'Logistics Officer', style: AppTextStyles.titleLarge),
                   const SizedBox(height: 2),
-                  Text('Field Officer ID: EPO-8842 • Certified Cold-Chain Courier', style: AppTextStyles.bodyMedium),
+                  Text(user?.email.isNotEmpty == true ? user!.email : 'Not available', style: AppTextStyles.bodyMedium),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -49,7 +50,10 @@ class OfficerProfileScreen extends ConsumerWidget {
                       color: AppColors.secondaryLight,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('RATING 4.9★ (142 DELIVERIES)', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                    child: Text(
+                      'ROLE: ${user?.role.isNotEmpty == true ? user!.role.toUpperCase() : "Not available"}',
+                      style: AppTextStyles.badge.copyWith(color: AppColors.secondary),
+                    ),
                   ),
                 ],
               ),
@@ -57,7 +61,7 @@ class OfficerProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // Vehicle Credentials
+            // Facility Details Card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -68,18 +72,51 @@ class OfficerProfileScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ASSIGNED DISPATCH FLEET', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+                  Text('ASSIGNED FACILITY', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 10),
-                  const _ProfileRow(title: 'Vehicle Number', value: 'TN-09-CB-4491 (Cryo-Van)'),
-                  const Divider(height: 20),
-                  const _ProfileRow(title: 'Cold Storage Vault', value: 'Cryo-Pod 302 (-20°C to +8°C)'),
-                  const Divider(height: 20),
-                  const _ProfileRow(title: 'License & Permit', value: 'Tamil Nadu Medical Transport Pass #TN-MED-9921'),
+                  Row(
+                    children: [
+                      const Icon(Icons.local_hospital_rounded, size: 20, color: AppColors.secondary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          user?.facilities.isNotEmpty == true
+                              ? user!.facilities.map((f) => f['name'] ?? '').where((n) => n.isNotEmpty).join(', ')
+                              : (user?.facilityName?.isNotEmpty == true ? user!.facilityName! : 'Not available'),
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+
+            // Mode Switcher Tile
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                title: Text('Switch to Facility User View', style: AppTextStyles.titleSmall),
+                subtitle: const Text('Access facility inventory, requisitions, and shortage alerts'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                onTap: () async {
+                  await SecureStorageService().saveSelectedRole('FACILITYUSER');
+                  ref.read(authControllerProvider.notifier).selectRole('FACILITYUSER');
+                  if (context.mounted) {
+                    context.go('/user/dashboard');
+                  }
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             OutlinedButton.icon(
               onPressed: () async {
@@ -98,24 +135,6 @@ class OfficerProfileScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ProfileRow extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const _ProfileRow({required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppTextStyles.bodySmall),
-        Text(value, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-      ],
     );
   }
 }

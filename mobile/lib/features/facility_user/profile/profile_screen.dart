@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -36,14 +37,14 @@ class ProfileScreen extends ConsumerWidget {
                     radius: 36,
                     backgroundColor: AppColors.primarySurface,
                     child: Text(
-                      user?.name.substring(0, 1) ?? 'K',
+                      user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'U',
                       style: AppTextStyles.displayMedium.copyWith(color: AppColors.primary),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(user?.name ?? 'Dr. Kavitha Raman', style: AppTextStyles.titleLarge),
+                  Text(user?.name ?? 'User', style: AppTextStyles.titleLarge),
                   const SizedBox(height: 2),
-                  Text(user?.email ?? 'kavitha.raman@apollo.example.com', style: AppTextStyles.bodyMedium),
+                  Text(user?.email.isNotEmpty == true ? user!.email : 'Not available', style: AppTextStyles.bodyMedium),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -52,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'ROLE: ${user?.role.toUpperCase() ?? "FACILITY_USER"}',
+                      'ROLE: ${user?.role.isNotEmpty == true ? user!.role.toUpperCase() : "Not available"}',
                       style: AppTextStyles.badge.copyWith(color: AppColors.primaryDark),
                     ),
                   ),
@@ -75,11 +76,17 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   Text('ASSIGNED FACILITY', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 10),
-                  _DetailRow(icon: Icons.local_hospital_rounded, title: 'Facility Name', value: user?.facilityName ?? 'Apollo Pharmacy, Anna Nagar Hub'),
-                  const Divider(height: 20),
-                  const _DetailRow(icon: Icons.pin_drop_rounded, title: 'Location', value: '2nd Avenue, Block AB, Anna Nagar, Chennai - 600040'),
-                  const Divider(height: 20),
-                  const _DetailRow(icon: Icons.verified_user_rounded, title: 'District Grid ID', value: 'EXP-CH-408 (Tier 1 Medical Hub)'),
+                  _DetailRow(
+                    icon: Icons.local_hospital_rounded,
+                    title: 'Facility Name',
+                    value: user?.facilities.isNotEmpty == true
+                        ? user!.facilities.map((f) => f['name'] ?? '').where((n) => n.isNotEmpty).join(', ')
+                        : (user?.facilityName?.isNotEmpty == true ? user!.facilityName! : 'Not available'),
+                  ),
+                  if (user?.facilityId != null) ...[
+                    const Divider(height: 20),
+                    _DetailRow(icon: Icons.pin_drop_rounded, title: 'Facility ID', value: user!.facilityId!),
+                  ],
                 ],
               ),
             ),
@@ -98,7 +105,7 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.language_rounded, color: AppColors.primary),
                     title: Text('App Language', style: AppTextStyles.titleSmall),
-                    trailing: const Text('English (Tamil available)'),
+                    trailing: const Text('English'),
                     onTap: () {},
                   ),
                   const Divider(height: 1),
@@ -111,7 +118,29 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            // Mode Switcher Tile
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary),
+                title: Text('Switch to Field Officer View', style: AppTextStyles.titleSmall),
+                subtitle: const Text('Access Field Officer tasks, route navigation, and delivery proofs'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                onTap: () async {
+                  await SecureStorageService().saveSelectedRole('FIELD_OFFICER');
+                  ref.read(authControllerProvider.notifier).selectRole('FIELD_OFFICER');
+                  if (context.mounted) {
+                    context.go('/officer/dashboard');
+                  }
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             // Logout Button
             OutlinedButton.icon(

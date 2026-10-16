@@ -1,4 +1,3 @@
-import { pageCount } from '@/types/demand';
 /**
  * Forecast page - generate and review demand forecasts.
  * Sathurstiga S. (IT24103156).
@@ -13,7 +12,7 @@ import { pageCount } from '@/types/demand';
  * rate line into the baseline and reads as a dual-scale chart. The horizon and the
  * predicted total stay in the table, where the exact figures belong.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -29,7 +28,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { Pagination } from '@/components/Pagination';
 import { toErrorMessage } from './errors';
-import { FORECAST_METHODS, type DemandForecast, type ForecastMethod } from '@/types/demand';
+import { FORECAST_METHODS, pageCount, type DemandForecast, type ForecastMethod } from '@/types/demand';
 import { ChartTooltip } from './ChartTooltip';
 import { DemandChain } from './DemandChain';
 import { useReferenceData } from './referenceApi';
@@ -40,10 +39,9 @@ import { PageHeader, Panel } from './components/Panel';
 import { SkeletonChart, SkeletonRegion, SkeletonTable } from './components/Skeleton';
 import { formatDate, formatNumber, formatPercent } from './format';
 import { knownFacilities, knownMedicines, medicineName, optionLabel } from './reference';
-import { DEMO_FACILITY_ID, useCreateForecast, useDeleteForecast, useForecasts } from './hooks';
+import { useCreateForecast, useDeleteForecast, useForecasts } from './hooks';
 
 const PAGE_SIZE = 10;
-const DEMO_MEDICINE_ID = 'c1000000-0000-0000-0000-000000000001';
 
 function methodLabel(method: string): string {
   // Not replaceAll: the tsconfig lib target is ES2020, where it does not exist.
@@ -51,28 +49,36 @@ function methodLabel(method: string): string {
 }
 
 export function ForecastPage({
-  facilityId: initialFacilityId = DEMO_FACILITY_ID,
-  medicineId: initialMedicineId = DEMO_MEDICINE_ID,
+  facilityId: initialFacilityId,
+  medicineId: initialMedicineId,
 }: {
   facilityId?: string;
   medicineId?: string;
 }) {
-  // Medicine and facility names come from the Inventory API. Re-renders when they
-  // arrive, which is what lets the dropdowns below list the full catalogue.
-  useReferenceData();
+  const refData = useReferenceData();
 
-  // Starts on the demonstration facility, where the seeded history lives. Unlike the
-  // consumption page there is no "all facilities" here: a forecast is always for one
-  // facility and one medicine, and the backend rejects a request without them.
-  const [facilityId, setFacilityId] = useState(initialFacilityId);
+  const [facilityId, setFacilityId] = useState(initialFacilityId ?? '');
   const [page, setPage] = useState(1);
-  const [medicineId, setMedicineId] = useState(initialMedicineId);
+  const [medicineId, setMedicineId] = useState(initialMedicineId ?? '');
   const [methodFilter, setMethodFilter] = useState<ForecastMethod | ''>('');
   const [method, setMethod] = useState<ForecastMethod>('MOVING_AVERAGE');
   const [windowDays, setWindowDays] = useState(30);
   const [horizonDays, setHorizonDays] = useState(30);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<DemandForecast | null>(null);
+
+  // Preselect the first item from the API list, or nothing.
+  useEffect(() => {
+    if (!facilityId && refData.facilities.length > 0) {
+      setFacilityId(refData.facilities[0].id);
+    }
+  }, [refData.facilities, facilityId]);
+
+  useEffect(() => {
+    if (!medicineId && refData.medicines.length > 0) {
+      setMedicineId(refData.medicines[0].id);
+    }
+  }, [refData.medicines, medicineId]);
 
   const deleteForecast = useDeleteForecast();
 
@@ -172,6 +178,15 @@ export function ForecastPage({
         </h2>
         <DemandChain active="forecast" />
       </PageHeader>
+
+      {refData.isError && (
+        <div className="panel error-notice" role="alert" style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Failed to load reference catalogue from Inventory API.</span>
+          <button type="button" className="btn btn-secondary" onClick={() => refData.refetch()}>
+            Retry
+          </button>
+        </div>
+      )}
 
       <Panel
         title="Generate a forecast"

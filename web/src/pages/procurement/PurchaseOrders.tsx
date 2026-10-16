@@ -35,6 +35,8 @@ interface MedicineOption {
 interface FacilityOption {
   id: string;
   name: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // Per-item batch details captured when marking a delivery as received
@@ -99,9 +101,10 @@ export function PurchaseOrders() {
           apiRequest<MedicineOption[]>("/api/medicines"),
           apiRequest<FacilityOption[]>("/api/facilities"),
         ]);
+        const validFacilities = facList.filter((f) => f.latitude != null && f.longitude != null && (f.latitude !== 0 || f.longitude !== 0));
         setMedicines(medList);
-        setFacilities(facList);
-        if (facList.length > 0 && !facilityId) setFacilityId(facList[0].id);
+        setFacilities(validFacilities);
+        if (validFacilities.length > 0 && !facilityId) setFacilityId(validFacilities[0].id);
         if (supplierList.length > 0 && !supplierId) setSupplierId(supplierList[0].id);
       } catch {
         // Fallback if catalog not seeded yet

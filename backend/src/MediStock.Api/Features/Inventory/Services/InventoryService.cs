@@ -15,7 +15,8 @@ public sealed class InventoryService(ApplicationDbContext db)
     {
         var query = db.InventoryBalances.AsNoTracking().Include(x => x.Medicine).Include(x => x.Facility).Where(x => x.Facility.IsActive && (includeArchived || x.Medicine.IsActive)).AsQueryable();
         if (facilityId.HasValue) query = query.Where(x => x.FacilityId == facilityId.Value);
-        return await query.OrderBy(x => x.Medicine.Name).Select(x => new InventoryResponse(x.Id, x.MedicineId, x.Medicine.Name, x.FacilityId, x.Facility.Name, x.QuantityOnHand, x.QuantityReserved, x.QuantityOnHand - x.QuantityReserved, x.Medicine.MinimumStockLevel, x.QuantityOnHand < x.Medicine.MinimumStockLevel, x.Medicine.IsActive)).ToListAsync(cancellationToken);
+        var balances = await query.OrderBy(x => x.Medicine.Name).ToListAsync(cancellationToken);
+        return balances.Select(Map).ToList();
     }
 
     public async Task<InventoryResponse?> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -125,8 +126,46 @@ public sealed class InventoryService(ApplicationDbContext db)
         if (!await db.Facilities.AnyAsync(x => x.Id == facilityId && x.IsActive, cancellationToken)) throw new InventoryException("FACILITY_NOT_FOUND", "Facility was not found.");
     }
 
+    public static string Pluralize(string? unit, int qty)
+    {
+        if (qty == 1) return unit ?? "unit";
+        return unit?.ToLowerInvariant() switch
+        {
+            "tablet" or "tablets"   => "tablets",
+            "capsule" or "capsules" => "capsules",
+            "vial" or "vials"       => "vials",
+            "bottle" or "bottles"   => "bottles",
+            "strip" or "strips"     => "strips",
+            "box" or "boxes"        => "boxes",
+            _                       => string.IsNullOrWhiteSpace(unit) ? "units" : (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? unit : unit + "s")
+        };
+    }
+
+    public static string FormatUnitDisplay(int qty, string? unit) =>
+        $"{qty} {Pluralize(unit, qty)}";
+
     private static InventoryResponse Map(InventoryBalance x) => Map(x, x.Medicine, x.Facility);
-    private static InventoryResponse Map(InventoryBalance x, Medicine medicine, Facility facility) => new(x.Id, medicine.Id, medicine.Name, facility.Id, facility.Name, x.QuantityOnHand, x.QuantityReserved, x.AvailableQuantity, medicine.MinimumStockLevel, x.QuantityOnHand < medicine.MinimumStockLevel, medicine.IsActive);
+    private static InventoryResponse Map(InventoryBalance x, Medicine medicine, Facility facility)
+    {
+        var unit = string.IsNullOrWhiteSpace(medicine?.Unit) ? "unit" : medicine.Unit;
+        var unitDisplay = FormatUnitDisplay(x.QuantityOnHand, unit);
+        return new(
+            x.Id,
+            medicine?.Id ?? x.MedicineId,
+            medicine?.Name ?? "Unknown Medicine",
+            facility?.Id ?? x.FacilityId,
+            facility?.Name ?? "Unknown Facility",
+            x.QuantityOnHand,
+            x.QuantityReserved,
+            x.AvailableQuantity,
+            medicine?.MinimumStockLevel ?? 0,
+            medicine != null && x.QuantityOnHand < medicine.MinimumStockLevel,
+            medicine?.IsActive ?? true,
+            unit,
+            unitDisplay,
+            null
+        );
+    }
 }
 
 public sealed class InventoryException(string code, string message) : Exception(message)

@@ -2,15 +2,39 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 
+class UserFacilityInfo {
+  final String id;
+  final String name;
+
+  const UserFacilityInfo({
+    required this.id,
+    required this.name,
+  });
+
+  factory UserFacilityInfo.fromJson(Map<String, dynamic> json) {
+    return UserFacilityInfo(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+  };
+}
+
 class AuthUser {
   final String userId;
   final String email;
   final List<String> roles;
+  final List<UserFacilityInfo> facilities;
 
   const AuthUser({
     required this.userId,
     required this.email,
     required this.roles,
+    this.facilities = const [],
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -18,10 +42,22 @@ class AuthUser {
     final roles = rawRoles is List
         ? rawRoles.map((e) => e.toString()).toList()
         : <String>[];
+    final rawFacilities = json['facilities'];
+    final facilities = rawFacilities is List
+        ? rawFacilities
+            .map((e) => e is Map<String, dynamic>
+                ? UserFacilityInfo.fromJson(e)
+                : e is Map
+                    ? UserFacilityInfo.fromJson(Map<String, dynamic>.from(e))
+                    : null)
+            .whereType<UserFacilityInfo>()
+            .toList()
+        : <UserFacilityInfo>[];
     return AuthUser(
       userId: json['userId']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       roles: roles,
+      facilities: facilities,
     );
   }
 

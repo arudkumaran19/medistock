@@ -20,7 +20,7 @@ import '../domain/demand_models.dart';
 /// This used to be a fixed Provider. With no way to change it, every entry was saved
 /// against the demonstration facility whatever the officer was actually working at.
 final StateProvider<String> currentFacilityIdProvider = StateProvider<String>(
-  (Ref ref) => 'b1000000-0000-0000-0000-000000000002',
+  (Ref ref) => '',
 );
 
 /// A medicine or facility an officer can pick, from the Inventory catalogue.
@@ -44,6 +44,27 @@ List<ReferenceOption> _toOptions(dynamic payload) {
   return options;
 }
 
+List<ReferenceOption> _toFacilityOptions(dynamic payload) {
+  final List<ReferenceOption> options = (payload as List<dynamic>? ?? <dynamic>[])
+      .whereType<Map<String, dynamic>>()
+      .where((Map<String, dynamic> row) {
+        if (row['isActive'] == false) return false;
+        final lat = row['latitude'];
+        final lng = row['longitude'];
+        if (lat == null || lng == null) return false;
+        final numLat = lat is num ? lat : num.tryParse(lat.toString());
+        final numLng = lng is num ? lng : num.tryParse(lng.toString());
+        return numLat != null && numLng != null && (numLat != 0 || numLng != 0);
+      })
+      .map((Map<String, dynamic> row) =>
+          ReferenceOption(id: '${row['id']}', name: '${row['name']}'))
+      .toList()
+    ..sort((ReferenceOption a, ReferenceOption b) =>
+        a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  return options;
+}
+
 /// Active medicines, from GET /api/medicines (Inventory, Vaisnavi L.). Read-only.
 ///
 /// The entry form used to take the medicine as free text, which the backend tried
@@ -57,7 +78,7 @@ final FutureProvider<List<ReferenceOption>> medicineOptionsProvider =
 /// Active facilities, from GET /api/facilities (Inventory, Vaisnavi L.). Read-only.
 final FutureProvider<List<ReferenceOption>> facilityOptionsProvider =
     FutureProvider<List<ReferenceOption>>(
-  (Ref ref) async => _toOptions(await ref.watch(apiClientProvider).request('/api/facilities')),
+  (Ref ref) async => _toFacilityOptions(await ref.watch(apiClientProvider).request('/api/facilities')),
 );
 
 /// Shared HTTP client for this vertical.

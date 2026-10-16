@@ -14,10 +14,16 @@ export interface RegisterRequest {
   role?: string | number;
 }
 
+export interface UserFacilitySummary {
+  id: string;
+  name: string;
+}
+
 export interface AuthUser {
   userId: string;
   email: string;
   roles: string[];
+  facilities?: UserFacilitySummary[];
 }
 
 export interface LoginResponse {

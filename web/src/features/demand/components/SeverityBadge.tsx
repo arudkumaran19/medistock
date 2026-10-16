@@ -25,10 +25,11 @@ export function SeverityBadge({ level }: { level: string }) {
 /** Lifecycle state of an alert: OPEN, ACKNOWLEDGED or RESOLVED. */
 export function StatusChip({ status }: { status: string }) {
   const key = status.toUpperCase();
+  const iconName = key === 'RESOLVED' ? 'check' : key === 'ACKNOWLEDGED' ? 'clock' : key === 'DISMISSED' ? 'shield' : 'pulse';
 
   return (
     <span className={`status-chip status-chip--${key.toLowerCase()}`}>
-      <Icon name={key === 'RESOLVED' ? 'check' : key === 'ACKNOWLEDGED' ? 'clock' : 'pulse'} size={12} />
+      <Icon name={iconName} size={12} />
       {status}
     </span>
   );

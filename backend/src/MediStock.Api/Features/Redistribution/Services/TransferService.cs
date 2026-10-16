@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using MediStock.Api.Common;
 using MediStock.Api.Data;
@@ -18,11 +19,14 @@ using MediStock.Api.Features.Workflow.DTOs;
 using MediStock.Api.Features.Workflow.Models;
 using MediStock.Api.Features.Workflow.Services;
 
+using MediStock.Api.Infrastructure.Persistence;
+
 namespace MediStock.Api.Features.Redistribution.Services;
 
 public class TransferService : ITransferService
 {
     private readonly MediStockDbContext _dbContext;
+    private readonly ApplicationDbContext? _appDbContext;
     private readonly IRoutingService _routingService;
     private readonly ICandidateFacilityService _candidateFacilityService;
     private readonly TransferValidator _validator;
@@ -37,7 +41,8 @@ public class TransferService : ITransferService
         TransferValidator validator,
         ILogger<TransferService> logger,
         IServiceProvider? serviceProvider = null,
-        ITransferNotificationService? notificationService = null)
+        ITransferNotificationService? notificationService = null,
+        ApplicationDbContext? appDbContext = null)
     {
         _dbContext = dbContext;
         _routingService = routingService;
@@ -46,27 +51,9 @@ public class TransferService : ITransferService
         _logger = logger;
         _serviceProvider = serviceProvider;
         _notificationService = notificationService;
+        _appDbContext = appDbContext;
     }
 
-    private static readonly Dictionary<Guid, Guid> FacilityAliases = new()
-    {
-        [Guid.Parse("11111111-1111-1111-1111-111111111111")] = Guid.Parse("a0000000-0000-0000-0000-000000000001"), // Colombo
-        [Guid.Parse("22222222-2222-2222-2222-222222222222")] = Guid.Parse("a0000000-0000-0000-0000-000000000002"), // Karapitiya
-        [Guid.Parse("33333333-3333-3333-3333-333333333333")] = Guid.Parse("a0000000-0000-0000-0000-000000000003"), // Kandy
-    };
-
-    private static readonly Dictionary<Guid, Guid> MedicineAliases = new()
-    {
-        [Guid.Parse("55555555-5555-5555-5555-555555555555")] = Guid.Parse("b0000000-0000-0000-0000-000000000001"), // Amoxicillin
-        [Guid.Parse("66666666-6666-6666-6666-666666666666")] = Guid.Parse("b0000000-0000-0000-0000-000000000002"), // Paracetamol
-        [Guid.Parse("77777777-7777-7777-7777-777777777777")] = Guid.Parse("b0000000-0000-0000-0000-000000000005"), // Ceftriaxone
-    };
-
-    private static Guid NormalizeFacilityId(Guid id) =>
-        FacilityAliases.TryGetValue(id, out var normalized) ? normalized : id;
-
-    private static Guid NormalizeMedicineId(Guid id) =>
-        MedicineAliases.TryGetValue(id, out var normalized) ? normalized : id;
 
     public async Task<PagedResponse<TransferResponse>> GetTransfersAsync(
         int page,
@@ -157,9 +144,7 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail("Validation failed creating transfer request.", errors);
         }
 
-        var destId = NormalizeFacilityId(request.DestinationFacilityId);
-        var destination = await _dbContext.Facilities.FindAsync(new object[] { destId }, ct)
-            ?? await _dbContext.Facilities.FindAsync(new object[] { request.DestinationFacilityId }, ct);
+        var destination = await _dbContext.Facilities.FindAsync(new object[] { request.DestinationFacilityId }, ct);
         if (destination == null || !destination.IsActive)
         {
             return ApiResponse<TransferResponse>.Fail($"Destination facility {request.DestinationFacilityId} not found or inactive.");
@@ -168,9 +153,7 @@ public class TransferService : ITransferService
         Facility? source = null;
         if (request.SourceFacilityId.HasValue && request.SourceFacilityId.Value != Guid.Empty)
         {
-            var srcId = NormalizeFacilityId(request.SourceFacilityId.Value);
-            source = await _dbContext.Facilities.FindAsync(new object[] { srcId }, ct)
-                ?? await _dbContext.Facilities.FindAsync(new object[] { request.SourceFacilityId.Value }, ct);
+            source = await _dbContext.Facilities.FindAsync(new object[] { request.SourceFacilityId.Value }, ct);
             if (source == null || !source.IsActive)
             {
                 return ApiResponse<TransferResponse>.Fail($"Source facility {request.SourceFacilityId.Value} not found or inactive.");
@@ -212,15 +195,13 @@ public class TransferService : ITransferService
         {
             foreach (var itemDto in request.Items)
             {
-                var medId = NormalizeMedicineId(itemDto.MedicineId);
-                var med = await _dbContext.Medicines.FindAsync(new object[] { medId }, ct)
-                    ?? await _dbContext.Medicines.FindAsync(new object[] { itemDto.MedicineId }, ct);
+                var med = await _dbContext.Medicines.FindAsync(new object[] { itemDto.MedicineId }, ct);
 
                 transfer.Items.Add(new TransferItem
                 {
                     Id = Guid.NewGuid(),
                     TransferRequestId = transfer.Id,
-                    MedicineId = med?.Id ?? medId,
+                    MedicineId = med?.Id ?? itemDto.MedicineId,
                     MedicineName = !string.IsNullOrWhiteSpace(itemDto.MedicineName) ? itemDto.MedicineName : (med?.Name ?? "Medicine"),
                     RequestedQuantity = itemDto.RequestedQuantity,
                     AllocatedQuantity = 0,
@@ -231,15 +212,13 @@ public class TransferService : ITransferService
         }
         else if (request.MedicineId.HasValue && request.MedicineId.Value != Guid.Empty)
         {
-            var medId = NormalizeMedicineId(request.MedicineId.Value);
-            var med = await _dbContext.Medicines.FindAsync(new object[] { medId }, ct)
-                ?? await _dbContext.Medicines.FindAsync(new object[] { request.MedicineId.Value }, ct);
+            var med = await _dbContext.Medicines.FindAsync(new object[] { request.MedicineId.Value }, ct);
 
             transfer.Items.Add(new TransferItem
             {
                 Id = Guid.NewGuid(),
                 TransferRequestId = transfer.Id,
-                MedicineId = med?.Id ?? medId,
+                MedicineId = med?.Id ?? request.MedicineId.Value,
                 MedicineName = !string.IsNullOrWhiteSpace(request.MedicineName) ? request.MedicineName : (med?.Name ?? "Medicine"),
                 RequestedQuantity = request.RequestedQuantity ?? 1,
                 AllocatedQuantity = 0,
@@ -480,40 +459,89 @@ public class TransferService : ITransferService
 
         var sourceFacilityId = transfer.SourceFacilityId!.Value;
 
-        var canUseTransaction = !_dbContext.Database.ProviderName?.Contains("InMemory") ?? true;
+        var canUseTransaction = (!_dbContext.Database.ProviderName?.Contains("InMemory") ?? true)
+            && (!(_appDbContext?.Database.ProviderName?.Contains("InMemory") ?? true));
         using var transaction = canUseTransaction ? await _dbContext.Database.BeginTransactionAsync(ct) : null;
+        if (canUseTransaction && _appDbContext != null && transaction != null)
+        {
+            var conn = _dbContext.Database.GetDbConnection();
+            if (_appDbContext.Database.GetDbConnection() != conn)
+            {
+                _appDbContext.Database.SetDbConnection(conn);
+            }
+            await _appDbContext.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct);
+        }
+
         try
         {
             foreach (var alloc in request.ItemAllocations)
             {
                 var transferItem = transfer.Items.First(i => i.Id == alloc.TransferItemId);
 
-                // Fetch source facility inventory record
+                if (_appDbContext != null)
+                {
+                    var balance = await _appDbContext.InventoryBalances
+                        .Include(b => b.Medicine)
+                        .FirstOrDefaultAsync(b => b.FacilityId == sourceFacilityId && b.MedicineId == transferItem.MedicineId, ct);
+
+                    if (balance == null)
+                    {
+                        if (transaction != null) await transaction.RollbackAsync(ct);
+                        return ApiResponse<TransferResponse>.Fail($"Source facility does not have inventory balance for medicine {transferItem.MedicineName} ({transferItem.MedicineId}).");
+                    }
+
+                    var minStock = balance.Medicine?.MinimumStockLevel ?? 0;
+                    var availableSurplus = balance.QuantityOnHand - minStock - balance.QuantityReserved;
+                    if (alloc.AllocatedQuantity > availableSurplus)
+                    {
+                        if (transaction != null) await transaction.RollbackAsync(ct);
+                        return ApiResponse<TransferResponse>.Fail(
+                            $"Cannot allocate {alloc.AllocatedQuantity} units of {transferItem.MedicineName}. Available surplus at source is only {availableSurplus} units (Stock: {balance.QuantityOnHand}, MinStock: {minStock}, Reserved: {balance.QuantityReserved}).");
+                    }
+
+                    balance.QuantityReserved += alloc.AllocatedQuantity;
+                    balance.UpdatedAtUtc = DateTime.UtcNow;
+
+                    _appDbContext.StockTransactions.Add(new MediStock.Api.Features.Inventory.Models.StockTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicineId = transferItem.MedicineId,
+                        FacilityId = sourceFacilityId,
+                        Type = StockTransactionType.Reservation,
+                        Quantity = alloc.AllocatedQuantity,
+                        BalanceAfter = balance.AvailableQuantity,
+                        Reason = $"Transfer {transfer.TransferNumber} reserved at supplying facility",
+                        ActorId = request.UserId != Guid.Empty ? request.UserId.ToString() : null,
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
+                }
+
+                // Also update legacy FacilityInventories if present
                 var inventory = await _dbContext.FacilityInventories
                     .FirstOrDefaultAsync(fi => fi.FacilityId == sourceFacilityId && fi.MedicineId == transferItem.MedicineId, ct);
 
-                if (inventory == null)
+                if (inventory != null)
                 {
-                    if (transaction != null) await transaction.RollbackAsync(ct);
-                    return ApiResponse<TransferResponse>.Fail($"Source facility does not have inventory record for medicine {transferItem.MedicineName} ({transferItem.MedicineId}).");
+                    var availableSurplus = inventory.StockOnHand - inventory.SafetyStockThreshold - inventory.ReservedStock;
+                    if (_appDbContext == null && alloc.AllocatedQuantity > availableSurplus)
+                    {
+                        if (transaction != null) await transaction.RollbackAsync(ct);
+                        return ApiResponse<TransferResponse>.Fail(
+                            $"Cannot allocate {alloc.AllocatedQuantity} units of {transferItem.MedicineName}. Available surplus at source is only {availableSurplus} units.");
+                    }
+
+                    inventory.ReservedStock += alloc.AllocatedQuantity;
+                    inventory.UpdatedAt = DateTime.UtcNow;
+
+                    transferItem.BatchNumber = alloc.BatchNumber ?? inventory.BatchNumber;
+                    transferItem.ExpiryDate = alloc.ExpiryDate ?? inventory.ExpiryDate;
+                }
+                else
+                {
+                    transferItem.BatchNumber = alloc.BatchNumber ?? "BATCH-001";
                 }
 
-                var availableSurplus = inventory.StockOnHand - inventory.SafetyStockThreshold - inventory.ReservedStock;
-                if (alloc.AllocatedQuantity > availableSurplus)
-                {
-                    if (transaction != null) await transaction.RollbackAsync(ct);
-                    return ApiResponse<TransferResponse>.Fail(
-                        $"Cannot allocate {alloc.AllocatedQuantity} units of {transferItem.MedicineName}. Available surplus at source is only {availableSurplus} units (Stock: {inventory.StockOnHand}, Safety: {inventory.SafetyStockThreshold}, Reserved: {inventory.ReservedStock}).");
-                }
-
-                // Lock inventory stock
-                inventory.ReservedStock += alloc.AllocatedQuantity;
-                inventory.UpdatedAt = DateTime.UtcNow;
-
-                // Update transfer line item allocation
                 transferItem.AllocatedQuantity = alloc.AllocatedQuantity;
-                transferItem.BatchNumber = alloc.BatchNumber ?? inventory.BatchNumber;
-                transferItem.ExpiryDate = alloc.ExpiryDate ?? inventory.ExpiryDate;
             }
 
             var previousStatus = transfer.Status;
@@ -522,6 +550,10 @@ public class TransferService : ITransferService
 
             AddStatusHistory(transfer, previousStatus, TransferStatus.Reserved, request.UserId, request.Notes ?? "Source facility stock allocated and reserved successfully.");
 
+            if (_appDbContext != null)
+            {
+                await _appDbContext.SaveChangesAsync(ct);
+            }
             await _dbContext.SaveChangesAsync(ct);
             if (transaction != null) await transaction.CommitAsync(ct);
 
@@ -634,8 +666,19 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail("Receiving verification failed.", errors);
         }
 
-        var canUseTransaction = !_dbContext.Database.ProviderName?.Contains("InMemory") ?? true;
+        var canUseTransaction = (!_dbContext.Database.ProviderName?.Contains("InMemory") ?? true)
+            && (!(_appDbContext?.Database.ProviderName?.Contains("InMemory") ?? true));
         using var transaction = canUseTransaction ? await _dbContext.Database.BeginTransactionAsync(ct) : null;
+        if (canUseTransaction && _appDbContext != null && transaction != null)
+        {
+            var conn = _dbContext.Database.GetDbConnection();
+            if (_appDbContext.Database.GetDbConnection() != conn)
+            {
+                _appDbContext.Database.SetDbConnection(conn);
+            }
+            await _appDbContext.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct);
+        }
+
         try
         {
             var sourceFacilityId = transfer.SourceFacilityId!.Value;
@@ -650,7 +693,70 @@ public class TransferService : ITransferService
                     ? item.AllocatedQuantity 
                     : (item.RequestedQuantity > 0 ? item.RequestedQuantity : verification.ReceivedQuantity);
 
-                // 1. Decrement source inventory
+                if (_appDbContext != null)
+                {
+                    // 1. Decrement source inventory balance
+                    var sourceBalance = await _appDbContext.InventoryBalances
+                        .FirstOrDefaultAsync(b => b.FacilityId == sourceFacilityId && b.MedicineId == item.MedicineId, ct);
+
+                    if (sourceBalance != null)
+                    {
+                        sourceBalance.QuantityOnHand = Math.Max(0, sourceBalance.QuantityOnHand - qtyToDeduct);
+                        sourceBalance.QuantityReserved = Math.Max(0, sourceBalance.QuantityReserved - qtyToDeduct);
+                        sourceBalance.UpdatedAtUtc = DateTime.UtcNow;
+
+                        _appDbContext.StockTransactions.Add(new MediStock.Api.Features.Inventory.Models.StockTransaction
+                        {
+                            Id = Guid.NewGuid(),
+                            MedicineId = item.MedicineId,
+                            FacilityId = sourceFacilityId,
+                            Type = StockTransactionType.Release,
+                            Quantity = -qtyToDeduct,
+                            BalanceAfter = sourceBalance.QuantityOnHand,
+                            Reason = $"Transfer {transfer.TransferNumber} dispatched and delivered to destination",
+                            ActorId = request.ReceivedByUserId != Guid.Empty ? request.ReceivedByUserId.ToString() : null,
+                            CreatedAtUtc = DateTime.UtcNow
+                        });
+                    }
+
+                    // 2. Increment destination inventory balance
+                    var destBalance = await _appDbContext.InventoryBalances
+                        .FirstOrDefaultAsync(b => b.FacilityId == destFacilityId && b.MedicineId == item.MedicineId, ct);
+
+                    if (destBalance == null)
+                    {
+                        destBalance = new MediStock.Api.Features.Inventory.Models.InventoryBalance
+                        {
+                            Id = Guid.NewGuid(),
+                            FacilityId = destFacilityId,
+                            MedicineId = item.MedicineId,
+                            QuantityOnHand = verification.ReceivedQuantity,
+                            QuantityReserved = 0,
+                            UpdatedAtUtc = DateTime.UtcNow
+                        };
+                        _appDbContext.InventoryBalances.Add(destBalance);
+                    }
+                    else
+                    {
+                        destBalance.QuantityOnHand += verification.ReceivedQuantity;
+                        destBalance.UpdatedAtUtc = DateTime.UtcNow;
+                    }
+
+                    _appDbContext.StockTransactions.Add(new MediStock.Api.Features.Inventory.Models.StockTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicineId = item.MedicineId,
+                        FacilityId = destFacilityId,
+                        Type = StockTransactionType.Receipt,
+                        Quantity = verification.ReceivedQuantity,
+                        BalanceAfter = destBalance.QuantityOnHand,
+                        Reason = $"Transfer {transfer.TransferNumber} received into inventory",
+                        ActorId = request.ReceivedByUserId != Guid.Empty ? request.ReceivedByUserId.ToString() : null,
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
+                }
+
+                // 1. Decrement legacy source inventory
                 var sourceInventory = await _dbContext.FacilityInventories
                     .FirstOrDefaultAsync(fi => fi.FacilityId == sourceFacilityId && fi.MedicineId == item.MedicineId, ct);
 
@@ -661,7 +767,7 @@ public class TransferService : ITransferService
                     sourceInventory.UpdatedAt = DateTime.UtcNow;
                 }
 
-                // 2. Increment destination inventory
+                // 2. Increment legacy destination inventory
                 var destInventory = await _dbContext.FacilityInventories
                     .FirstOrDefaultAsync(fi => fi.FacilityId == destFacilityId && fi.MedicineId == item.MedicineId, ct);
 
@@ -695,6 +801,10 @@ public class TransferService : ITransferService
 
             AddStatusHistory(transfer, previousStatus, TransferStatus.Received, request.ReceivedByUserId, request.Notes ?? "Transfer received and verified at destination facility.");
 
+            if (_appDbContext != null)
+            {
+                await _appDbContext.SaveChangesAsync(ct);
+            }
             await _dbContext.SaveChangesAsync(ct);
             if (transaction != null) await transaction.CommitAsync(ct);
 
@@ -782,6 +892,27 @@ public class TransferService : ITransferService
         return ApiResponse<RouteResponse>.Ok(route, "Route calculated successfully.");
     }
 
+    public async Task<ApiResponse<RouteResponse>> CalculateRoutePreviewAsync(
+        Guid sourceFacilityId,
+        Guid destinationFacilityId,
+        CancellationToken ct = default)
+    {
+        var sourceFacility = await _dbContext.Facilities.FindAsync(new object[] { sourceFacilityId }, ct);
+        if (sourceFacility == null)
+        {
+            return ApiResponse<RouteResponse>.Fail($"Source facility {sourceFacilityId} not found.");
+        }
+
+        var destinationFacility = await _dbContext.Facilities.FindAsync(new object[] { destinationFacilityId }, ct);
+        if (destinationFacility == null)
+        {
+            return ApiResponse<RouteResponse>.Fail($"Destination facility {destinationFacilityId} not found.");
+        }
+
+        var route = await _routingService.CalculateRouteAsync(sourceFacility, destinationFacility, ct);
+        return ApiResponse<RouteResponse>.Ok(route, "Route preview calculated successfully.");
+    }
+
     // =========================================================================
     // INTERNAL WORKFLOW TRANSITIONS (Triggered by WorkflowController / ApprovalService)
     // =========================================================================
@@ -816,11 +947,10 @@ public class TransferService : ITransferService
 
         transfer.AssignedOfficerId = officerId;
         transfer.AssignedAt = DateTime.UtcNow;
-        transfer.Status = TransferStatus.Assigned;
+        transfer.Status = TransferStatus.Approved;
         transfer.UpdatedAt = DateTime.UtcNow;
 
         AddStatusHistory(transfer, previousStatus, TransferStatus.Approved, transfer.ApprovedByUserId.Value, notes ?? "Transfer proposal approved via workflow approval decision.");
-        AddStatusHistory(transfer, TransferStatus.Approved, TransferStatus.Assigned, officerId, $"Assigned to field officer {officerId}");
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -872,29 +1002,97 @@ public class TransferService : ITransferService
         }
 
         var previousStatus = transfer.Status;
-        transfer.Status = TransferStatus.Rejected;
-        transfer.RejectionReason = reason;
-        transfer.UpdatedAt = DateTime.UtcNow;
 
-        AddStatusHistory(transfer, previousStatus, TransferStatus.Rejected, rejectorUserId, $"Rejected: {reason}");
-
-        await _dbContext.SaveChangesAsync(ct);
-
-        await CreateAndBroadcastNotificationsAsync(
-            transfer,
-            "Transfer rejected",
-            $"Your transfer request {transfer.TransferNumber} was rejected: {reason}",
-            "Transfer Rejected",
-            $"Transfer {transfer.TransferNumber} was rejected.",
-            ct);
-
-        _logger.LogInformation("Transfer {TransferNumber} rejected internally via workflow approval", transfer.TransferNumber);
-        var rejectedResponse = MapToResponse(transfer);
-        if (_notificationService != null)
+        var canUseTransaction = (!_dbContext.Database.ProviderName?.Contains("InMemory") ?? true)
+            && (!(_appDbContext?.Database.ProviderName?.Contains("InMemory") ?? true));
+        using var transaction = canUseTransaction ? await _dbContext.Database.BeginTransactionAsync(ct) : null;
+        if (canUseTransaction && _appDbContext != null && transaction != null)
         {
-            await _notificationService.BroadcastStatusChangedAsync(rejectedResponse, ct);
+            var conn = _dbContext.Database.GetDbConnection();
+            if (_appDbContext.Database.GetDbConnection() != conn)
+            {
+                _appDbContext.Database.SetDbConnection(conn);
+            }
+            await _appDbContext.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct);
         }
-        return ApiResponse<TransferResponse>.Ok(rejectedResponse, "Transfer proposal rejected.");
+
+        try
+        {
+            if (previousStatus == TransferStatus.Reserved && transfer.SourceFacilityId.HasValue)
+            {
+                var sourceFacilityId = transfer.SourceFacilityId.Value;
+                foreach (var item in transfer.Items)
+                {
+                    var qtyToRelease = item.AllocatedQuantity > 0 ? item.AllocatedQuantity : item.RequestedQuantity;
+                    if (_appDbContext != null)
+                    {
+                        var balance = await _appDbContext.InventoryBalances
+                            .FirstOrDefaultAsync(b => b.FacilityId == sourceFacilityId && b.MedicineId == item.MedicineId, ct);
+                        if (balance != null)
+                        {
+                            balance.QuantityReserved = Math.Max(0, balance.QuantityReserved - qtyToRelease);
+                            balance.UpdatedAtUtc = DateTime.UtcNow;
+
+                            _appDbContext.StockTransactions.Add(new MediStock.Api.Features.Inventory.Models.StockTransaction
+                            {
+                                Id = Guid.NewGuid(),
+                                MedicineId = item.MedicineId,
+                                FacilityId = sourceFacilityId,
+                                Type = StockTransactionType.Release,
+                                Quantity = -qtyToRelease,
+                                BalanceAfter = balance.AvailableQuantity,
+                                Reason = $"Transfer {transfer.TransferNumber} rejected, reservation released",
+                                ActorId = rejectorUserId != Guid.Empty ? rejectorUserId.ToString() : null,
+                                CreatedAtUtc = DateTime.UtcNow
+                            });
+                        }
+                    }
+
+                    var inv = await _dbContext.FacilityInventories
+                        .FirstOrDefaultAsync(fi => fi.FacilityId == sourceFacilityId && fi.MedicineId == item.MedicineId, ct);
+                    if (inv != null)
+                    {
+                        inv.ReservedStock = Math.Max(0, inv.ReservedStock - qtyToRelease);
+                        inv.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            transfer.Status = TransferStatus.Rejected;
+            transfer.RejectionReason = reason;
+            transfer.UpdatedAt = DateTime.UtcNow;
+
+            AddStatusHistory(transfer, previousStatus, TransferStatus.Rejected, rejectorUserId, $"Rejected: {reason}");
+
+            if (_appDbContext != null)
+            {
+                await _appDbContext.SaveChangesAsync(ct);
+            }
+            await _dbContext.SaveChangesAsync(ct);
+            if (transaction != null) await transaction.CommitAsync(ct);
+
+            await CreateAndBroadcastNotificationsAsync(
+                transfer,
+                "Transfer rejected",
+                $"Your transfer request {transfer.TransferNumber} was rejected: {reason}",
+                "Transfer Rejected",
+                $"Transfer {transfer.TransferNumber} was rejected.",
+                ct);
+
+            _logger.LogInformation("Transfer {TransferNumber} rejected internally via workflow approval", transfer.TransferNumber);
+            var rejectedResponse = MapToResponse(transfer);
+            if (_notificationService != null)
+            {
+                await _notificationService.BroadcastStatusChangedAsync(rejectedResponse, ct);
+            }
+            return ApiResponse<TransferResponse>.Ok(rejectedResponse, "Transfer proposal rejected.");
+        }
+        catch (Exception ex)
+        {
+            if (transaction != null) await transaction.RollbackAsync(ct);
+            _logger.LogError(ex, "Error rejecting transfer {TransferId}", transferId);
+            return ApiResponse<TransferResponse>.Fail($"Database error rejecting transfer: {ex.Message}");
+        }
     }
 
     public async Task<ApiResponse<TransferResponse>> ProposeCandidateInternalAsync(
@@ -942,13 +1140,16 @@ public class TransferService : ITransferService
         transfer.SourceFacilityId = sourceFacilityId;
         transfer.SourceFacility = sourceFacility;
         transfer.Status = TransferStatus.Proposed;
-        transfer.EstimatedDistanceKm = route.DistanceKm;
-        transfer.EstimatedDurationMinutes = route.DurationMinutes;
-        transfer.RoutingProvider = route.Provider;
-        transfer.RoutePolyline = route.PolylineGeometry;
+        if (route != null)
+        {
+            transfer.EstimatedDistanceKm = route.DistanceKm;
+            transfer.EstimatedDurationMinutes = route.DurationMinutes;
+            transfer.RoutingProvider = route.Provider;
+            transfer.RoutePolyline = route.PolylineGeometry;
+        }
         transfer.UpdatedAt = DateTime.UtcNow;
 
-        AddStatusHistory(transfer, previousStatus, TransferStatus.Proposed, userId, $"Agent proposed source facility: {sourceFacility.Name} ({route.DistanceKm} km away).");
+        AddStatusHistory(transfer, previousStatus, TransferStatus.Proposed, userId, $"Agent proposed source facility: {sourceFacility.Name}{(route != null ? $" ({route.DistanceKm} km away)" : "")}.");
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -1203,22 +1404,31 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail("Transfer not found");
         }
 
-        var previousStatus = transfer.Status;
-        transfer.Status = TransferStatus.Reserved;
+        // Delegate to ReserveTransferAsync to ensure atomic stock updates (InventoryBalances + StockTransactions)
+        var reserveRequest = new ReserveTransferRequest
+        {
+            SourceFacilityId = transfer.SourceFacilityId,
+            UserId = officerId,
+            Notes = "Field officer accepted task assignment and reserved stock.",
+            ItemAllocations = transfer.Items.Select(i => new ReserveItemAllocationDto
+            {
+                TransferItemId = i.Id,
+                AllocatedQuantity = i.AllocatedQuantity > 0 ? i.AllocatedQuantity : i.RequestedQuantity,
+                BatchNumber = i.BatchNumber
+            }).ToList()
+        };
+
+        var reserveResult = await ReserveTransferAsync(transferId, reserveRequest, ct);
+        if (!reserveResult.Success)
+        {
+            return reserveResult;
+        }
+
         transfer.AssignedOfficerId = officerId;
-        transfer.UpdatedAt = DateTime.UtcNow;
-
-        AddStatusHistory(transfer, previousStatus, TransferStatus.Reserved, officerId, "Field officer accepted task assignment.");
-
         await _dbContext.SaveChangesAsync(ct);
 
         var response = MapToResponse(transfer);
-        if (_notificationService != null)
-        {
-            await _notificationService.BroadcastStatusChangedAsync(response, ct);
-        }
-
-        return ApiResponse<TransferResponse>.Ok(response, "Transfer accepted successfully.");
+        return ApiResponse<TransferResponse>.Ok(response, "Transfer accepted and inventory reserved successfully.");
     }
 
     public async Task<ApiResponse<TransferResponse>> DeclineTransferAsync(Guid transferId, Guid officerId, string? reason = null, CancellationToken ct = default)
@@ -1234,11 +1444,11 @@ public class TransferService : ITransferService
         }
 
         var previousStatus = transfer.Status;
-        transfer.Status = TransferStatus.PendingReassignment;
+        transfer.Status = TransferStatus.Approved;
         transfer.AssignedOfficerId = null;
         transfer.UpdatedAt = DateTime.UtcNow;
 
-        AddStatusHistory(transfer, previousStatus, TransferStatus.PendingReassignment, officerId, reason ?? "Field officer declined task assignment.");
+        AddStatusHistory(transfer, previousStatus, TransferStatus.Approved, officerId, reason ?? "Field officer declined task assignment.");
 
         await _dbContext.SaveChangesAsync(ct);
 
@@ -1248,7 +1458,7 @@ public class TransferService : ITransferService
             await _notificationService.BroadcastStatusChangedAsync(response, ct);
         }
 
-        return ApiResponse<TransferResponse>.Ok(response, "Transfer declined and marked pending reassignment.");
+        return ApiResponse<TransferResponse>.Ok(response, "Transfer declined and assignment cleared.");
     }
 
     public async Task<PagedResponse<TransferResponse>> GetAssignedTransfersAsync(Guid officerId, int page = 1, int pageSize = 20, CancellationToken ct = default)

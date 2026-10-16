@@ -20,7 +20,7 @@ from medistock_agents.tools.inventory_tools import BackendUnavailableError  # no
 # ---------------------------------------------------------------------------
 
 def _base_url() -> str:
-    return os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5182").rstrip("/")
+    return os.getenv("MEDISTOCK_API_BASE_URL", "http://localhost:5050").rstrip("/")
 
 
 def _timeout() -> httpx.Timeout:

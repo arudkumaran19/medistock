@@ -72,6 +72,15 @@ public class ShortageAlert
     /// Null for a manual resolve and for an active alert.
     /// </summary>
     public string? ResolutionReason { get; set; }
+
+    /// <summary>When the alert was dismissed (e.g. as a false positive). Null while active.</summary>
+    public DateTime? DismissedAt { get; set; }
+
+    /// <summary>User ID of the staff member who dismissed the alert.</summary>
+    public Guid? DismissedByUserId { get; set; }
+
+    /// <summary>User-provided or default explanation for dismissal.</summary>
+    public string? DismissReason { get; set; }
 }
 
 /// <summary>
@@ -94,6 +103,7 @@ public static class ShortageRiskLevels
 /// DEMAND_RAISED          - a demand transfer request was created for this shortage.
 /// REDISTRIBUTION_REQUESTED- forwarded to redistribution candidate search.
 /// RESOLVED               - the shortage no longer applies; stock arrived or was transferred.
+/// DISMISSED              - dismissed as false positive by facility staff or management.
 /// </summary>
 public static class ShortageAlertStatuses
 {
@@ -102,8 +112,9 @@ public static class ShortageAlertStatuses
     public const string DemandRaised = "DEMAND_RAISED";
     public const string RedistributionRequested = "REDISTRIBUTION_REQUESTED";
     public const string Resolved = "RESOLVED";
+    public const string Dismissed = "DISMISSED";
 
-    public static readonly string[] All = [Open, Acknowledged, DemandRaised, RedistributionRequested, Resolved];
+    public static readonly string[] All = [Open, Acknowledged, DemandRaised, RedistributionRequested, Resolved, Dismissed];
 
     /// <summary>
     /// Statuses that still need attention. Only one alert in these statuses is kept per

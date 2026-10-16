@@ -30,7 +30,6 @@ import { SkeletonChart, SkeletonMetrics, SkeletonRegion, SkeletonTable } from '.
 import { formatDate, formatNumber } from './format';
 import { facilityName, knownFacilities, knownMedicines, medicineName, optionLabel } from './reference';
 import {
-  DEMO_FACILITY_ID,
   useConsumption,
   useDeleteConsumption,
   useUpdateConsumption,
@@ -39,7 +38,7 @@ import {
 const PAGE_SIZE = 10;
 
 export function ConsumptionAnalytics({
-  facilityId: initialFacilityId = DEMO_FACILITY_ID,
+  facilityId: initialFacilityId = '',
 }: {
   facilityId?: string;
 }) {

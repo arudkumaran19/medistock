@@ -42,6 +42,8 @@ function normalizeTransfer(t: any): TransferDto {
     dispatchedAt: t.dispatchedAt ?? null,
     deliveredAt: t.deliveredAt ?? null,
     workflowRunId: t.workflowRunId ?? null,
+    routingProvider: t.routingProvider ?? null,
+    routePolyline: t.routePolyline ?? null,
     items: t.items || [],
     statusHistories: t.statusHistories || t.statusHistory || [],
   };
@@ -91,15 +93,21 @@ function normalizeRoute(r: any): RouteDetailsDto {
   };
 }
 
+export function toBackendStatus(uiStatus: string): string {
+  const map: Record<string, string> = {
+    'InTransit': 'Dispatched',
+    'Delivered': 'Received',
+    'Pending': 'Requested',
+  };
+  return map[uiStatus] ?? uiStatus;
+}
+
 export const redistributionApi = {
   // 1. GET /api/transfers
   getTransfers: async (params?: TransferFilterParams): Promise<TransferDto[]> => {
     const query = new URLSearchParams();
     if (params?.status) {
-      let st = params.status;
-      if (st === 'InTransit') st = 'Dispatched';
-      if (st === 'Delivered') st = 'Received';
-      query.append('status', st);
+      query.append('status', toBackendStatus(params.status));
     }
     if (params?.sourceFacilityId) query.append('sourceFacilityId', params.sourceFacilityId);
     if (params?.destinationFacilityId) query.append('destinationFacilityId', params.destinationFacilityId);

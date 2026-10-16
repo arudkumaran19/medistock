@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using MediStock.Api.Features.Auth.DTOs;
 using MediStock.Api.Features.Auth.Services;
+using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using MediStock.Api.Security;
 
 namespace MediStock.Api.Controllers;
@@ -13,13 +15,16 @@ public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly CurrentUserService _currentUserService;
+    private readonly ApplicationDbContext _dbContext;
 
     public AuthController(
         AuthService authService,
-        CurrentUserService currentUserService)
+        CurrentUserService currentUserService,
+        ApplicationDbContext dbContext)
     {
         _authService = authService;
         _currentUserService = currentUserService;
+        _dbContext = dbContext;
     }
 
     [HttpPost("register")]
@@ -100,7 +105,7 @@ public sealed class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public ActionResult<object> Me()
+    public async Task<ActionResult<object>> Me(CancellationToken cancellationToken = default)
     {
         var userId = _currentUserService.UserId;
 
@@ -111,11 +116,21 @@ public sealed class AuthController : ControllerBase
             .Select(claim => claim.Value)
             .ToArray();
 
+        var facilities = userId.HasValue
+            ? await (from uf in _dbContext.UserFacilities
+                     join f in _dbContext.Facilities on uf.FacilityId equals f.Id
+                     where uf.UserId == userId.Value
+                     orderby f.Name
+                     select new UserFacilityResponse(f.Id, f.Name))
+                    .ToListAsync(cancellationToken)
+            : new List<UserFacilityResponse>();
+
         return Ok(new
         {
             userId,
             email,
-            roles
+            roles,
+            facilities
         });
     }
 }

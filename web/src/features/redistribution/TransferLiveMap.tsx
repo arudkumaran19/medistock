@@ -141,6 +141,7 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
 }) => {
   // Construct polyline points: source -> waypoints -> destination
   const polylinePoints = useMemo<[number, number][]>(() => {
+    if (!sourceCoords || !destinationCoords) return [];
     const pts: [number, number][] = [sourceCoords];
     if (waypoints && waypoints.length > 0) {
       waypoints.forEach((w) => {
@@ -162,6 +163,45 @@ export const TransferLiveMap: React.FC<TransferLiveMapProps> = ({
   const sourceIcon = useMemo(() => createSourceIcon(sourceFacilityName), [sourceFacilityName]);
   const destIcon = useMemo(() => createDestIcon(destinationFacilityName), [destinationFacilityName]);
   const vehicleIcon = useMemo(() => createVehicleIcon(), []);
+
+  const hasValidCoords =
+    sourceCoords &&
+    destinationCoords &&
+    sourceCoords[0] !== 0 &&
+    sourceCoords[1] !== 0 &&
+    destinationCoords[0] !== 0 &&
+    destinationCoords[1] !== 0;
+
+  if (!hasValidCoords) {
+    return (
+      <div
+        data-testid="location-unavailable"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '240px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          backgroundColor: '#0f172a',
+          padding: '24px',
+          color: '#94a3b8',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: '1px solid var(--border-color, rgba(255, 255, 255, 0.1))',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '6px', color: '#f8fafc' }}>
+          Location unavailable
+        </div>
+        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+          Facility coordinates or transit route data are not available for this transfer.
+        </div>
+      </div>
+    );
+  }
 
   const isJSDOM =
     typeof navigator !== 'undefined' &&

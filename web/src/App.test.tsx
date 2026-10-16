@@ -11,4 +11,15 @@ describe('App', () => {
       screen.getAllByText('MediStock')[0],
     ).toBeInTheDocument()
   })
+
+  it('renders exactly one Transfers link in the sidebar navigation without duplicate groups', () => {
+    render(<App />)
+
+    const transferLinks = screen.getAllByRole('link', { name: /transfers/i })
+    expect(transferLinks).toHaveLength(1)
+    expect(transferLinks[0]).toHaveAttribute('href', '/transfers')
+
+    const redistributionHeadings = screen.getAllByText('Redistribution')
+    expect(redistributionHeadings).toHaveLength(1)
+  })
 })

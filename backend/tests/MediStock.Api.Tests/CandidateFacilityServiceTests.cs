@@ -138,4 +138,81 @@ public class CandidateFacilityServiceTests
         gamma.AvailableSurplus.Should().Be(450);
         gamma.RecommendedQuantity.Should().Be(400);
     }
+
+    [Fact]
+    public async Task FindCandidatesAsync_SkipsFacilitiesWithZeroZeroCoordinates()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+
+        var medicineId = Guid.NewGuid();
+        var destinationId = Guid.NewGuid();
+        var validCandidateId = Guid.NewGuid();
+        var zeroCoordCandidateId = Guid.NewGuid();
+
+        db.Facilities.Add(new Facility
+        {
+            Id = destinationId,
+            Name = "Valid Destination",
+            Latitude = 6.0535,
+            Longitude = 80.2210,
+            IsActive = true
+        });
+
+        db.Facilities.Add(new Facility
+        {
+            Id = validCandidateId,
+            Name = "Valid Hospital Colombo",
+            Latitude = 6.9271,
+            Longitude = 79.8612,
+            IsActive = true
+        });
+
+        db.Facilities.Add(new Facility
+        {
+            Id = zeroCoordCandidateId,
+            Name = "Central Depot With Zero Coordinates",
+            Latitude = 0.0,
+            Longitude = 0.0,
+            IsActive = true
+        });
+
+        db.FacilityInventories.Add(new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = validCandidateId,
+            MedicineId = medicineId,
+            StockOnHand = 500,
+            SafetyStockThreshold = 100,
+            ReservedStock = 0
+        });
+
+        db.FacilityInventories.Add(new FacilityInventory
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = zeroCoordCandidateId,
+            MedicineId = medicineId,
+            StockOnHand = 1000,
+            SafetyStockThreshold = 100,
+            ReservedStock = 0
+        });
+
+        await db.SaveChangesAsync();
+
+        var routingServiceMock = new Mock<IRoutingService>();
+        routingServiceMock
+            .Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse { DistanceKm = 120m, DurationMinutes = 110m, Provider = "MockRoute" });
+
+        var loggerMock = new Mock<ILogger<CandidateFacilityService>>();
+        var service = new CandidateFacilityService(db, routingServiceMock.Object, loggerMock.Object);
+
+        // Act
+        var candidates = await service.FindCandidatesAsync(destinationId, medicineId, 100);
+
+        // Assert: The candidate with (0,0) coordinates must be skipped
+        candidates.Should().HaveCount(1);
+        candidates.First().FacilityId.Should().Be(validCandidateId);
+        candidates.Should().NotContain(c => c.FacilityId == zeroCoordCandidateId);
+    }
 }

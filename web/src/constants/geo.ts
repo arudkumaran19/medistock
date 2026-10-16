@@ -1,0 +1,3 @@
+export const SRI_LANKA_CENTER_LATITUDE = 7.8731;
+export const SRI_LANKA_CENTER_LONGITUDE = 80.7718;
+export const SRI_LANKA_DEFAULT_ZOOM = 7;

@@ -24,6 +24,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useTransferSignalR } from './useTransferSignalR';
 import { TransferLiveMap } from './TransferLiveMap';
+import { useAuth } from '../auth/AuthContext';
 
 const STATUS_PIPELINE: TransferStatus[] = [
   'Draft',
@@ -38,6 +39,7 @@ const STATUS_PIPELINE: TransferStatus[] = [
 export const TransferDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [transfer, setTransfer] = useState<TransferDto | null>(null);
   const [routeData, setRouteData] = useState<RouteDetailsDto | null>(null);
@@ -227,7 +229,7 @@ export const TransferDetail: React.FC = () => {
           }
           if (runId) {
             await workflowApi.approveWorkflow(runId, {
-              approverUserId: '00000000-0000-0000-0000-000000000001',
+              approverUserId: user?.userId || '',
               decisionNotes: decisionNotes || 'Transfer plan approved by Central Supply Director.',
             });
           }
@@ -267,7 +269,7 @@ export const TransferDetail: React.FC = () => {
           }
           if (runId) {
             await workflowApi.rejectWorkflow(runId, {
-              approverUserId: '00000000-0000-0000-0000-000000000001',
+              approverUserId: user?.userId || '',
               decisionNotes: decisionNotes || 'Transfer plan rejected by Central Supply Director.',
             });
           }
@@ -665,13 +667,13 @@ export const TransferDetail: React.FC = () => {
           <TransferLiveMap
             sourceFacilityName={transfer.sourceFacilityName || 'Source Depot'}
             sourceCoords={[
-              routeData?.sourceLatitude ?? 6.9175,
-              routeData?.sourceLongitude ?? 79.8653,
+              routeData?.sourceLatitude ?? 0,
+              routeData?.sourceLongitude ?? 0,
             ]}
             destinationFacilityName={transfer.destinationFacilityName || 'Destination Hospital'}
             destinationCoords={[
-              routeData?.destinationLatitude ?? 7.2882,
-              routeData?.destinationLongitude ?? 80.6278,
+              routeData?.destinationLatitude ?? 0,
+              routeData?.destinationLongitude ?? 0,
             ]}
             vehicleCoords={
               transfer.lastLatitude != null && transfer.lastLongitude != null

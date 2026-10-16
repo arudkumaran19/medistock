@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../domain/auth_state.dart';
@@ -27,9 +29,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _emailController = TextEditingController(
-      text: isOfficer ? 'officer@medistock.com' : 'user@medistock.com',
+      text: kDebugMode ? (isOfficer ? 'officer@medistock.com' : 'user@medistock.com') : '',
     );
-    _passwordController = TextEditingController(text: 'Password123!');
+    _passwordController = TextEditingController(
+      text: kDebugMode ? 'Password123!' : '',
+    );
   }
 
   @override
@@ -50,8 +54,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (success && mounted) {
       if (isOfficer) {
+        SignalRClient().connect().then((_) {
+          SignalRClient().joinOfficerGroup();
+        });
         context.go('/officer/dashboard');
       } else {
+        final authState = ref.read(authControllerProvider);
+        final facilityId = authState.user?.facilityId;
+        if (facilityId != null && facilityId.isNotEmpty) {
+          SignalRClient().connect().then((_) {
+            SignalRClient().joinFacilityGroup(facilityId);
+          });
+        }
         context.go('/user/dashboard');
       }
     }
@@ -106,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              isOfficer ? 'Authorized Courier Network' : 'Apollo Anna Nagar Hub',
+                              isOfficer ? 'Authorized Courier Network' : 'Facility Inventory & Requisitions',
                               style: AppTextStyles.titleSmall,
                             ),
                           ],
@@ -205,21 +219,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                 ),
 
-                const SizedBox(height: 20),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 20),
 
-                // Quick Demo Login helper
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _emailController.text = isOfficer ? 'officer@medistock.com' : 'user@medistock.com';
-                      _passwordController.text = 'Password123!';
-                      _submit();
-                    },
-                    icon: const Icon(Icons.flash_on_rounded, size: 16),
-                    label: Text(
-                      'Use Demo Credentials & Sign In Instantly',
-                      style: AppTextStyles.bodySmall.copyWith(color: roleColor, fontWeight: FontWeight.w600),
+                  // Default Login helper
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        _emailController.text = isOfficer ? 'officer@medistock.com' : 'user@medistock.com';
+                        _passwordController.text = 'Password123!';
+                        _submit();
+                      },
+                      icon: const Icon(Icons.flash_on_rounded, size: 16),
+                      label: Text(
+                        'Sign In with Default Credentials',
+                        style: AppTextStyles.bodySmall.copyWith(color: roleColor, fontWeight: FontWeight.w600),
+                      ),
                     ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.push('/auth/register'),
+                    child: const Text('Create Account'),
                   ),
                 ),
               ],

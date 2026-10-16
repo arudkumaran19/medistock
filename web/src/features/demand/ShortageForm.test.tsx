@@ -29,7 +29,7 @@ vi.mock('./referenceApi', async (importOriginal) => {
   return {
     ...actual,
     useFacilities: () => ({
-      data: [{ id: FACILITY_ID, code: 'CENTRAL', name: 'Central Facility' }],
+      data: [{ id: FACILITY_ID, code: 'CENTRAL', name: 'Central Facility', latitude: 6.9175, longitude: 79.8653 }],
       isLoading: false,
     }),
     useMedicines: () => ({

@@ -1,15 +1,19 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../shared/widgets/progress_stepper.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../auth/presentation/auth_controller.dart';
-
-import 'dart:async';
-import '../../../core/network/signalr_client.dart';
+import '../alerts/alerts_provider.dart';
+import '../alerts/models/shortage_alert_model.dart';
 import '../alerts/verify_shortage_screen.dart';
+import '../requests/data/transfer_repository.dart';
 
 class UserHomeScreen extends ConsumerStatefulWidget {
   const UserHomeScreen({super.key});
@@ -21,27 +25,63 @@ class UserHomeScreen extends ConsumerStatefulWidget {
 class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
   int _currentIndex = 0;
   StreamSubscription? _shortageSub;
-  Map<String, dynamic>? _liveShortageAlert;
+  StreamSubscription? _shortageDismissedSub;
+  Timer? _pollTimer;
+  String? _facilityId;
+
+  bool get _isTestEnvironment {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    SignalRClient().connect().then((_) {
-      SignalRClient().joinFacilityGroup('a0000000-0000-0000-0000-000000000001');
-    });
-
-    _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
-      if (mounted) {
-        setState(() {
-          _liveShortageAlert = data;
+    if (!_isTestEnvironment) {
+      final authState = ref.read(authControllerProvider);
+      _facilityId = authState.user?.facilityId;
+      if (_facilityId != null && _facilityId!.isNotEmpty) {
+        SignalRClient().connect().then((_) {
+          SignalRClient().joinFacilityGroup(_facilityId!);
         });
       }
-    });
+
+      _shortageSub = SignalRClient().onShortageAlertCreated.listen((data) {
+        if (mounted) {
+          final alert = ShortageAlertModel.fromJson(data);
+          ref.read(alertsProvider.notifier).addOrUpdate(alert);
+        }
+      });
+
+      _shortageDismissedSub = SignalRClient().onShortageAlertDismissed.listen((data) {
+        if (mounted) {
+          final id = data['id']?.toString() ?? data['Id']?.toString();
+          if (id != null && id.isNotEmpty) {
+            ref.read(alertsProvider.notifier).removeAlert(id);
+          }
+        }
+      });
+
+      _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (mounted) {
+          ref.read(alertsProvider.notifier).load();
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    if (!_isTestEnvironment && _facilityId != null && _facilityId!.isNotEmpty) {
+      SignalRClient().leaveFacilityGroup(_facilityId!);
+    }
     _shortageSub?.cancel();
+    _shortageDismissedSub?.cancel();
     super.dispose();
   }
 
@@ -49,6 +89,12 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final user = authState.user;
+    final unreadCount = ref.watch(unreadAlertCountProvider);
+    final alertsAsync = ref.watch(alertsProvider);
+    final openedAlerts = ref.watch(openedAlertsProvider);
+    final alerts = alertsAsync.valueOrNull ?? [];
+    final unreadAlerts = alerts.where((a) => !openedAlerts.contains(a.id)).toList();
+    final latestUnreadAlert = unreadAlerts.isNotEmpty ? unreadAlerts.first : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,15 +114,22 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('MediStock AI', style: AppTextStyles.titleMedium),
-                Text('Chennai Health Grid', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                Text(user?.facilityName ?? 'Facility Portal', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
               ],
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => context.push('/user/alerts'),
+          Badge(
+            key: const Key('unread-alert-badge'),
+            isLabelVisible: unreadCount > 0,
+            label: Text('$unreadCount'),
+            backgroundColor: AppColors.error,
+            child: IconButton(
+              key: const Key('bell-notifications-button'),
+              icon: const Icon(Icons.notifications_none_rounded),
+              onPressed: () => context.push('/user/alerts'),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -122,7 +175,7 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
 
             // User Greeting
             Text(
-              'Good morning, ${user?.name ?? "Dr. Kavitha Raman"}',
+              'Good morning, ${user?.name ?? "User"}',
               style: AppTextStyles.displayMedium.copyWith(fontSize: 22),
             ),
             const SizedBox(height: 4),
@@ -131,11 +184,26 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                 const Icon(Icons.location_on_outlined, size: 14, color: AppColors.primary),
                 const SizedBox(width: 4),
                 Text(
-                  '${user?.facilityName ?? "Apollo Pharmacy, Anna Nagar Hub"} • Tier 1 Facility',
+                  user?.facilityName ?? 'Facility Portal',
                   style: AppTextStyles.bodyMedium,
                 ),
               ],
             ),
+
+            if (latestUnreadAlert != null) ...[
+              const SizedBox(height: 16),
+              _ShortageAlertNotificationCard(
+                alert: latestUnreadAlert,
+                onTap: () {
+                  ref.read(openedAlertsProvider.notifier).markAsOpened(latestUnreadAlert.id);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => VerifyShortageScreen(shortageAlert: latestUnreadAlert.toJson()),
+                    ),
+                  );
+                },
+              ),
+            ],
 
             const SizedBox(height: 20),
 
@@ -203,103 +271,6 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               ],
             ),
 
-            if (_liveShortageAlert != null) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.errorLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.error),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
-                        const SizedBox(width: 8),
-                        Text('REAL-TIME SHORTAGE ALERT', style: AppTextStyles.badge.copyWith(color: AppColors.error)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Shortage detected! Cover: ${_liveShortageAlert!['daysRemaining'] ?? 0} days remaining.',
-                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.error),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => VerifyShortageScreen(shortageAlert: _liveShortageAlert!),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                      child: const Text('Verify & Respond Now'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // AI FORECAST CARD
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFBEB), // Warm yellow tint
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFFCD34D)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.smart_toy_rounded, size: 12, color: Colors.white),
-                            const SizedBox(width: 4),
-                            Text('AI FORECAST', style: AppTextStyles.badge.copyWith(color: Colors.white)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('Critical Lead Time', style: AppTextStyles.badge.copyWith(color: AppColors.warning)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Predicted stockout in 36 hrs for Meropenem 1g IV due to seasonal dengue spike. 2 surplus facilities nearby found in Guindy (4.8 km).',
-                    style: AppTextStyles.bodyMedium.copyWith(color: const Color(0xFF78350F)),
-                  ),
-                  const SizedBox(height: 14),
-                  ElevatedButton(
-                    onPressed: () => context.push('/user/requests/new'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryDark,
-                      minimumSize: const Size(double.infinity, 44),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Auto-Draft Requisition', style: AppTextStyles.titleSmall.copyWith(color: Colors.white)),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.arrow_forward_rounded, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 24),
 
             // QUICK OPERATIONS 2x2 GRID
@@ -311,102 +282,153 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.45,
-              children: [
-                _QuickOpCard(
-                  icon: Icons.add_circle_outline_rounded,
-                  iconBg: AppColors.primarySurface,
-                  iconColor: AppColors.primary,
-                  title: 'New Request',
-                  subtitle: 'Request stock from nearby hubs',
-                  onTap: () => context.push('/user/requests/new'),
-                ),
-                _QuickOpCard(
-                  icon: Icons.inventory_rounded,
-                  iconBg: AppColors.secondaryLight,
-                  iconColor: AppColors.secondary,
-                  title: 'My Inventory',
-                  subtitle: 'Real-time batch & expiry audit',
-                  onTap: () => context.push('/user/inventory'),
-                ),
-                _QuickOpCard(
-                  icon: Icons.alt_route_rounded,
-                  iconBg: AppColors.infoLight,
-                  iconColor: AppColors.info,
-                  title: 'Track Delivery',
-                  subtitle: 'Live GPS vehicle telemetry',
-                  onTap: () => context.push('/user/requests'),
-                ),
-                _QuickOpCard(
-                  icon: Icons.auto_graph_rounded,
-                  iconBg: AppColors.warningLight,
-                  iconColor: AppColors.warning,
-                  title: 'Forecast AI',
-                  subtitle: 'Predictive 14-day stockout AI',
-                  onTap: () => context.push('/user/alerts'),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.45,
+                  children: [
+                    _QuickOpCard(
+                      icon: Icons.add_circle_outline_rounded,
+                      iconBg: AppColors.primarySurface,
+                      iconColor: AppColors.primary,
+                      title: 'New Request',
+                      subtitle: 'Request stock from nearby hubs',
+                      onTap: () => context.push('/user/requests/new'),
+                    ),
+                    _QuickOpCard(
+                      icon: Icons.inventory_rounded,
+                      iconBg: AppColors.secondaryLight,
+                      iconColor: AppColors.secondary,
+                      title: 'My Inventory',
+                      subtitle: 'Real-time batch & expiry audit',
+                      onTap: () => context.push('/user/inventory'),
+                    ),
+                    _QuickOpCard(
+                      icon: Icons.alt_route_rounded,
+                      iconBg: AppColors.infoLight,
+                      iconColor: AppColors.info,
+                      title: 'Track Delivery',
+                      subtitle: 'Live GPS vehicle telemetry',
+                      onTap: () => context.push('/user/requests'),
+                    ),
+                    _QuickOpCard(
+                      icon: Icons.auto_graph_rounded,
+                      iconBg: AppColors.warningLight,
+                      iconColor: AppColors.warning,
+                      title: 'Forecast AI',
+                      subtitle: 'Predictive 14-day stockout AI',
+                      onTap: () => context.push('/user/alerts'),
+                    ),
+                    _QuickOpCard(
+                      icon: Icons.qr_code_scanner_rounded,
+                      iconBg: AppColors.primarySurface,
+                      iconColor: AppColors.primary,
+                      title: 'Scan Batch',
+                      subtitle: 'DataMatrix barcode lookup',
+                      onTap: () => context.push('/inventory/scan'),
+                    ),
+                    _QuickOpCard(
+                      icon: Icons.psychology_rounded,
+                      iconBg: AppColors.secondaryLight,
+                      iconColor: AppColors.secondary,
+                      title: 'AI Agent',
+                      subtitle: 'Autonomous demand planning',
+                      onTap: () => context.push('/demand/agent'),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
 
-            // LIVE TRANSIT CORRIDOR
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.ac_unit_rounded, size: 18, color: AppColors.info),
-                          const SizedBox(width: 8),
-                          Text('Live Transit Corridor', style: AppTextStyles.titleMedium),
-                        ],
-                      ),
-                      Text('Active: #REQ-2024-8842', style: AppTextStyles.badge.copyWith(color: AppColors.info)),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  const ProgressStepper(currentStep: 3),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.thermostat_rounded, size: 14, color: AppColors.info),
-                          const SizedBox(width: 4),
-                          Text('Cold Chain: +3.8°C (Optimal)', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.navigation_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text('Poonamallee Rd (3.2 km)', style: AppTextStyles.bodySmall),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            ref.watch(myRequestsProvider(null)).when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (requests) {
+                final inTransitRequest = requests.where((r) {
+                  final s = r.status.toLowerCase();
+                  return s == 'intransit' || s == 'in transit';
+                }).firstOrNull;
 
-            const SizedBox(height: 24),
+                if (inTransitRequest == null) return const SizedBox.shrink();
+
+                final medicineName = inTransitRequest.items.isNotEmpty
+                    ? inTransitRequest.items.first.itemName
+                    : 'Emergency Requisition';
+                final routeText =
+                    '${inTransitRequest.sourceFacilityName} ➔ ${inTransitRequest.destinationFacilityName}';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: InkWell(
+                    onTap: () => context.push('/user/requests/${inTransitRequest.id}'),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.info.withOpacity(0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.ac_unit_rounded, size: 18, color: AppColors.info),
+                                  const SizedBox(width: 8),
+                                  Text('Live Transit Corridor', style: AppTextStyles.titleMedium),
+                                ],
+                              ),
+                              Text(
+                                inTransitRequest.transferNumber.isNotEmpty
+                                    ? inTransitRequest.transferNumber
+                                    : '#REQ-${inTransitRequest.id.substring(0, 8)}',
+                                style: AppTextStyles.badge.copyWith(color: AppColors.info),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          const ProgressStepper(currentStep: 3),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  medicineName,
+                                  style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  routeText,
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                                  textAlign: TextAlign.end,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
 
             // RECENT REQUESTS
             Row(
@@ -415,37 +437,63 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                 Text('RECENT REQUESTS', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
                 TextButton(
                   onPressed: () => context.push('/user/requests'),
-                  child: Text('View All (18)', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                  child: Text('View All', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
             const SizedBox(height: 8),
 
-            _RecentRequestCard(
-              id: '#REQ-2024-8842',
-              medicineName: 'Cefixime 200mg',
-              details: '120 strips • Batch #CF-909',
-              route: 'Rajiv Gandhi Govt Hospital ➔ Apollo Anna Nagar',
-              status: 'INTRANSIT',
-              onTap: () => context.push('/user/requests/req-8842'),
-            ),
-            const SizedBox(height: 10),
-            _RecentRequestCard(
-              id: '#REQ-2024-8839',
-              medicineName: 'Human Albumin 20%',
-              details: '15 vials (100ml) • Cold storage (2°C-8°C)',
-              route: 'Kilpauk Medical Depot ➔ Apollo Anna Nagar',
-              status: 'APPROVED',
-              onTap: () => context.push('/user/requests/req-8839'),
-            ),
-            const SizedBox(height: 10),
-            _RecentRequestCard(
-              id: '#REQ-2024-8810',
-              medicineName: 'Paracetamol 650mg',
-              details: '500 strips • Verified via barcode scan',
-              route: 'MedPlus Guindy Hub ➔ Apollo Anna Nagar',
-              status: 'DELIVERED',
-              onTap: () => context.push('/user/requests/req-8810'),
+            ref.watch(myRequestsProvider(null)).when(
+              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+              error: (err, _) => Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text('Failed to load recent requests', style: AppTextStyles.bodyMedium),
+              ),
+              data: (requests) {
+                if (requests.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Center(
+                      child: Text('No requisitions recorded yet.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
+                    ),
+                  );
+                }
+
+                final displayRequests = requests.take(3).toList();
+                return Column(
+                  children: displayRequests.map((r) {
+                    final medicineName = r.items.isNotEmpty ? r.items.first.itemName : 'Requisition Item';
+                    final details = r.items.isNotEmpty
+                        ? '${r.items.first.requestedQuantity} ${r.items.first.unitOfMeasure}'
+                        : 'Requisition';
+                    final route = '${r.sourceFacilityName} ➔ ${r.destinationFacilityName}';
+                    final idLabel = r.transferNumber.isNotEmpty ? r.transferNumber : '#REQ-${r.id.substring(0, 8)}';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _RecentRequestCard(
+                        id: idLabel,
+                        medicineName: medicineName,
+                        details: details,
+                        route: route,
+                        status: r.status.toUpperCase(),
+                        onTap: () => context.push('/user/requests/${r.id}'),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
         ),
@@ -497,7 +545,7 @@ class _QuickOpCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
@@ -506,13 +554,14 @@ class _QuickOpCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, color: iconColor, size: 20),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(title, style: AppTextStyles.titleSmall),
             const SizedBox(height: 2),
             Text(subtitle, style: AppTextStyles.bodySmall.copyWith(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -575,6 +624,107 @@ class _RecentRequestCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortageAlertNotificationCard extends StatelessWidget {
+  final ShortageAlertModel alert;
+  final VoidCallback onTap;
+
+  const _ShortageAlertNotificationCard({
+    required this.alert,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCritical = alert.severity.toUpperCase() == 'HIGH' ||
+        alert.severity.toUpperCase() == 'CRITICAL';
+    final badgeColor = isCritical ? AppColors.error : AppColors.warning;
+    final cardBg = isCritical ? AppColors.errorLight : AppColors.warningLight;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const Key('shortage-notification-banner'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: badgeColor.withOpacity(0.4)),
+            boxShadow: [
+              BoxShadow(
+                color: badgeColor.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.warning_amber_rounded, color: badgeColor, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isCritical ? 'CRITICAL ALERT' : 'SHORTAGE ALERT',
+                            style: AppTextStyles.badge.copyWith(color: Colors.white, fontSize: 10),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'NEW',
+                            style: AppTextStyles.badge.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Shortage Risk: ${alert.medicineName}',
+                      style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Stock: ${alert.currentStock} units • Reorder: ${alert.suggestedQuantity} units (${alert.facilityName})',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     );

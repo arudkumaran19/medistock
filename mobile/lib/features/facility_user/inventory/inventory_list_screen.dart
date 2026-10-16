@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import '../../../core/network/api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../shared/models/inventory_model.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_skeleton.dart';
+import 'data/inventory_repository.dart';
 
-class InventoryListScreen extends StatefulWidget {
+class InventoryListScreen extends ConsumerStatefulWidget {
   const InventoryListScreen({super.key});
 
   @override
-  State<InventoryListScreen> createState() => _InventoryListScreenState();
+  ConsumerState<InventoryListScreen> createState() => _InventoryListScreenState();
 }
 
-class _InventoryListScreenState extends State<InventoryListScreen> {
-  final ApiClient _apiClient = ApiClient();
+class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   List<InventoryModel> _items = [];
   bool _isLoading = true;
+  String? _errorMessage;
   String _searchQuery = '';
   String _filter = 'ALL'; // ALL, LOW_STOCK, EXPIRING
 
@@ -27,72 +28,26 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   }
 
   Future<void> _fetchInventory() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
-      final data = await _apiClient.get('/api/inventory', requireAuth: false);
-      if (data is List) {
+      final items = await ref.read(inventoryRepositoryProvider).getAll();
+      if (mounted) {
         setState(() {
-          _items = data.map((e) => InventoryModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+          _items = items;
           _isLoading = false;
         });
-      } else {
-        _loadMockData();
       }
-    } catch (_) {
-      _loadMockData();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  void _loadMockData() {
-    setState(() {
-      _items = [
-        InventoryModel(
-          id: 'inv-1',
-          itemCode: 'MED-AMX-500',
-          name: 'Amoxicillin 500mg Capsules',
-          category: 'Antibiotics',
-          quantityAvailable: 12,
-          minimumThreshold: 50,
-          unitOfMeasure: 'strips',
-          nextExpiryDate: DateTime.now().add(const Duration(days: 14)),
-          status: 'LowStock',
-        ),
-        InventoryModel(
-          id: 'inv-2',
-          itemCode: 'MED-PAR-650',
-          name: 'Paracetamol 650mg Tablets',
-          category: 'Analgesic',
-          quantityAvailable: 1450,
-          minimumThreshold: 200,
-          unitOfMeasure: 'strips',
-          nextExpiryDate: DateTime.now().add(const Duration(days: 180)),
-          status: 'Optimal',
-        ),
-        InventoryModel(
-          id: 'inv-3',
-          itemCode: 'MED-INS-100',
-          name: 'Insulin Glargine 100IU/ml',
-          category: 'Diabetes / Cold Chain',
-          quantityAvailable: 8,
-          minimumThreshold: 30,
-          unitOfMeasure: 'vials',
-          nextExpiryDate: DateTime.now().add(const Duration(days: 7)),
-          status: 'Critical',
-        ),
-        InventoryModel(
-          id: 'inv-4',
-          itemCode: 'MED-CEF-200',
-          name: 'Cefixime 200mg Tablets',
-          category: 'Antibiotics',
-          quantityAvailable: 320,
-          minimumThreshold: 100,
-          unitOfMeasure: 'strips',
-          nextExpiryDate: DateTime.now().add(const Duration(days: 90)),
-          status: 'Optimal',
-        ),
-      ];
-      _isLoading = false;
-    });
   }
 
   List<InventoryModel> get _filteredItems {
@@ -167,19 +122,33 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (_, __) => const LoadingSkeleton(height: 90),
                       )
-                    : _filteredItems.isEmpty
-                        ? const EmptyStateWidget(
-                            title: 'No Inventory Items Found',
-                            message: 'Try adjusting your search criteria or filter chips.',
+                    : _errorMessage != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Failed to load inventory: $_errorMessage', textAlign: TextAlign.center),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: _fetchInventory,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
                           )
-                        : ListView.separated(
-                            itemCount: _filteredItems.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final item = _filteredItems[index];
-                              return _InventoryCard(item: item);
-                            },
-                          ),
+                        : _filteredItems.isEmpty
+                            ? const EmptyStateWidget(
+                                title: 'No Inventory Items Found',
+                                message: 'Try adjusting your search criteria or filter chips.',
+                              )
+                            : ListView.separated(
+                                itemCount: _filteredItems.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final item = _filteredItems[index];
+                                  return _InventoryCard(item: item);
+                                },
+                              ),
               ),
             ],
           ),
@@ -275,7 +244,7 @@ class _InventoryCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Qty: ${item.quantityAvailable} ${item.unitOfMeasure}',
+                      'Qty: ${item.unitDisplay.isNotEmpty ? item.unitDisplay : "${item.quantityAvailable} ${item.unitOfMeasure}"}',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         color: item.isLowStock ? AppColors.error : AppColors.textPrimary,

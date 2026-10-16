@@ -12,25 +12,39 @@ class RouteGuards {
     final isSplash = currentPath == '/splash';
     final isRoleSelect = currentPath == '/role-selection';
     final isLogin = currentPath.startsWith('/login');
+    final isRegister = currentPath == '/auth/register';
 
     if (isSplash) return null;
 
     if (!isAuth) {
-      if (!isRoleSelect && !isLogin) {
+      if (!isRoleSelect && !isLogin && !isRegister) {
         return '/role-selection';
       }
       return null;
     }
 
     // User is authenticated
-    final role = user?['role']?.toString().toUpperCase() ??
+    final rawUserRole = user?['role']?.toString().toUpperCase() ??
         user?['roles']?[0]?.toString().toUpperCase() ??
-        selectedRole?.toUpperCase() ??
-        'FACILITYUSER';
+        '';
 
-    final isOfficer = role == 'FIELD_OFFICER' || role == 'FIELDOFFICER' || role == 'LOGISTICSCOORDINATOR';
+    final isOperationalStaff = rawUserRole == 'OPERATIONALSTAFF' || rawUserRole == 'STAFF';
 
-    if (isRoleSelect || isLogin) {
+    String effectiveRole;
+    if (selectedRole != null && selectedRole.isNotEmpty) {
+      effectiveRole = selectedRole.toUpperCase();
+    } else if (isOperationalStaff) {
+      final userFacilityId = user?['facilityId']?.toString();
+      effectiveRole = (userFacilityId != null && userFacilityId.isNotEmpty) ? 'FACILITYUSER' : 'FIELD_OFFICER';
+    } else {
+      effectiveRole = rawUserRole.isNotEmpty ? rawUserRole : 'FACILITYUSER';
+    }
+
+    final isOfficer = effectiveRole == 'FIELD_OFFICER' ||
+        effectiveRole == 'FIELDOFFICER' ||
+        effectiveRole == 'LOGISTICSCOORDINATOR';
+
+    if (isRoleSelect || isLogin || isRegister) {
       return isOfficer ? '/officer/dashboard' : '/user/dashboard';
     }
 

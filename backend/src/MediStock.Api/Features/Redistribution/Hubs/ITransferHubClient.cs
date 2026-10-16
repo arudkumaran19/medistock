@@ -34,6 +34,11 @@ public interface ITransferHubClient
     Task ShortageAlertCreated(ShortageResponse shortage);
 
     /// <summary>
+    /// Broadcast when a shortage alert is dismissed as a false positive.
+    /// </summary>
+    Task ShortageAlertDismissed(ShortageResponse shortage);
+
+    /// <summary>
     /// Broadcast when a transfer rejection creates a replenishment request for procurement.
     /// </summary>
     Task ReplenishmentRequested(MediStock.Api.Features.Procurement.DTOs.ReplenishmentRequestDto request);

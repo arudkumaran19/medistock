@@ -184,7 +184,9 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
                   <option value="">
                     {facilitiesLoading ? 'Loading facilities…' : 'Select a facility'}
                   </option>
-                  {(facilities ?? []).map((facility) => (
+                  {(facilities ?? [])
+                    .filter((facility) => facility.latitude != null && facility.longitude != null && (facility.latitude !== 0 || facility.longitude !== 0))
+                    .map((facility) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name}
                     </option>

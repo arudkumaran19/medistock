@@ -1,3 +1,11 @@
 namespace MediStock.Api.Features.Inventory.DTOs;
 
-public sealed record FacilityResponse(Guid Id, string Code, string Name, string Address, bool IsActive);
+public sealed record FacilityResponse(
+    Guid Id,
+    string Code,
+    string Name,
+    string Address,
+    bool IsActive,
+    double? Latitude,
+    double? Longitude,
+    string? City);

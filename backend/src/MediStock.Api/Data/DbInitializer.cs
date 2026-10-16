@@ -12,7 +12,7 @@ namespace MediStock.Api.Data;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(MediStockDbContext context, ILogger logger)
+    public static async Task InitializeAsync(MediStockDbContext context, ILogger logger, Microsoft.Extensions.Configuration.IConfiguration? configuration = null)
     {
         try
         {
@@ -100,7 +100,70 @@ public static class DbInitializer
 
                     ALTER TABLE replenishment_requests DROP CONSTRAINT IF EXISTS ""FK_replenishment_requests_PurchaseOrder_PurchaseOrderId"";
                     ALTER TABLE replenishment_requests DROP CONSTRAINT IF EXISTS ""FK_replenishment_requests_purchase_orders_PurchaseOrderId"";
+
+                    -- Step 1 Option B: Migrate historical Assigned status to Approved
+                    UPDATE transfer_status_histories SET ""ToStatus"" = 'Approved' WHERE ""ToStatus"" = 'Assigned';
+                    UPDATE transfer_status_histories SET ""FromStatus"" = 'Approved' WHERE ""FromStatus"" = 'Assigned';
+                    UPDATE transfer_requests SET ""Status"" = 'Approved' WHERE ""Status"" = 'Assigned';
+
+                    -- Step 1 Option B: Repoint transfer_items.MedicineId foreign key to Medicines
+                    ALTER TABLE transfer_items DROP CONSTRAINT IF EXISTS ""FK_transfer_items_medicines_MedicineId"";
+                    ALTER TABLE transfer_items DROP CONSTRAINT IF EXISTS ""FK_transfer_items_Medicines_MedicineId"";
+                    ALTER TABLE transfer_items 
+                        ADD CONSTRAINT ""FK_transfer_items_Medicines_MedicineId"" 
+                        FOREIGN KEY (""MedicineId"") REFERENCES ""Medicines""(""Id"") ON DELETE RESTRICT;
+
+                    -- Step 1 Option B: Repoint transfer_requests source/dest facility foreign keys to Facilities
+                    ALTER TABLE transfer_requests DROP CONSTRAINT IF EXISTS ""FK_transfer_requests_facilities_DestinationFacilityId"";
+                    ALTER TABLE transfer_requests DROP CONSTRAINT IF EXISTS ""FK_transfer_requests_Facilities_DestinationFacilityId"";
+                    ALTER TABLE transfer_requests 
+                        ADD CONSTRAINT ""FK_transfer_requests_Facilities_DestinationFacilityId"" 
+                        FOREIGN KEY (""DestinationFacilityId"") REFERENCES ""Facilities""(""Id"") ON DELETE RESTRICT;
+
+                    ALTER TABLE transfer_requests DROP CONSTRAINT IF EXISTS ""FK_transfer_requests_facilities_SourceFacilityId"";
+                    ALTER TABLE transfer_requests DROP CONSTRAINT IF EXISTS ""FK_transfer_requests_Facilities_SourceFacilityId"";
+                    ALTER TABLE transfer_requests 
+                        ADD CONSTRAINT ""FK_transfer_requests_Facilities_SourceFacilityId"" 
+                        FOREIGN KEY (""SourceFacilityId"") REFERENCES ""Facilities""(""Id"") ON DELETE SET NULL;
                 ");
+
+                var shouldSeedDemo = configuration?.GetValue<bool>("Seed:DemoData", false)
+                    ?? (Environment.GetEnvironmentVariable("SEED_DEMO_DATA")?.Equals("true", StringComparison.OrdinalIgnoreCase) ?? false);
+
+                if (shouldSeedDemo)
+                {
+                    logger.LogInformation("Seed:DemoData is enabled. Running demo transfer item migration and seeding demo InventoryBalances.");
+
+                    // DEMO-ONLY: Migrate legacy sample transfer item b0000000-... to 33333333-...
+                    await context.Database.ExecuteSqlRawAsync(@"
+                        UPDATE transfer_items 
+                        SET ""MedicineId"" = '33333333-3333-3333-3333-333333333333' 
+                        WHERE ""MedicineId"" = 'b0000000-0000-0000-0000-000000000001';
+                    ");
+
+                    // DEMO-ONLY: Seed realistic stock balances for Sri Lankan provincial hospitals for redistribution demo
+                    await context.Database.ExecuteSqlRawAsync(@"
+                        INSERT INTO ""InventoryBalances"" (""Id"", ""MedicineId"", ""FacilityId"", ""QuantityOnHand"", ""QuantityReserved"", ""UpdatedAtUtc"")
+                        VALUES 
+                            ('f0000000-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000002', 20, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'a0000000-0000-0000-0000-000000000002', 120, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000003', '44444444-4444-4444-4444-444444444444', 'a0000000-0000-0000-0000-000000000002', 250, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000004', '22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000001', 600, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000005', '33333333-3333-3333-3333-333333333333', 'a0000000-0000-0000-0000-000000000001', 450, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000006', '44444444-4444-4444-4444-444444444444', 'a0000000-0000-0000-0000-000000000001', 500, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000007', '22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000004', 350, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000008', '33333333-3333-3333-3333-333333333333', 'a0000000-0000-0000-0000-000000000004', 15, 0, NOW()),
+                            ('f0000000-0000-0000-0000-000000000009', '44444444-4444-4444-4444-444444444444', 'a0000000-0000-0000-0000-000000000004', 180, 0, NOW()),
+                            ('f0000000-0000-0000-0000-00000000000a', '22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000003', 150, 0, NOW()),
+                            ('f0000000-0000-0000-0000-00000000000b', '33333333-3333-3333-3333-333333333333', 'a0000000-0000-0000-0000-000000000003', 200, 0, NOW()),
+                            ('f0000000-0000-0000-0000-00000000000c', '44444444-4444-4444-4444-444444444444', 'a0000000-0000-0000-0000-000000000003', 25, 0, NOW())
+                        ON CONFLICT (""MedicineId"", ""FacilityId"") DO NOTHING;
+                    ");
+                }
+                else
+                {
+                    logger.LogInformation("Seed:DemoData is disabled. Skipping demo InventoryBalances and transfer item migration.");
+                }
             }
             else
             {

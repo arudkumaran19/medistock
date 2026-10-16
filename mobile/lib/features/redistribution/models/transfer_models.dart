@@ -154,6 +154,18 @@ class Transfer {
     return 0;
   }
 
+  String get primaryUnitOfMeasure {
+    if (items.isNotEmpty && items.first.unitOfMeasure.isNotEmpty) {
+      return items.first.unitOfMeasure;
+    }
+    return 'units';
+  }
+
+  String get quantityDisplay {
+    final qty = totalAllocatedQuantity > 0 ? totalAllocatedQuantity : totalRequestedQuantity;
+    return '$qty $primaryUnitOfMeasure';
+  }
+
   String? get primaryBatchNumber {
     if (items.isNotEmpty && items.first.batchNumber != null) {
       return items.first.batchNumber;

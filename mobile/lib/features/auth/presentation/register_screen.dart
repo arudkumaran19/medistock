@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/auth_service.dart';
-import '../../../core/routing/app_router.dart';
-import 'dashboard_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorMessage = null;
     });
     try {
-      final response = await _authService.register(
+      await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         confirmPassword: _confirmPasswordController.text,
@@ -50,13 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: 'OperationalStaff',
       );
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          settings: const RouteSettings(name: AppRouter.dashboard),
-          builder: (_) => DashboardScreen(user: response.user, authService: _authService),
-        ),
-        (route) => false,
-      );
+      context.go('/user/dashboard');
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -74,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/login/user'),
         ),
       ),
       body: SafeArea(
@@ -287,7 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           children: [
                             Text('Already authorized? ', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                             GestureDetector(
-                              onTap: () => Navigator.of(context).pop(),
+                              onTap: () => context.canPop() ? context.pop() : context.go('/login/user'),
                               child: Text(
                                 'Sign In',
                                 style: TextStyle(

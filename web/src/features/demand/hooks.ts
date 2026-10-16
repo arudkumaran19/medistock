@@ -30,9 +30,6 @@ import type {
   ShortageUpdateRequest,
 } from '@/types/demand';
 
-/** Facility used by the seeded demonstration dataset. */
-export const DEMO_FACILITY_ID = 'b1000000-0000-0000-0000-000000000002';
-
 export const demandKeys = {
   all: ['demand'] as const,
   consumption: (query: ConsumptionQuery) => ['demand', 'consumption', query] as const,

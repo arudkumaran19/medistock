@@ -1,10 +1,38 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/text_styles.dart';
 import '../models/transfer_models.dart';
 
+/// Fake transparent 1x1 tile provider for test and offline environments.
+class EmptyTileProvider extends TileProvider {
+  EmptyTileProvider();
+
+  static const List<int> _kTransparentImage = <int>[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+    0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+    0x42, 0x60, 0x82,
+  ];
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    return MemoryImage(Uint8List.fromList(_kTransparentImage));
+  }
+}
+
 class TransferLiveMapWidget extends StatefulWidget {
+  static TileProvider? defaultTileProvider;
+  static void Function(TileImage tile, Object error, StackTrace? stackTrace)? defaultErrorTileCallback;
+
   final LatLng sourceCoords;
   final String sourceFacilityName;
   final LatLng destinationCoords;
@@ -14,6 +42,8 @@ class TransferLiveMapWidget extends StatefulWidget {
   final double? distanceKm;
   final double? durationMinutes;
   final String status;
+  final TileProvider? tileProvider;
+  final void Function(TileImage tile, Object error, StackTrace? stackTrace)? errorTileCallback;
 
   const TransferLiveMapWidget({
     super.key,
@@ -26,6 +56,8 @@ class TransferLiveMapWidget extends StatefulWidget {
     this.distanceKm,
     this.durationMinutes,
     required this.status,
+    this.tileProvider,
+    this.errorTileCallback,
   });
 
   @override
@@ -35,23 +67,105 @@ class TransferLiveMapWidget extends StatefulWidget {
 class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
   final MapController _mapController = MapController();
 
+  bool get _hasValidCoords =>
+      widget.sourceCoords.latitude != 0 &&
+      widget.sourceCoords.longitude != 0 &&
+      widget.destinationCoords.latitude != 0 &&
+      widget.destinationCoords.longitude != 0;
+
   List<LatLng> get _polylinePoints {
     final pts = <LatLng>[widget.sourceCoords];
     for (final wp in widget.waypoints) {
-      pts.add(LatLng(wp.latitude, wp.longitude));
+      if (wp.latitude != 0 && wp.longitude != 0) {
+        pts.add(LatLng(wp.latitude, wp.longitude));
+      }
     }
     pts.add(widget.destinationCoords);
     return pts;
   }
 
   LatLng get _initialCenter {
-    if (widget.vehicleCoords != null) {
+    if (widget.vehicleCoords != null &&
+        widget.vehicleCoords!.latitude != 0 &&
+        widget.vehicleCoords!.longitude != 0) {
       return widget.vehicleCoords!;
     }
-    return LatLng(
-      (widget.sourceCoords.latitude + widget.destinationCoords.latitude) / 2,
-      (widget.sourceCoords.longitude + widget.destinationCoords.longitude) / 2,
+    if (_hasValidCoords) {
+      return LatLng(
+        (widget.sourceCoords.latitude + widget.destinationCoords.latitude) / 2,
+        (widget.sourceCoords.longitude + widget.destinationCoords.longitude) / 2,
+      );
+    }
+    return const LatLng(
+      AppConstants.sriLankaCenterLatitude,
+      AppConstants.sriLankaCenterLongitude,
     );
+  }
+
+  void _fitBounds() {
+    if (!_hasValidCoords) return;
+    final pts = <LatLng>[widget.sourceCoords];
+    for (final wp in widget.waypoints) {
+      if (wp.latitude != 0 && wp.longitude != 0) {
+        pts.add(LatLng(wp.latitude, wp.longitude));
+      }
+    }
+    pts.add(widget.destinationCoords);
+    if (widget.vehicleCoords != null &&
+        widget.vehicleCoords!.latitude != 0 &&
+        widget.vehicleCoords!.longitude != 0) {
+      pts.add(widget.vehicleCoords!);
+    }
+    if (pts.length >= 2) {
+      try {
+        final bounds = LatLngBounds.fromPoints(pts);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(40),
+          ),
+        );
+      } catch (_) {}
+    }
+  }
+
+  @override
+  void didUpdateWidget(TransferLiveMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.vehicleCoords != oldWidget.vehicleCoords ||
+        widget.waypoints.length != oldWidget.waypoints.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitBounds());
+    }
+  }
+
+  bool get _isTestEnvironment {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  TileProvider get _effectiveTileProvider {
+    if (widget.tileProvider != null) return widget.tileProvider!;
+    if (TransferLiveMapWidget.defaultTileProvider != null) {
+      return TransferLiveMapWidget.defaultTileProvider!;
+    }
+    if (_isTestEnvironment) {
+      return EmptyTileProvider();
+    }
+    return NetworkTileProvider(
+      headers: const {'User-Agent': 'com.medistock.mobile'},
+    );
+  }
+
+  void Function(TileImage, Object, StackTrace?) get _effectiveErrorTileCallback {
+    return widget.errorTileCallback ??
+        TransferLiveMapWidget.defaultErrorTileCallback ??
+        (tile, error, stackTrace) {
+          // Gracefully absorb tile error without throwing
+        };
   }
 
   @override
@@ -89,7 +203,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _initialCenter,
-              initialZoom: 9.5,
+              initialZoom: AppConstants.sriLankaDefaultZoom,
+              onMapReady: _fitBounds,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
@@ -99,6 +214,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.medistock.mobile',
+                tileProvider: _effectiveTileProvider,
+                errorTileCallback: _effectiveErrorTileCallback,
                 tileBuilder: (context, tileWidget, tile) {
                   // Ensure if tile fails to load or offline, it gracefully blends
                   return tileWidget;
@@ -313,6 +430,29 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
               ),
             ),
           ),
+
+          // Location unavailable overlay when coordinates are (0,0) or missing
+          if (!_hasValidCoords)
+            Positioned.fill(
+              child: Container(
+                color: AppColors.surface.withOpacity(0.92),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.location_off_rounded, size: 40, color: AppColors.textMuted),
+                    const SizedBox(height: 12),
+                    Text('Location unavailable', style: AppTextStyles.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Facility coordinates or transit route data are not available.',
+                      style: AppTextStyles.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // OSM Attribution Tag
           Positioned(

@@ -140,10 +140,7 @@ public class MediStockDbContext : DbContext
                 .HasForeignKey(e => e.TransferRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.Medicine)
-                .WithMany()
-                .HasForeignKey(e => e.MedicineId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.Ignore(e => e.Medicine);
 
             entity.HasIndex(e => e.TransferRequestId);
             entity.HasIndex(e => e.MedicineId);

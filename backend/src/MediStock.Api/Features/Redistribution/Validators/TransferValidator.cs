@@ -15,9 +15,7 @@ public class TransferValidator
         [TransferStatus.Draft] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Cancelled },
         [TransferStatus.Proposed] = new() { TransferStatus.Proposed, TransferStatus.Requested, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
         [TransferStatus.Requested] = new() { TransferStatus.Proposed, TransferStatus.Approved, TransferStatus.Rejected, TransferStatus.Cancelled },
-        [TransferStatus.Approved] = new() { TransferStatus.Assigned, TransferStatus.Reserved, TransferStatus.Cancelled },
-        [TransferStatus.Assigned] = new() { TransferStatus.Reserved, TransferStatus.PendingReassignment, TransferStatus.Cancelled },
-        [TransferStatus.PendingReassignment] = new() { TransferStatus.Assigned, TransferStatus.Cancelled },
+        [TransferStatus.Approved] = new() { TransferStatus.Reserved, TransferStatus.Cancelled },
         [TransferStatus.Reserved] = new() { TransferStatus.Dispatched, TransferStatus.Cancelled },
         [TransferStatus.Dispatched] = new() { TransferStatus.Received },
         [TransferStatus.Received] = new(),
@@ -83,9 +81,9 @@ public class TransferValidator
     {
         var errors = new List<string>();
 
-        if (transfer.Status != TransferStatus.Approved && transfer.Status != TransferStatus.Assigned)
+        if (transfer.Status != TransferStatus.Approved)
         {
-            errors.Add($"Transfer must be in 'Approved' or 'Assigned' status to reserve inventory. Current status is '{transfer.Status}'.");
+            errors.Add($"Transfer must be in 'Approved' status to reserve inventory. Current status is '{transfer.Status}'.");
         }
 
         var sourceFacilityId = transfer.SourceFacilityId ?? request.SourceFacilityId;
@@ -111,6 +109,15 @@ public class TransferValidator
                         BatchNumber = request.BatchNumber
                     }
                 };
+            }
+            else if (transfer.Items.Any())
+            {
+                request.ItemAllocations = transfer.Items.Select(i => new ReserveItemAllocationDto
+                {
+                    TransferItemId = i.Id,
+                    AllocatedQuantity = i.RequestedQuantity,
+                    BatchNumber = request.BatchNumber
+                }).ToList();
             }
             else
             {
@@ -161,6 +168,16 @@ public class TransferValidator
                         DiscrepancyReason = request.DiscrepancyReason
                     }
                 };
+            }
+            else if (transfer.Items.Any())
+            {
+                request.VerifiedItems = transfer.Items.Select(item => new ReceiveItemVerificationDto
+                {
+                    TransferItemId = item.Id,
+                    ReceivedQuantity = item.AllocatedQuantity > 0 ? item.AllocatedQuantity : item.RequestedQuantity,
+                    BatchNumber = request.BatchNumber,
+                    DiscrepancyReason = request.DiscrepancyReason
+                }).ToList();
             }
             else
             {

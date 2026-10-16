@@ -865,7 +865,7 @@ function OperationalStaffDashboard({ email }: { email: string }) {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <span style={{ color: "#dc2626", fontWeight: 700 }}>
-                      Available: {item.quantityOnHand} units (Min: {item.minimumStockLevel})
+                      Available: {item.unitDisplay ?? `${item.quantityOnHand} units`} (Min: {item.minimumStockLevel})
                     </span>
                     <Link
                       to={`/inventory/${item.medicineId}`}

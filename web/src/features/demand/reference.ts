@@ -15,15 +15,8 @@
  * remain as a fallback for this vertical's own demonstration data, whose ids were
  * chosen before the Inventory tables were built.
  */
-const MEDICINE_NAMES: Record<string, string> = {
-  'c1000000-0000-0000-0000-000000000001': 'Amoxicillin',
-  'c1000000-0000-0000-0000-000000000002': 'Paracetamol',
-};
-
-const FACILITY_NAMES: Record<string, string> = {
-  'b1000000-0000-0000-0000-000000000001': 'Hospital A',
-  'b1000000-0000-0000-0000-000000000002': 'Hospital B',
-};
+const MEDICINE_NAMES: Record<string, string> = {};
+const FACILITY_NAMES: Record<string, string> = {};
 
 /** Shortened identifier, used when no name is known. */
 function shortId(id: string): string {

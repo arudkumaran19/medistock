@@ -6,6 +6,7 @@ import '../../../core/network/signalr_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../tasks/data/officer_task_repository.dart';
 import '../tasks/incoming_task_modal.dart';
 
 class OfficerHomeScreen extends ConsumerStatefulWidget {
@@ -47,19 +48,28 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
   }
 
   void _showIncomingModal({Map<String, dynamic>? taskData}) {
-    final transferId = taskData?['id']?.toString() ?? taskData?['transferId']?.toString() ?? 'req-8842';
+    final transferId = taskData?['id']?.toString() ?? taskData?['transferId']?.toString();
+    if (transferId == null || transferId.isEmpty) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => IncomingTaskModal(
         taskData: taskData,
-        onAccept: () {
+        onAccept: () async {
           Navigator.pop(context);
-          context.push('/officer/active/$transferId');
+          try {
+            await ref.read(officerTaskRepositoryProvider).acceptTask(transferId);
+          } catch (_) {}
+          if (context.mounted) {
+            context.push('/officer/active/$transferId');
+          }
         },
-        onDecline: () {
+        onDecline: () async {
           Navigator.pop(context);
+          try {
+            await ref.read(officerTaskRepositoryProvider).declineTask(transferId);
+          } catch (_) {}
         },
       ),
     );
@@ -96,7 +106,7 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
               radius: 16,
               backgroundColor: AppColors.secondaryLight,
               child: Text(
-                user?.name.substring(0, 1) ?? 'R',
+                user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'O',
                 style: AppTextStyles.badge.copyWith(color: AppColors.secondary),
               ),
             ),
@@ -160,48 +170,19 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             // TODAY'S SHIFT STATS
             Text('TODAY\'S SHIFT PERFORMANCE', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
-                const SizedBox(width: 10),
-                _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
-                const SizedBox(width: 10),
-                _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Tamil Nadu Grid'),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // DEMO DISPATCH TEST TRIGGER
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('SIMULATION TOOL', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
-                      const Icon(Icons.flash_on_rounded, color: AppColors.secondary, size: 18),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Simulate Incoming Dispatch Mission', style: AppTextStyles.titleMedium),
-                  const SizedBox(height: 4),
-                  Text('Trigger a 30-second Uber-style cold-chain delivery assignment notification modal.', style: AppTextStyles.bodyMedium),
-                  const SizedBox(height: 14),
-                  ElevatedButton(
-                    onPressed: _showIncomingModal,
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
-                    child: const Text('Simulate Incoming Dispatch Request'),
-                  ),
-                ],
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 360;
+                return Row(
+                  children: [
+                    const _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
+                    SizedBox(width: isCompact ? 6 : 10),
+                    const _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
+                    SizedBox(width: isCompact ? 6 : 10),
+                    const _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Transit'),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
@@ -209,46 +190,89 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             // ACTIVE DELIVERY MISSION CARD
             Text('ACTIVE MISSION', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.secondary.withOpacity(0.4)),
+            ref.watch(assignedTasksProvider).when(
+              loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+              error: (err, _) => Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text('Unable to load active missions', style: AppTextStyles.bodyMedium),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              data: (tasks) {
+                final activeTask = tasks.where((t) {
+                  final s = t.status.toLowerCase();
+                  return s == 'intransit' || s == 'in transit' || s == 'reserved' || s == 'approved';
+                }).firstOrNull;
+
+                if (activeTask == null) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, size: 36, color: AppColors.success),
+                        const SizedBox(height: 8),
+                        Text('No Active Missions', style: AppTextStyles.titleMedium),
+                        const SizedBox(height: 4),
+                        Text('Stay online to receive real-time dispatch alerts.', style: AppTextStyles.bodySmall),
+                      ],
+                    ),
+                  );
+                }
+
+                final medicineName = activeTask.items.isNotEmpty ? activeTask.items.first.itemName : 'Medical Supplies';
+                final routeText = '${activeTask.sourceFacilityName} ➔ ${activeTask.destinationFacilityName}';
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.secondary.withOpacity(0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('#REQ-2024-8842', style: AppTextStyles.titleSmall.copyWith(color: AppColors.secondary)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(8)),
-                        child: Text('IN TRANSIT', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(activeTask.transferNumber.isNotEmpty ? activeTask.transferNumber : '#REQ-${activeTask.id.substring(0, 8)}', style: AppTextStyles.titleSmall.copyWith(color: AppColors.secondary)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(8)),
+                            child: Text(activeTask.status.toUpperCase(), style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(medicineName, style: AppTextStyles.titleLarge),
+                      const SizedBox(height: 2),
+                      Text(routeText, style: AppTextStyles.bodySmall),
+                      const SizedBox(height: 14),
+                      ElevatedButton(
+                        onPressed: () => context.push('/officer/active/${activeTask.id}'),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.navigation_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('Open Active Delivery Console'),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text('Insulin Glargine 100IU/ml', style: AppTextStyles.titleLarge),
-                  const SizedBox(height: 2),
-                  Text('Tambaram Regional Depot ➔ Apollo Anna Nagar Hub', style: AppTextStyles.bodySmall),
-                  const SizedBox(height: 14),
-                  ElevatedButton(
-                    onPressed: () => context.push('/officer/active/req-8842'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.navigation_rounded, size: 18),
-                        SizedBox(width: 8),
-                        Text('Open Active Delivery Console'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ],
         ),

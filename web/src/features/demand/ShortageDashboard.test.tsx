@@ -98,6 +98,22 @@ describe('ShortageDashboard', () => {
     });
   });
 
+  it('passes the selected status filter including DISMISSED to the API', async () => {
+    const user = userEvent.setup();
+    mockGetShortages.mockResolvedValue(page([shortageAlert()]));
+
+    renderWithProviders(<ShortageDashboard />);
+    await screen.findByText('HIGH');
+
+    await user.selectOptions(screen.getByLabelText('Filter by status'), 'DISMISSED');
+
+    await waitFor(() => {
+      expect(mockGetShortages).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'DISMISSED' }),
+      );
+    });
+  });
+
   it('passes the search term to the API', async () => {
     const user = userEvent.setup();
     mockGetShortages.mockResolvedValue(page([shortageAlert()]));

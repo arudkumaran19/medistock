@@ -52,7 +52,7 @@ public class OfficerAssignmentService : IOfficerAssignmentService
 
         transfer.AssignedOfficerId = officerId;
         transfer.AssignedAt = DateTime.UtcNow;
-        transfer.Status = TransferStatus.Assigned;
+        transfer.Status = TransferStatus.Approved;
         transfer.UpdatedAt = DateTime.UtcNow;
 
         transfer.StatusHistory.Add(new TransferStatusHistory
@@ -60,7 +60,7 @@ public class OfficerAssignmentService : IOfficerAssignmentService
             Id = Guid.NewGuid(),
             TransferRequestId = transfer.Id,
             FromStatus = TransferStatus.Approved,
-            ToStatus = TransferStatus.Assigned,
+            ToStatus = TransferStatus.Approved,
             ChangedByUserId = officerId,
             Reason = $"Assigned to field officer {officerId}",
             ChangedAt = DateTime.UtcNow

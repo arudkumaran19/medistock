@@ -1,4 +1,4 @@
-﻿"""Internal MediStock agent service entrypoint."""
+"""Internal MediStock agent service entrypoint."""
 
 from __future__ import annotations
 
@@ -52,6 +52,12 @@ app = FastAPI(
 LOCAL_WEB_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5050",
+    "http://127.0.0.1:5050",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
 ]
 
 # Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
@@ -64,16 +70,20 @@ DEPLOYED_WEB_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5000",
-        "http://127.0.0.1:5000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=list(set(LOCAL_WEB_ORIGINS + DEPLOYED_WEB_ORIGINS)),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/", include_in_schema=False)
+def root():
+    return {
+        "service": "medistock-agent-service",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 app.include_router(router)
 app.include_router(inventory_router)

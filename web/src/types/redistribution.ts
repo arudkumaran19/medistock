@@ -7,7 +7,9 @@ export type TransferStatus =
   | 'InTransit'
   | 'Delivered'
   | 'Cancelled'
-  | 'Rejected';
+  | 'Rejected'
+  | 'Dispatched'
+  | 'Received';
 
 export type TransferPriority = 'Routine' | 'Urgent' | 'Emergency';
 

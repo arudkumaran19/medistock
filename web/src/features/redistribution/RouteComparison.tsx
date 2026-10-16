@@ -128,34 +128,39 @@ export const RouteComparison: React.FC = () => {
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
                 Road Route & Distance Comparison
               </h1>
-              {route?.isFallback ? (
-                <span
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                    color: 'var(--color-amber)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                  }}
-                  title="Computed using resilient deterministic Haversine formula"
-                >
-                  Resilient Fallback Mode
-                </span>
-              ) : (
-                <span
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: 'var(--color-primary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  Live ORS Routing
-                </span>
-              )}
+              {(() => {
+                const providerName = route?.provider || transfer.routingProvider || (route?.isFallback ? 'HaversineFallback' : 'OpenRouteService');
+                const isFallback = route?.isFallback || providerName === 'HaversineFallback';
+                return isFallback ? (
+                  <span
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      color: 'var(--color-amber)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                    }}
+                    title="Computed using resilient deterministic Haversine formula"
+                  >
+                    Provider: {providerName}
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      color: 'var(--color-primary)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                    }}
+                    title="Computed using real-world road network via OpenRouteService"
+                  >
+                    Provider: {providerName}
+                  </span>
+                );
+              })()}
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '2px' }}>
               From <strong style={{ color: 'var(--text-primary)' }}>{transfer.sourceFacilityName || 'Source'}</strong> to{' '}

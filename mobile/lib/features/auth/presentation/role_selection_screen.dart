@@ -101,7 +101,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        'Serving Greater Chennai Healthcare District (48 active hubs)',
+                        'Healthcare Logistics Network Active',
                         style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -118,7 +118,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                 badgeColor: AppColors.primary,
                 chipLabel: 'Active Hub',
                 title: 'Facility & Clinic Portal',
-                subtitle: 'Apollo Pharmacy, General Hospitals & Community Health Clinics',
+                subtitle: 'Pharmacies, General Hospitals & Community Health Clinics',
                 features: const [
                   'Request emergency medicine reallocations',
                   'Real-time stock shortage AI forecasting',

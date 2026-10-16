@@ -1,11 +1,19 @@
-namespace MediStock.Api.Controllers;
-
+using System.Security.Claims;
 using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
+using MediStock.Api.Features.Demand.Models;
 using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Demand.Validators;
+using MediStock.Api.Features.Redistribution.Hubs;
+using MediStock.Api.Infrastructure.Persistence;
+using MediStock.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+namespace MediStock.Api.Controllers;
 
 /// <summary>
 /// Shortage endpoints of the frozen Demand API contract.
@@ -16,6 +24,7 @@ using Microsoft.AspNetCore.Mvc;
 ///   POST /api/shortages/recalculate
 ///   POST /api/shortages/scan            (automatic re-evaluation, not in the frozen contract)
 ///   GET  /api/shortages/current-stock   (Inventory balance read, not in the frozen contract)
+///   POST /api/shortages/{id}/dismiss    (dismiss as false positive)
 ///
 /// POST /api/shortages/recalculate is a non-CRUD business operation: it derives days of
 /// stock, the projected stockout date and the shortage risk level.
@@ -29,15 +38,27 @@ public class ShortageController : ControllerBase
     private readonly ShortageService _shortageService;
     private readonly ShortageEvaluationService _evaluationService;
     private readonly DemandValidator _validator;
+    private readonly IHubContext<TransferHub, ITransferHubClient> _hub;
+    private readonly CurrentUserService _currentUserService;
+    private readonly ApplicationDbContext _db;
+    private readonly ILogger<ShortageController>? _logger;
 
     public ShortageController(
         ShortageService shortageService,
         ShortageEvaluationService evaluationService,
-        DemandValidator validator)
+        DemandValidator validator,
+        IHubContext<TransferHub, ITransferHubClient> hub,
+        CurrentUserService currentUserService,
+        ApplicationDbContext db,
+        ILogger<ShortageController>? logger = null)
     {
         _shortageService = shortageService;
         _evaluationService = evaluationService;
         _validator = validator;
+        _hub = hub;
+        _currentUserService = currentUserService;
+        _db = db;
+        _logger = logger;
     }
 
     /// <summary>
@@ -99,10 +120,17 @@ public class ShortageController : ControllerBase
     [HttpGet]
     [Authorize(Roles = $"{Constants.Roles.StoreOfficer},{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<ShortageResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetShortages(
         [FromQuery] ShortageQuery query,
         CancellationToken cancellationToken)
     {
+        var validation = _validator.ValidateShortageQuery(query);
+        if (!validation.IsValid)
+        {
+            return BadRequest(Error(validation.Code!, validation.Message!));
+        }
+
         var result = await _shortageService.GetShortagesAsync(query, cancellationToken);
 
         return Ok(new ApiResponse<PagedResponse<ShortageResponse>>(result));
@@ -165,28 +193,38 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse alert;
+        ShortageResponse response;
 
         try
         {
-            alert = await _shortageService.CreateShortageAsync(request, cancellationToken);
+            response = await _shortageService.CreateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
+        await _hub.Clients
+            .Group("all_facility_users")
+            .ShortageAlertCreated(response);
+
+        await _hub.Clients
+            .Group("managers")
+            .ShortageAlertCreated(response);
+
+        _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+
         // Raising an alert that is already active refreshes it rather than duplicating
         // it, so that case is a 200 on the existing resource, not a 201.
-        if (alert.ExistingAlertUpdated)
+        if (response.ExistingAlertUpdated)
         {
-            return Ok(new ApiResponse<ShortageResponse>(alert));
+            return Ok(new ApiResponse<ShortageResponse>(response));
         }
 
         return CreatedAtAction(
             nameof(GetShortageById),
-            new { id = alert.Id },
-            new ApiResponse<ShortageResponse>(alert));
+            new { id = response.Id },
+            new ApiResponse<ShortageResponse>(response));
     }
 
     /// <summary>
@@ -318,6 +356,95 @@ public class ShortageController : ControllerBase
     }
 
     /// <summary>
+    /// Dismisses a shortage alert as a false positive.
+    /// Facility users can only dismiss alerts for their assigned facility.
+    /// Administrators and Facility Managers can dismiss alerts for any facility.
+    /// </summary>
+    [HttpPost("{id:guid}/dismiss")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DismissShortage(
+        Guid id,
+        [FromBody] ShortageDismissRequest? request,
+        CancellationToken cancellationToken)
+    {
+        // 1. Resolve user ID: if cannot be resolved return 401
+        var userId = _currentUserService.UserId;
+        if (!userId.HasValue || userId.Value == Guid.Empty)
+        {
+            return Unauthorized(Error("UNAUTHORIZED", "User identity could not be resolved from token."));
+        }
+
+        // 2. Fetch alert: if not found return 404
+        var alert = await _db.ShortageAlerts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (alert is null)
+        {
+            return NotFound(Error(DemandValidator.NotFoundCode, $"Shortage alert {id} was not found."));
+        }
+
+        // 3. Status check: Only OPEN and ACKNOWLEDGED alerts can be dismissed; others return 409
+        var canDismiss = string.Equals(alert.Status, ShortageAlertStatuses.Open, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(alert.Status, ShortageAlertStatuses.Acknowledged, StringComparison.OrdinalIgnoreCase);
+
+        if (!canDismiss)
+        {
+            return Conflict(Error("CONFLICT", $"Shortage alert {id} is in status '{alert.Status}' and cannot be dismissed. Only OPEN or ACKNOWLEDGED alerts can be dismissed."));
+        }
+
+        // 4. Facility authorization check:
+        // Treat Administrator/ADMIN and FacilityManager/FACILITY_MANAGER as "any facility";
+        // other users only for facilities in UserFacilities.
+        var isPrivilegedManager = User.Claims
+            .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
+            .Any(c => string.Equals(c.Value, "Administrator", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(c.Value, "ADMIN", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(c.Value, "FacilityManager", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(c.Value, "FACILITY_MANAGER", StringComparison.OrdinalIgnoreCase));
+
+        if (!isPrivilegedManager)
+        {
+            var isAssigned = await _db.UserFacilities
+                .AnyAsync(uf => uf.UserId == userId.Value && uf.FacilityId == alert.FacilityId, cancellationToken);
+
+            if (!isAssigned)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, Error("FORBIDDEN", "You can only dismiss alerts for your own assigned facility."));
+            }
+        }
+
+        // 5. Dismiss alert in service
+        var response = await _shortageService.DismissShortageAsync(id, request?.Reason, userId.Value, cancellationToken);
+        if (response is null)
+        {
+            return NotFound(Error(DemandValidator.NotFoundCode, $"Shortage alert {id} was not found."));
+        }
+
+        // 6. SignalR: broadcast ShortageAlertDismissed only to alert facility group and managers group
+        var facilityGroup = TransferHub.GetFacilityGroupName(alert.FacilityId.ToString());
+        await _hub.Clients
+            .Group(facilityGroup)
+            .ShortageAlertDismissed(response);
+
+        await _hub.Clients
+            .Group("managers")
+            .ShortageAlertDismissed(response);
+
+        _logger?.LogInformation(
+            "Shortage alert {AlertId} dismissed. Broadcasted ShortageAlertDismissed to {FacilityGroup} and managers.",
+            response.Id,
+            facilityGroup);
+
+        return Ok(new ApiResponse<ShortageResponse>(response));
+    }
+
+    /// <summary>
     /// Recalculates the projected stockout and shortage risk, and stores the alert.
     /// </summary>
     [HttpPost("recalculate")]
@@ -343,20 +470,33 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse alert;
+        ShortageResponse response;
 
         try
         {
-            alert = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
+            response = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
+        if (response.Status != ShortageAlertStatuses.Dismissed)
+        {
+            await _hub.Clients
+                .Group("all_facility_users")
+                .ShortageAlertCreated(response);
+
+            await _hub.Clients
+                .Group("managers")
+                .ShortageAlertCreated(response);
+
+            _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+        }
+
         return StatusCode(
             StatusCodes.Status201Created,
-            new ApiResponse<ShortageResponse>(alert));
+            new ApiResponse<ShortageResponse>(response));
     }
 
     private ErrorResponse Error(string code, string message) => new()

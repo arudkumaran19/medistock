@@ -1,4 +1,4 @@
-﻿namespace MediStock.Api.Features.Demand.Services;
+namespace MediStock.Api.Features.Demand.Services;
 
 using MediStock.Api.Common;
 using MediStock.Api.Features.Demand.DTOs;
@@ -47,17 +47,26 @@ public class ShortageService
     private readonly ConsumptionService _consumptionService;
     private readonly ForecastService _forecastService;
     private readonly ILogger<ShortageService> _logger;
+    private readonly ShortageNotificationService? _notificationService;
+
+    /// <summary>
+    /// Optional maximum suppression window during which a false-positive dismissal
+    /// suppresses automated alert re-creation. Default is null (suppression remains until condition worsens).
+    /// </summary>
+    public TimeSpan? MaximumSuppressionWindow { get; set; } = null;
 
     public ShortageService(
         ApplicationDbContext db,
         ConsumptionService consumptionService,
         ForecastService forecastService,
-        ILogger<ShortageService> logger)
+        ILogger<ShortageService> logger,
+        ShortageNotificationService? notificationService = null)
     {
         _db = db;
         _consumptionService = consumptionService;
         _forecastService = forecastService;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -84,8 +93,21 @@ public class ShortageService
 
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
-            var status = query.Status.Trim().ToLowerInvariant();
-            alerts = alerts.Where(x => x.Status.ToLower() == status);
+            var status = query.Status.Trim();
+            if (string.Equals(status, "active", StringComparison.OrdinalIgnoreCase))
+            {
+                alerts = alerts.Where(x => ShortageAlertStatuses.Active.Contains(x.Status));
+            }
+            else
+            {
+                var lower = status.ToLowerInvariant();
+                alerts = alerts.Where(x => x.Status.ToLower() == lower);
+            }
+        }
+        else
+        {
+            // Default alert lists exclude DISMISSED
+            alerts = alerts.Where(x => x.Status != ShortageAlertStatuses.Dismissed);
         }
 
         if (!string.IsNullOrWhiteSpace(query.RiskLevel))
@@ -117,6 +139,29 @@ public class ShortageService
             .Select(x => ToResponse(x))
             .ToListAsync(cancellationToken);
 
+        var medicineIds = items.Select(x => x.MedicineId).Distinct().ToList();
+        var facilityIds = items.Select(x => x.FacilityId).Distinct().ToList();
+
+        var medicines = await _db.Medicines.AsNoTracking()
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.Name, cancellationToken);
+
+        var facilities = await _db.Facilities.AsNoTracking()
+            .Where(f => facilityIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f.Name, cancellationToken);
+
+        foreach (var item in items)
+        {
+            if (medicines.TryGetValue(item.MedicineId, out var mName))
+            {
+                item.MedicineName = mName;
+            }
+            if (facilities.TryGetValue(item.FacilityId, out var fName))
+            {
+                item.FacilityName = fName;
+            }
+        }
+
         return new PagedResponse<ShortageResponse>(items, totalCount, page, pageSize);
     }
 
@@ -128,7 +173,18 @@ public class ShortageService
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return alert is null ? null : ToResponse(alert);
+        if (alert is null)
+        {
+            return null;
+        }
+
+        var response = ToResponse(alert);
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
+
+        return response;
     }
 
     /// <summary>
@@ -210,34 +266,92 @@ public class ShortageService
             request.MedicineId,
             calculation,
             demandForecastId: null,
-            cancellationToken);
+            bypassDismissalGuard: true,
+            cancellationToken: cancellationToken);
 
         _logger.LogInformation(
             existingUpdated
                 ? "Shortage alert {AlertId} refreshed manually for facility {FacilityId} medicine {MedicineId}"
                 : "Shortage alert {AlertId} raised manually for facility {FacilityId} medicine {MedicineId}",
-            alert.Id,
+            alert!.Id,
             alert.FacilityId,
             alert.MedicineId);
 
         var response = ToResponse(alert);
         response.ExistingAlertUpdated = existingUpdated;
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
 
         return response;
     }
+
+    /// <summary>
+    /// Checks whether an automated alert recompute should be suppressed due to an existing false-positive dismissal.
+    /// Returns true if a dismissed alert exists for the facility and medicine AND condition has not worsened:
+    /// stock has not dropped below the stock level at dismissal, and risk level is not more severe than at dismissal.
+    /// </summary>
+    public async Task<bool> IsDismissalSuppressedAsync(
+        Guid facilityId,
+        Guid medicineId,
+        decimal currentStock,
+        string currentRiskLevel,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.ShortageAlerts
+            .AsNoTracking()
+            .Where(x => x.FacilityId == facilityId
+                        && x.MedicineId == medicineId
+                        && x.Status == ShortageAlertStatuses.Dismissed);
+
+        if (MaximumSuppressionWindow.HasValue)
+        {
+            var cutoff = DateTime.UtcNow.Subtract(MaximumSuppressionWindow.Value);
+            query = query.Where(x => x.DismissedAt != null && x.DismissedAt >= cutoff);
+        }
+
+        var recentDismissal = await query
+            .OrderByDescending(x => x.DismissedAt ?? x.GeneratedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (recentDismissal is null)
+        {
+            return false;
+        }
+
+        // Condition worsens if stock drops below stock at dismissal, or risk level becomes more severe
+        var stockWorsened = currentStock < recentDismissal.CurrentStock;
+        var riskWorsened = IsRiskMoreSevere(currentRiskLevel, recentDismissal.RiskLevel);
+
+        if (stockWorsened || riskWorsened)
+        {
+            return false; // Condition worsened -> do not suppress re-creation
+        }
+
+        return true; // Suppress re-creation
+    }
+
+    public static int GetRiskSeverity(string? riskLevel) =>
+        string.Equals(riskLevel, ShortageRiskLevels.High, StringComparison.OrdinalIgnoreCase) ? 2 : 1;
+
+    public static bool IsRiskMoreSevere(string newRisk, string? previousRisk) =>
+        GetRiskSeverity(newRisk) > GetRiskSeverity(previousRisk);
 
     /// <summary>
     /// Writes a calculation to the single active alert for a facility and medicine.
     ///
     /// When an OPEN or ACKNOWLEDGED alert already exists its figures are recalculated in
     /// place and its status is kept, so a manager's acknowledgement is not lost. Otherwise
-    /// a new OPEN alert is raised. Returns the alert and whether it already existed.
+    /// a new OPEN alert is raised (unless suppressed by the dismissal guard). Returns the alert
+    /// (null if suppressed) and whether it already existed.
     /// </summary>
-    public async Task<(ShortageAlert Alert, bool ExistingUpdated)> UpsertActiveAlertAsync(
+    public async Task<(ShortageAlert? Alert, bool ExistingUpdated)> UpsertActiveAlertAsync(
         Guid facilityId,
         Guid medicineId,
         ShortageCalculation calculation,
         Guid? demandForecastId,
+        bool bypassDismissalGuard = false,
         CancellationToken cancellationToken = default)
     {
         var alert = await FindActiveAlertAsync(facilityId, medicineId, cancellationToken);
@@ -254,7 +368,25 @@ public class ShortageService
             alert.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(cancellationToken);
 
+            var resp = ToResponse(alert);
+            resp.ExistingAlertUpdated = true;
+            if (_notificationService != null)
+            {
+                await _notificationService.NotifyShortageAlertCreatedAsync(resp, cancellationToken);
+            }
+
             return (alert, true);
+        }
+
+        // Guard: check if re-creation is suppressed by a prior false-positive dismissal
+        if (!bypassDismissalGuard && await IsDismissalSuppressedAsync(
+                facilityId, medicineId, calculation.CurrentStock, calculation.RiskLevel, cancellationToken))
+        {
+            _logger.LogInformation(
+                "Shortage alert creation suppressed by dismissal guard for facility {FacilityId} medicine {MedicineId}",
+                facilityId,
+                medicineId);
+            return (null, false);
         }
 
         alert = new ShortageAlert
@@ -270,6 +402,13 @@ public class ShortageService
 
         _db.ShortageAlerts.Add(alert);
         await _db.SaveChangesAsync(cancellationToken);
+
+        var response = ToResponse(alert);
+        response.ExistingAlertUpdated = false;
+        if (_notificationService != null)
+        {
+            await _notificationService.NotifyShortageAlertCreatedAsync(response, cancellationToken);
+        }
 
         return (alert, false);
     }
@@ -540,6 +679,32 @@ public class ShortageService
             leadTimeDays,
             DateTime.UtcNow.Date);
 
+        if (await IsDismissalSuppressedAsync(request.FacilityId, request.MedicineId, calculation.CurrentStock, calculation.RiskLevel, cancellationToken))
+        {
+            var existingDismissed = await _db.ShortageAlerts
+                .AsNoTracking()
+                .Where(x => x.FacilityId == request.FacilityId
+                            && x.MedicineId == request.MedicineId
+                            && x.Status == ShortageAlertStatuses.Dismissed)
+                .OrderByDescending(x => x.DismissedAt ?? x.GeneratedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingDismissed is not null)
+            {
+                _logger.LogInformation(
+                    "Shortage alert recalculation suppressed for facility {FacilityId} medicine {MedicineId} due to active dismissal",
+                    request.FacilityId,
+                    request.MedicineId);
+
+                var suppressedResp = ToResponse(existingDismissed);
+                var med = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == existingDismissed.MedicineId, cancellationToken);
+                suppressedResp.MedicineName = med?.Name;
+                var fac = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == existingDismissed.FacilityId, cancellationToken);
+                suppressedResp.FacilityName = fac?.Name;
+                return suppressedResp;
+            }
+        }
+
         var alert = new ShortageAlert
         {
             Id = Guid.NewGuid(),
@@ -573,7 +738,18 @@ public class ShortageService
             alert.LeadTimeDays,
             alert.RiskLevel);
 
-        return ToResponse(alert);
+        var response = ToResponse(alert);
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
+
+        if (_notificationService != null)
+        {
+            await _notificationService.NotifyShortageAlertCreatedAsync(response, cancellationToken);
+        }
+
+        return response;
     }
 
     // -----------------------------------------------------------------------
@@ -692,6 +868,49 @@ public class ShortageService
         return ToResponse(alert);
     }
 
+    /// <summary>
+    /// Dismisses an alert as a false positive. Returns null when it does not exist.
+    /// </summary>
+    public async Task<ShortageResponse?> DismissShortageAsync(
+        Guid id,
+        string? reason,
+        Guid? userId,
+        CancellationToken cancellationToken = default)
+    {
+        var alert = await _db.ShortageAlerts
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (alert is null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        alert.Status = ShortageAlertStatuses.Dismissed;
+        alert.DismissedAt = now;
+        alert.DismissedByUserId = userId;
+        alert.DismissReason = string.IsNullOrWhiteSpace(reason)
+            ? "Dismissed as false positive"
+            : reason.Trim();
+        alert.UpdatedAt = now;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Shortage alert {AlertId} dismissed as false positive by user {UserId}. Reason: {Reason}",
+            alert.Id,
+            userId,
+            alert.DismissReason);
+
+        var response = ToResponse(alert);
+        var medicine = await _db.Medicines.AsNoTracking().FirstOrDefaultAsync(m => m.Id == alert.MedicineId, cancellationToken);
+        response.MedicineName = medicine?.Name;
+        var facility = await _db.Facilities.AsNoTracking().FirstOrDefaultAsync(f => f.Id == alert.FacilityId, cancellationToken);
+        response.FacilityName = facility?.Name;
+
+        return response;
+    }
+
     public static ShortageResponse ToResponse(ShortageAlert alert) => new()
     {
         Id = alert.Id,
@@ -707,7 +926,13 @@ public class ShortageService
         RequiresTransfer = alert.RequiresTransfer,
         GeneratedAt = alert.GeneratedAt,
         RelatedTransferId = alert.RelatedTransferId,
-        Status = alert.Status
+        Status = alert.Status,
+        UpdatedAt = alert.UpdatedAt,
+        ResolvedAt = alert.ResolvedAt,
+        ResolutionReason = alert.ResolutionReason,
+        DismissedAt = alert.DismissedAt,
+        DismissedByUserId = alert.DismissedByUserId,
+        DismissReason = alert.DismissReason
     };
 }
 

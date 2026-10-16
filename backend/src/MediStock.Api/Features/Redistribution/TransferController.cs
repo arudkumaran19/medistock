@@ -212,6 +212,7 @@ public class TransferController : ControllerBase
         return Ok(result);
     }
 
+
     /// <summary>
     /// 7. GET /api/transfers/{id}/candidates - Find and rank candidate supplying facilities
     /// </summary>
@@ -340,3 +341,10 @@ public class SubmitTransferNotesDto
 {
     public string? Notes { get; set; }
 }
+
+public class UpdateTransferStatusDto
+{
+    public string Status { get; set; } = string.Empty;
+    public object? Proof { get; set; }
+}
+
