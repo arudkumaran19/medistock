@@ -122,3 +122,15 @@ class BackendClient:
         result = self._get_sync(f"/api/transfers/{transfer_id}/candidates")
         return result if isinstance(result, list) else []
 
+    async def get_route(self, source_facility_id: str, destination_facility_id: str) -> Dict[str, Any]:
+        """Fetch route calculation between two facilities from authoritative backend asynchronously."""
+        params = {"sourceFacilityId": str(source_facility_id), "destinationFacilityId": str(destination_facility_id)}
+        result = await self._get_async("/api/transfers/route-preview", params=params)
+        return result if isinstance(result, dict) else {}
+
+    def get_route_sync(self, source_facility_id: str, destination_facility_id: str) -> Dict[str, Any]:
+        """Fetch route calculation between two facilities from authoritative backend synchronously."""
+        params = {"sourceFacilityId": str(source_facility_id), "destinationFacilityId": str(destination_facility_id)}
+        result = self._get_sync("/api/transfers/route-preview", params=params)
+        return result if isinstance(result, dict) else {}
+

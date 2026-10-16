@@ -286,6 +286,22 @@ def calculateDistance(
             provider="CoordinatesGuard",
         )
 
+    # Query backend routing endpoint first (OpenRouteService with deterministic Haversine fallback)
+    try:
+        from medistock_agents.clients.backend_client import BackendClient
+        client = BackendClient()
+        route_data = client.get_route_sync(str(source_facility_id), str(destination_facility_id))
+        if route_data and route_data.get("distanceKm") is not None:
+            return DistanceCalculationResult(
+                source_facility_id=source_facility_id,
+                destination_facility_id=destination_facility_id,
+                distance_km=float(route_data["distanceKm"]),
+                duration_minutes=float(route_data.get("durationMinutes", 0.0)),
+                provider=route_data.get("provider", "OpenRouteService"),
+            )
+    except Exception as exc:
+        logger.debug("Backend route calculation call failed, using local fallback: %s", exc)
+
     return compute_route_distance(
         source_facility_id,
         destination_facility_id,
