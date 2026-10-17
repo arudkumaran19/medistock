@@ -3,7 +3,6 @@ import { useCoordinator } from "../features/coordinator/CoordinatorContext";
 import { SessionSidebar } from "../features/coordinator/SessionSidebar";
 import { AgentChat } from "../features/coordinator/AgentChat";
 import { WorkflowTimeline } from "../features/coordinator/WorkflowTimeline";
-import { useAuth } from "../features/auth/AuthContext";
 import "../features/coordinator/coordinator.css";
 import {
   PanelRight,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 
 export function CoordinatorConsole() {
-  const { user } = useAuth();
   const {
     sessions,
     activeSessionId,

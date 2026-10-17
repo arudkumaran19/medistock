@@ -18,10 +18,7 @@ import {
   Cell,
 } from "recharts";
 import {
-  FileCheck2,
-  FileText,
   AlertTriangle,
-  TrendingDown,
   Building2,
   Package,
   Calendar,
@@ -36,7 +33,6 @@ import {
   RotateCw,
   AlertCircle,
   ArrowRight,
-  ExternalLink,
   ShieldAlert,
   Layers,
   ArrowUpRight,
@@ -752,7 +748,7 @@ function FacilityManagerDashboard({ email }: { email: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AdministratorDashboard({ email }: { email: string }) {
-  const { orders, facilities, suppliers, inventory, batches, medicines, pendingApprovals, shortages, isLoading, error, refetch } = useDashboardData();
+  const { orders, facilities, suppliers, medicines, pendingApprovals, shortages, isLoading, error, refetch } = useDashboardData();
 
   return (
     <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>
@@ -1023,7 +1019,7 @@ function AdministratorDashboard({ email }: { email: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ProcurementOfficerDashboard({ email }: { email: string }) {
-  const { orders, pendingApprovals, suppliers, isLoading, error, refetch } = useDashboardData();
+  const { orders, suppliers, isLoading, error, refetch } = useDashboardData();
 
   return (
     <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>

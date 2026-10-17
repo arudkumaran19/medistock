@@ -9,7 +9,6 @@ import {
   Download,
   RefreshCw,
   Search,
-  Filter,
   X,
   ChevronLeft,
   ChevronRight,
@@ -19,7 +18,6 @@ import {
   XCircle,
   Lock,
   Layers,
-  Calendar,
 } from 'lucide-react';
 import { exportAuditLogsCsv, getAuditLogs, getAuditStats } from '@/services/auditApi';
 import type { AuditLogQuery, SystemAuditLog } from '@/types/audit';

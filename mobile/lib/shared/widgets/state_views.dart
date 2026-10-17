@@ -30,7 +30,8 @@ class LoadingView extends StatelessWidget {
 
 /// Shown when a request succeeded but returned nothing.
 class EmptyView extends StatelessWidget {
-  const EmptyView({super.key, required this.message, this.icon = Icons.inbox_outlined});
+  const EmptyView(
+      {super.key, required this.message, this.icon = Icons.inbox_outlined});
 
   final String message;
   final IconData icon;

@@ -11,11 +11,33 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 import httpx
 import pytest
+
+from medistock_agents.config import get_settings
+
+# Deterministic test-only signing key (HS256 requires >= 32 bytes)
+TEST_JWT_SIGNING_KEY = "test-only-deterministic-agent-service-signing-key-for-unit-testing-32-bytes-minimum"
+
+if not os.environ.get("JWT_SIGNING_KEY") and not os.environ.get("Jwt__SigningKey"):
+    os.environ["JWT_SIGNING_KEY"] = TEST_JWT_SIGNING_KEY
+    os.environ.setdefault("JWT_ISSUER", "MediStock.Api")
+    os.environ.setdefault("JWT_AUDIENCE", "MediStock.Client")
+    get_settings(reload=True)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Ensure a deterministic test-only signing key is configured before test execution."""
+    if not os.environ.get("JWT_SIGNING_KEY") and not os.environ.get("Jwt__SigningKey"):
+        os.environ["JWT_SIGNING_KEY"] = TEST_JWT_SIGNING_KEY
+        os.environ.setdefault("JWT_ISSUER", "MediStock.Api")
+        os.environ.setdefault("JWT_AUDIENCE", "MediStock.Client")
+        get_settings(reload=True)
+
 
 from medistock_agents.agents.demand_shortage_agent import DemandShortageAgent
 from medistock_agents.tools.demand_tools import DemandToolClient

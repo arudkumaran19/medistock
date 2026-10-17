@@ -79,7 +79,8 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
             children: [
               Text(
                 isRevision ? 'Request Revision' : 'Reject Purchase Order',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -108,7 +109,9 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                   const SizedBox(width: 8),
                   FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: isRevision ? Colors.orange.shade800 : Colors.red.shade700,
+                      backgroundColor: isRevision
+                          ? Colors.orange.shade800
+                          : Colors.red.shade700,
                     ),
                     onPressed: () async {
                       final reason = reasonController.text.trim();
@@ -116,15 +119,19 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                       Navigator.pop(ctx);
                       try {
                         if (isRevision) {
-                          await _procurementService.requestRevision(order.id, reason);
+                          await _procurementService.requestRevision(
+                              order.id, reason);
                         } else {
-                          await _procurementService.rejectPurchaseOrder(order.id, reason);
+                          await _procurementService.rejectPurchaseOrder(
+                              order.id, reason);
                         }
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                isRevision ? 'Revision requested.' : 'Order rejected.',
+                                isRevision
+                                    ? 'Revision requested.'
+                                    : 'Order rejected.',
                               ),
                             ),
                           );
@@ -138,7 +145,8 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                         }
                       }
                     },
-                    child: Text(isRevision ? 'Request Revision' : 'Confirm Rejection'),
+                    child: Text(
+                        isRevision ? 'Request Revision' : 'Confirm Rejection'),
                   ),
                 ],
               ),
@@ -163,17 +171,21 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+              ? Center(
+                  child: Text(_errorMessage!,
+                      style: const TextStyle(color: Colors.red)))
               : _pendingOrders.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle_outline, size: 64, color: Colors.green.shade600),
+                          Icon(Icons.check_circle_outline,
+                              size: 64, color: Colors.green.shade600),
                           const SizedBox(height: 12),
                           const Text(
                             'All pending requisitions are cleared!',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -202,11 +214,14 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'PO-${order.id.substring(0, 8)}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16),
                                       ),
                                       Text(
                                         '\$${totalCost.toStringAsFixed(2)}',
@@ -221,7 +236,9 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                                   const SizedBox(height: 6),
                                   Text(
                                     '${order.items.length} item(s) • ${order.totalQuantity} total units',
-                                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                    style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                        fontSize: 13),
                                   ),
                                   const SizedBox(height: 8),
                                   Wrap(
@@ -229,16 +246,23 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                                     children: [
                                       if (isHighValue)
                                         Chip(
-                                          label: const Text('High Value (\$10k+)'),
-                                          backgroundColor: Colors.amber.shade100,
-                                          labelStyle: TextStyle(color: Colors.amber.shade900, fontSize: 11),
+                                          label:
+                                              const Text('High Value (\$10k+)'),
+                                          backgroundColor:
+                                              Colors.amber.shade100,
+                                          labelStyle: TextStyle(
+                                              color: Colors.amber.shade900,
+                                              fontSize: 11),
                                           visualDensity: VisualDensity.compact,
                                         ),
                                       if (isBulk)
                                         Chip(
-                                          label: const Text('Bulk Volume (1k+)'),
+                                          label:
+                                              const Text('Bulk Volume (1k+)'),
                                           backgroundColor: Colors.blue.shade100,
-                                          labelStyle: TextStyle(color: Colors.blue.shade900, fontSize: 11),
+                                          labelStyle: TextStyle(
+                                              color: Colors.blue.shade900,
+                                              fontSize: 11),
                                           visualDensity: VisualDensity.compact,
                                         ),
                                     ],
@@ -249,21 +273,26 @@ class _ApprovalStatusScreenState extends State<ApprovalStatusScreen> {
                                       Expanded(
                                         child: FilledButton(
                                           style: FilledButton.styleFrom(
-                                            backgroundColor: const Color(0xff17634d),
+                                            backgroundColor:
+                                                const Color(0xff17634d),
                                           ),
-                                          onPressed: () => _approveOrder(order.id),
+                                          onPressed: () =>
+                                              _approveOrder(order.id),
                                           child: const Text('Approve'),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       OutlinedButton(
-                                        onPressed: () => _showReasonModal(order, true),
+                                        onPressed: () =>
+                                            _showReasonModal(order, true),
                                         child: const Text('Revise'),
                                       ),
                                       const SizedBox(width: 8),
                                       OutlinedButton(
-                                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                                        onPressed: () => _showReasonModal(order, false),
+                                        style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.red),
+                                        onPressed: () =>
+                                            _showReasonModal(order, false),
                                         child: const Text('Reject'),
                                       ),
                                     ],

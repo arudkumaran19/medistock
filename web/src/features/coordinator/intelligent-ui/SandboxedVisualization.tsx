@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { Shield, Maximize2, Minimize2, AlertCircle } from "lucide-react";
 
 interface SandboxedVisualizationProps {

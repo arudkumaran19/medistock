@@ -22,7 +22,8 @@ void main() {
     });
 
     test('rejects text', () {
-      expect(ConsumptionEntryValidator.validateQuantity('twenty'), 'Enter a valid number.');
+      expect(ConsumptionEntryValidator.validateQuantity('twenty'),
+          'Enter a valid number.');
     });
 
     test('rejects zero and negatives', () {
@@ -39,7 +40,8 @@ void main() {
 
   group('validateMedicineId', () {
     test('accepts a value', () {
-      expect(ConsumptionEntryValidator.validateMedicineId('amoxicillin'), isNull);
+      expect(
+          ConsumptionEntryValidator.validateMedicineId('amoxicillin'), isNull);
     });
 
     test('rejects a blank value', () {

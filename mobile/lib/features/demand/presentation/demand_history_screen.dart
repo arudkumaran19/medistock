@@ -14,7 +14,8 @@ class DemandHistoryScreen extends ConsumerStatefulWidget {
   static const String routeName = '/demand/history';
 
   @override
-  ConsumerState<DemandHistoryScreen> createState() => _DemandHistoryScreenState();
+  ConsumerState<DemandHistoryScreen> createState() =>
+      _DemandHistoryScreenState();
 }
 
 class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
@@ -33,7 +34,8 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
         ref.watch(consumptionHistoryProvider(_search));
     final DemandActionState action = ref.watch(demandActionsProvider);
 
-    ref.listen<DemandActionState>(demandActionsProvider, (_, DemandActionState next) {
+    ref.listen<DemandActionState>(demandActionsProvider,
+        (_, DemandActionState next) {
       if (next.errorMessage != null) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(next.errorMessage!)));
@@ -55,7 +57,8 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
                 prefixIcon: Icon(Icons.search),
               ),
               onSubmitted: (String value) {
-                setState(() => _search = value.trim().isEmpty ? null : value.trim());
+                setState(
+                    () => _search = value.trim().isEmpty ? null : value.trim());
               },
             ),
           ),
@@ -64,7 +67,8 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
               loading: () => const LoadingView(label: 'Loading history…'),
               error: (Object error, StackTrace _) => ErrorView(
                 message: error.toString(),
-                onRetry: () => ref.invalidate(consumptionHistoryProvider(_search)),
+                onRetry: () =>
+                    ref.invalidate(consumptionHistoryProvider(_search)),
               ),
               data: (PagedResponse<ConsumptionRecord> page) {
                 if (page.isEmpty) {
@@ -75,7 +79,8 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(consumptionHistoryProvider(_search)),
+                  onRefresh: () async =>
+                      ref.invalidate(consumptionHistoryProvider(_search)),
                   child: ListView.separated(
                     itemCount: page.items.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
@@ -83,7 +88,8 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
                       final ConsumptionRecord record = page.items[index];
 
                       return ListTile(
-                        title: Text('${record.quantityUsed.toStringAsFixed(0)} units'),
+                        title: Text(
+                            '${record.quantityUsed.toStringAsFixed(0)} units'),
                         subtitle: Text(
                           '${DateFormat('yyyy-MM-dd').format(record.consumptionDate)} · '
                           '${record.source}',
@@ -181,7 +187,9 @@ class _DemandHistoryScreenState extends ConsumerState<DemandHistoryScreen> {
     );
 
     if (confirmed ?? false) {
-      await ref.read(demandActionsProvider.notifier).deleteConsumption(record.id);
+      await ref
+          .read(demandActionsProvider.notifier)
+          .deleteConsumption(record.id);
     }
   }
 }
@@ -214,7 +222,8 @@ class _EditQuantityDialogState extends State<_EditQuantityDialog> {
   }
 
   void _save() {
-    final String? problem = ConsumptionEntryValidator.validateQuantity(_controller.text);
+    final String? problem =
+        ConsumptionEntryValidator.validateQuantity(_controller.text);
 
     if (problem != null) {
       setState(() => _error = problem);

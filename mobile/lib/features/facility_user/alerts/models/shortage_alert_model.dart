@@ -28,20 +28,39 @@ class ShortageAlertModel {
   });
 
   factory ShortageAlertModel.fromJson(Map<String, dynamic> json) {
-    final parsedStock = json['currentStock'] ?? json['stockOnHand'] ?? json['quantityOnHand'];
-    final parsedQty = json['suggestedQuantity'] ?? json['reorderQuantity'] ?? json['shortageQuantity'] ?? json['threshold'];
-    final dateStr = json['createdAt']?.toString() ?? json['generatedAt']?.toString() ?? json['timestamp']?.toString() ?? '';
+    final parsedStock =
+        json['currentStock'] ?? json['stockOnHand'] ?? json['quantityOnHand'];
+    final parsedQty = json['suggestedQuantity'] ??
+        json['reorderQuantity'] ??
+        json['shortageQuantity'] ??
+        json['threshold'];
+    final dateStr = json['createdAt']?.toString() ??
+        json['generatedAt']?.toString() ??
+        json['timestamp']?.toString() ??
+        '';
 
     return ShortageAlertModel(
       id: json['id']?.toString() ?? '',
       medicineId: json['medicineId']?.toString() ?? '',
-      medicineName: json['medicineName']?.toString() ?? json['medicine']?['name']?.toString() ?? 'Medicine',
+      medicineName: json['medicineName']?.toString() ??
+          json['medicine']?['name']?.toString() ??
+          'Medicine',
       facilityId: json['facilityId']?.toString() ?? '',
-      facilityName: json['facilityName']?.toString() ?? json['facility']?['name']?.toString() ?? 'Facility',
-      currentStock: parsedStock is num ? parsedStock.toInt() : (int.tryParse(parsedStock?.toString() ?? '') ?? 0),
-      suggestedQuantity: parsedQty is num ? parsedQty.toInt() : (int.tryParse(parsedQty?.toString() ?? '') ?? 100),
-      severity: json['severity']?.toString() ?? json['riskLevel']?.toString() ?? 'Medium',
-      message: json['message']?.toString() ?? json['reason']?.toString() ?? 'Shortage detected',
+      facilityName: json['facilityName']?.toString() ??
+          json['facility']?['name']?.toString() ??
+          'Facility',
+      currentStock: parsedStock is num
+          ? parsedStock.toInt()
+          : (int.tryParse(parsedStock?.toString() ?? '') ?? 0),
+      suggestedQuantity: parsedQty is num
+          ? parsedQty.toInt()
+          : (int.tryParse(parsedQty?.toString() ?? '') ?? 100),
+      severity: json['severity']?.toString() ??
+          json['riskLevel']?.toString() ??
+          'Medium',
+      message: json['message']?.toString() ??
+          json['reason']?.toString() ??
+          'Shortage detected',
       createdAt: DateTime.tryParse(dateStr) ?? DateTime.now(),
       status: json['status']?.toString() ?? 'OPEN',
       rawJson: json,

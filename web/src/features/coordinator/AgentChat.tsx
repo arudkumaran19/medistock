@@ -4,7 +4,6 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { InChatApprovalCard } from "./InChatApprovalCard";
 import { ExecutionDetails } from "./ExecutionDetails";
 import { AdaptiveResponseRenderer } from "./intelligent-ui";
-import { useAuth } from "@/features/auth/AuthContext";
 import "./coordinator.css";
 import {
   BrainCircuit,
@@ -77,7 +76,7 @@ const DEFAULT_PROMPTS = [
   },
 ];
 
-export function AgentChat({ compact = false, hideHeader = false, onOpenTimeline }: AgentChatProps) {
+export function AgentChat({ compact = false, hideHeader = false, onOpenTimeline: _onOpenTimeline }: AgentChatProps) {
   const {
     messages,
     isRunning,
@@ -91,12 +90,10 @@ export function AgentChat({ compact = false, hideHeader = false, onOpenTimeline 
     cancelExecution,
   } = useCoordinator();
 
-  const { user } = useAuth();
   const [inputText, setInputText] = useState("");
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [showOriginalMap, setShowOriginalMap] = useState<Record<string, boolean>>({});
-  const [selectedStrategies, setSelectedStrategies] = useState<Record<string, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -222,6 +219,8 @@ export function AgentChat({ compact = false, hideHeader = false, onOpenTimeline 
     if (t.includes("expir") || t.includes("expire") || (t.includes("batch") && (t.includes("day") || t.includes("across") || t.includes("soon") || t.includes("within")))) return "ExpiryAudit";
     // 3. Simple single-item factual stock query
     if (isSimpleStockQuery(text)) return "InventoryAudit";
+    // 3b. Multi-medicine catalogue query
+    if (isCatalogueQuery(text)) return "CatalogueQuery";
     // 4. Pure demand/forecast query
     if (isDemandForecastQuery(text)) return "DemandForecast";
     // 5. Everything else → pass empty string so backend and LLM classify dynamically

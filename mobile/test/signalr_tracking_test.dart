@@ -76,7 +76,8 @@ class MockTransferSignalRService implements TransferSignalRService {
   }
 
   void emitNotificationCreated(TransferNotificationItem notification) {
-    if (!_notificationController.isClosed) _notificationController.add(notification);
+    if (!_notificationController.isClosed)
+      _notificationController.add(notification);
   }
 }
 
@@ -99,7 +100,8 @@ class FakeTrackingApiService extends Fake implements TransferApiService {
       isFallback: false,
       waypoints: [
         RouteWaypoint(latitude: 6.9271, longitude: 79.8612, label: 'Origin'),
-        RouteWaypoint(latitude: 7.2906, longitude: 80.6337, label: 'Destination'),
+        RouteWaypoint(
+            latitude: 7.2906, longitude: 80.6337, label: 'Destination'),
       ],
     );
   }
@@ -140,7 +142,8 @@ void main() {
       mockSignalR.dispose();
     });
 
-    testWidgets('TransferDetailsScreen updates immediately when SignalR status change fires',
+    testWidgets(
+        'TransferDetailsScreen updates immediately when SignalR status change fires',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -185,7 +188,8 @@ void main() {
       expect(find.text('Confirm Delivery'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen updates status immediately on SignalR push',
+    testWidgets(
+        'TransferTrackingScreen updates status immediately on SignalR push',
         (tester) async {
       final mockRoute = RouteDetails(
         sourceFacilityId: 'f-1',
@@ -198,7 +202,8 @@ void main() {
         isFallback: false,
         waypoints: [
           RouteWaypoint(latitude: 6.9271, longitude: 79.8612, label: 'Origin'),
-          RouteWaypoint(latitude: 7.2906, longitude: 80.6337, label: 'Destination'),
+          RouteWaypoint(
+              latitude: 7.2906, longitude: 80.6337, label: 'Destination'),
         ],
       );
 
@@ -239,7 +244,8 @@ void main() {
       expect(find.text('DELIVERED'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen updates live GPS coordinates when SignalR emits location update',
+    testWidgets(
+        'TransferTrackingScreen updates live GPS coordinates when SignalR emits location update',
         (tester) async {
       final mockSignalR = MockTransferSignalRService();
       final fakeApi = FakeTrackingApiService();
@@ -301,7 +307,8 @@ void main() {
       expect(find.textContaining('6.92715, 79.86124'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen renders 7-stage lifecycle timeline, Uber-Eats headline, and OSM map',
+    testWidgets(
+        'TransferTrackingScreen renders 7-stage lifecycle timeline, Uber-Eats headline, and OSM map',
         (tester) async {
       final mockSignalR = MockTransferSignalRService();
       final fakeApi = FakeTrackingApiService();
@@ -346,8 +353,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Uber-Eats Headline for InTransit (present in header banner and floating map card)
-      expect(find.text('Your medicines are on the way'), findsAtLeastNWidgets(1));
-      expect(find.text('Courier has picked up items and is delivering live'), findsOneWidget);
+      expect(
+          find.text('Your medicines are on the way'), findsAtLeastNWidgets(1));
+      expect(find.text('Courier has picked up items and is delivering live'),
+          findsOneWidget);
 
       // 7-Stage Lifecycle Stepper
       expect(find.text('Redistribution Progress'), findsOneWidget);
@@ -364,7 +373,8 @@ void main() {
       expect(find.text('© OpenStreetMap'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen displays in-app banner and increments bell badge when NotificationCreated fires',
+    testWidgets(
+        'TransferTrackingScreen displays in-app banner and increments bell badge when NotificationCreated fires',
         (tester) async {
       final mockSignalR = MockTransferSignalRService();
       final fakeApi = FakeTrackingApiService();
@@ -412,7 +422,8 @@ void main() {
 
       // In-app SnackBar banner is shown
       expect(find.text('Medicines delivered'), findsOneWidget);
-      expect(find.text('Your medicines for TR-SIGNALR-004 have arrived.'), findsOneWidget);
+      expect(find.text('Your medicines for TR-SIGNALR-004 have arrived.'),
+          findsOneWidget);
       expect(find.text('View'), findsOneWidget);
 
       // Bell badge shows 1

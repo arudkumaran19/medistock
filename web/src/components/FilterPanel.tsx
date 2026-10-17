@@ -1,6 +1,6 @@
 import React, { type ReactNode } from "react";
 
-interface FilterOption {
+export interface FilterOption {
   label: string;
   value: string;
 }

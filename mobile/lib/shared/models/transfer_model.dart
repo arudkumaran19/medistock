@@ -18,11 +18,22 @@ class TransferItemModel {
   factory TransferItemModel.fromJson(Map<String, dynamic> json) {
     return TransferItemModel(
       id: json['id']?.toString() ?? '',
-      inventoryItemId: json['inventoryItemId']?.toString() ?? json['medicineId']?.toString() ?? '',
-      itemName: json['itemName']?.toString() ?? json['medicineName']?.toString() ?? json['name']?.toString() ?? 'Medicine Item',
-      requestedQuantity: (json['requestedQuantity'] as num?)?.toInt() ?? (json['quantity'] as num?)?.toInt() ?? 1,
-      fulfilledQuantity: (json['fulfilledQuantity'] as num?)?.toInt() ?? (json['allocatedQuantity'] as num?)?.toInt() ?? (json['receivedQuantity'] as num?)?.toInt(),
-      unitOfMeasure: json['unitOfMeasure']?.toString() ?? json['unit']?.toString() ?? 'units',
+      inventoryItemId: json['inventoryItemId']?.toString() ??
+          json['medicineId']?.toString() ??
+          '',
+      itemName: json['itemName']?.toString() ??
+          json['medicineName']?.toString() ??
+          json['name']?.toString() ??
+          'Medicine Item',
+      requestedQuantity: (json['requestedQuantity'] as num?)?.toInt() ??
+          (json['quantity'] as num?)?.toInt() ??
+          1,
+      fulfilledQuantity: (json['fulfilledQuantity'] as num?)?.toInt() ??
+          (json['allocatedQuantity'] as num?)?.toInt() ??
+          (json['receivedQuantity'] as num?)?.toInt(),
+      unitOfMeasure: json['unitOfMeasure']?.toString() ??
+          json['unit']?.toString() ??
+          'units',
     );
   }
 }
@@ -88,11 +99,14 @@ class TransferModel {
 
     return TransferModel(
       id: json['id']?.toString() ?? '',
-      transferNumber: json['transferNumber']?.toString() ?? json['code']?.toString() ?? '',
+      transferNumber:
+          json['transferNumber']?.toString() ?? json['code']?.toString() ?? '',
       sourceFacilityId: json['sourceFacilityId']?.toString() ?? '',
-      sourceFacilityName: json['sourceFacilityName']?.toString() ?? 'Unknown Facility',
+      sourceFacilityName:
+          json['sourceFacilityName']?.toString() ?? 'Unknown Facility',
       destinationFacilityId: json['destinationFacilityId']?.toString() ?? '',
-      destinationFacilityName: json['destinationFacilityName']?.toString() ?? 'Unknown Facility',
+      destinationFacilityName:
+          json['destinationFacilityName']?.toString() ?? 'Unknown Facility',
       status: json['status']?.toString() ?? 'Pending',
       priority: json['priority']?.toString() ?? 'Normal',
       createdAt: json['createdAt'] != null
@@ -100,13 +114,19 @@ class TransferModel {
           : DateTime.now(),
       officerName: json['officerName']?.toString(),
       officerPhone: json['officerPhone']?.toString(),
-      currentLatitude: (json['currentLatitude'] as num?)?.toDouble() ?? (json['lastLatitude'] as num?)?.toDouble() ?? 0.0,
-      currentLongitude: (json['currentLongitude'] as num?)?.toDouble() ?? (json['lastLongitude'] as num?)?.toDouble() ?? 0.0,
+      currentLatitude: (json['currentLatitude'] as num?)?.toDouble() ??
+          (json['lastLatitude'] as num?)?.toDouble() ??
+          0.0,
+      currentLongitude: (json['currentLongitude'] as num?)?.toDouble() ??
+          (json['lastLongitude'] as num?)?.toDouble() ??
+          0.0,
       otp: json['otp']?.toString(),
       rejectionReason: json['rejectionReason']?.toString(),
       notes: notes,
       purchaseOrderId: poId,
-      items: rawItems.map((e) => TransferItemModel.fromJson(e as Map<String, dynamic>)).toList(),
+      items: rawItems
+          .map((e) => TransferItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

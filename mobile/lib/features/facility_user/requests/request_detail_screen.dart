@@ -17,7 +17,8 @@ class RequestDetailScreen extends ConsumerStatefulWidget {
   const RequestDetailScreen({super.key, required this.requestId});
 
   @override
-  ConsumerState<RequestDetailScreen> createState() => _RequestDetailScreenState();
+  ConsumerState<RequestDetailScreen> createState() =>
+      _RequestDetailScreenState();
 }
 
 class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
@@ -42,7 +43,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       _locationSub = _signalRClient.onTransferLocationUpdated.listen((data) {
         if (!mounted) return;
         final tid = data['transferId']?.toString();
-        if (tid == null || tid.isEmpty || tid.toLowerCase() == widget.requestId.toLowerCase()) {
+        if (tid == null ||
+            tid.isEmpty ||
+            tid.toLowerCase() == widget.requestId.toLowerCase()) {
           final lat = (data['latitude'] as num?)?.toDouble();
           final lng = (data['longitude'] as num?)?.toDouble();
           if (lat != null && lng != null) {
@@ -66,14 +69,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   Future<void> _handleConfirmReceipt() async {
     setState(() => _isConfirming = true);
     try {
-      await ref.read(transferRepositoryProvider).confirmReceipt(widget.requestId, 'Confirmed by destination facility pharmacist');
+      await ref.read(transferRepositoryProvider).confirmReceipt(
+          widget.requestId, 'Confirmed by destination facility pharmacist');
       ref.invalidate(transferByIdProvider(widget.requestId));
       ref.invalidate(myRequestsProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Delivery confirmed! Medicine stock restocked at destination facility.'),
+            content: Text(
+                'Delivery confirmed! Medicine stock restocked at destination facility.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -82,7 +87,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to confirm receipt: ${e.toString().replaceAll("Exception: ", "")}'),
+            content: Text(
+                'Failed to confirm receipt: ${e.toString().replaceAll("Exception: ", "")}'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -107,7 +113,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             children: [
               Text(t.transferNumber, style: AppTextStyles.titleSmall),
               Text(
-                t.items.isNotEmpty ? t.items.first.itemName : 'Medicine Requisition',
+                t.items.isNotEmpty
+                    ? t.items.first.itemName
+                    : 'Medicine Requisition',
                 style: AppTextStyles.bodySmall.copyWith(fontSize: 10),
               ),
             ],
@@ -126,7 +134,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ],
       ),
       body: transferAsync.when(
-        loading: () => const LoadingView(label: 'Loading transfer tracking details...'),
+        loading: () =>
+            const LoadingView(label: 'Loading transfer tracking details...'),
         error: (err, _) => ErrorView(
           message: 'Failed to load transfer: $err',
           onRetry: () => ref.refresh(transferByIdProvider(widget.requestId)),
@@ -137,19 +146,27 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
           final sLat = route?.sourceLatitude;
           final sLng = route?.sourceLongitude;
-          final LatLng? sourcePos = (sLat != null && sLng != null && sLat != 0 && sLng != 0)
-              ? LatLng(sLat, sLng)
-              : (route != null && route.waypoints.isNotEmpty && route.waypoints.first.latitude != 0)
-                  ? LatLng(route.waypoints.first.latitude, route.waypoints.first.longitude)
-                  : null;
+          final LatLng? sourcePos =
+              (sLat != null && sLng != null && sLat != 0 && sLng != 0)
+                  ? LatLng(sLat, sLng)
+                  : (route != null &&
+                          route.waypoints.isNotEmpty &&
+                          route.waypoints.first.latitude != 0)
+                      ? LatLng(route.waypoints.first.latitude,
+                          route.waypoints.first.longitude)
+                      : null;
 
           final dLat = route?.destinationLatitude;
           final dLng = route?.destinationLongitude;
-          final LatLng? destPos = (dLat != null && dLng != null && dLat != 0 && dLng != 0)
-              ? LatLng(dLat, dLng)
-              : (route != null && route.waypoints.isNotEmpty && route.waypoints.last.latitude != 0)
-                  ? LatLng(route.waypoints.last.latitude, route.waypoints.last.longitude)
-                  : null;
+          final LatLng? destPos =
+              (dLat != null && dLng != null && dLat != 0 && dLng != 0)
+                  ? LatLng(dLat, dLng)
+                  : (route != null &&
+                          route.waypoints.isNotEmpty &&
+                          route.waypoints.last.latitude != 0)
+                      ? LatLng(route.waypoints.last.latitude,
+                          route.waypoints.last.longitude)
+                      : null;
 
           final LatLng? vehiclePos = _liveVehiclePos ??
               (transfer.currentLatitude != 0 && transfer.currentLongitude != 0
@@ -157,9 +174,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   : null);
 
           final statusLower = transfer.status.toLowerCase();
-          final isDelivered = statusLower == 'delivered' || statusLower == 'received';
-          final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
-          final canConfirm = isInTransit || statusLower == 'reserved' || statusLower == 'approved';
+          final isDelivered =
+              statusLower == 'delivered' || statusLower == 'received';
+          final isInTransit =
+              statusLower == 'intransit' || statusLower == 'dispatched';
+          final canConfirm = isInTransit ||
+              statusLower == 'reserved' ||
+              statusLower == 'approved';
 
           final hasValidMap = sourcePos != null && destPos != null;
 
@@ -181,9 +202,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           ? transfer.sourceFacilityName
                           : 'Origin Depot',
                       destinationCoords: destPos,
-                      destinationFacilityName: transfer.destinationFacilityName.isNotEmpty
-                          ? transfer.destinationFacilityName
-                          : 'Destination Facility',
+                      destinationFacilityName:
+                          transfer.destinationFacilityName.isNotEmpty
+                              ? transfer.destinationFacilityName
+                              : 'Destination Facility',
                       vehicleCoords: vehiclePos,
                       waypoints: route?.waypoints ?? const [],
                       distanceKm: route?.distanceKm,
@@ -204,9 +226,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.location_off_rounded, size: 40, color: AppColors.textMuted),
+                          const Icon(Icons.location_off_rounded,
+                              size: 40, color: AppColors.textMuted),
                           const SizedBox(height: 12),
-                          Text('Location unavailable', style: AppTextStyles.titleMedium),
+                          Text('Location unavailable',
+                              style: AppTextStyles.titleMedium),
                           const SizedBox(height: 4),
                           Text(
                             'Facility coordinates or transit route data are not available.',
@@ -229,19 +253,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.errorLight,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: AppColors.error.withOpacity(0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.cancel_rounded, color: AppColors.error, size: 22),
+                                    const Icon(Icons.cancel_rounded,
+                                        color: AppColors.error, size: 22),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         'Rejected - no source with stock',
-                                        style: AppTextStyles.titleMedium.copyWith(
+                                        style:
+                                            AppTextStyles.titleMedium.copyWith(
                                           color: AppColors.error,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -251,8 +278,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  transfer.rejectionReason ?? 'No facility has surplus stock for this medicine',
-                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                                  transfer.rejectionReason ??
+                                      'No facility has surplus stock for this medicine',
+                                  style: AppTextStyles.bodyMedium
+                                      .copyWith(color: AppColors.textPrimary),
                                 ),
                                 if (transfer.purchaseOrderId != null) ...[
                                   const SizedBox(height: 12),
@@ -261,16 +290,19 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.border),
+                                      border:
+                                          Border.all(color: AppColors.border),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.shopping_cart_outlined, size: 18, color: AppColors.info),
+                                        const Icon(Icons.shopping_cart_outlined,
+                                            size: 18, color: AppColors.info),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
                                             'Purchase Request: PO-${transfer.purchaseOrderId!.length >= 8 ? transfer.purchaseOrderId!.substring(0, 8) : transfer.purchaseOrderId}',
-                                            style: AppTextStyles.bodySmall.copyWith(
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
                                               fontWeight: FontWeight.bold,
                                               color: AppColors.info,
                                             ),
@@ -283,26 +315,36 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                               ],
                             ),
                           ),
-                        if (statusLower == 'requested' && ((transfer.notes?.toLowerCase().contains('error') ?? false) || (transfer.notes?.toLowerCase().contains('failed') ?? false)))
+                        if (statusLower == 'requested' &&
+                            ((transfer.notes?.toLowerCase().contains('error') ??
+                                    false) ||
+                                (transfer.notes
+                                        ?.toLowerCase()
+                                        .contains('failed') ??
+                                    false)))
                           Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: AppColors.warningLight,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: AppColors.warning.withOpacity(0.3)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
+                                const Icon(Icons.warning_amber_rounded,
+                                    color: AppColors.warning, size: 22),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Planning failed, retry',
-                                        style: AppTextStyles.titleMedium.copyWith(
+                                        style:
+                                            AppTextStyles.titleMedium.copyWith(
                                           color: AppColors.warning,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -318,23 +360,31 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                                 ElevatedButton.icon(
                                   onPressed: () async {
                                     try {
-                                      await ref.read(transferRepositoryProvider).submitRequest(transfer.id);
-                                      ref.invalidate(transferByIdProvider(widget.requestId));
+                                      await ref
+                                          .read(transferRepositoryProvider)
+                                          .submitRequest(transfer.id);
+                                      ref.invalidate(transferByIdProvider(
+                                          widget.requestId));
                                       ref.invalidate(myRequestsProvider);
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Retry failed: $e')),
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content:
+                                                  Text('Retry failed: $e')),
                                         );
                                       }
                                     }
                                   },
-                                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                                  icon: const Icon(Icons.refresh_rounded,
+                                      size: 16),
                                   label: const Text('Retry'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.warning,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
                                   ),
                                 ),
                               ],
@@ -352,27 +402,36 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('REQUISITION MANIFEST', style: AppTextStyles.badge.copyWith(color: AppColors.primary)),
+                              Text('REQUISITION MANIFEST',
+                                  style: AppTextStyles.badge
+                                      .copyWith(color: AppColors.primary)),
                               const SizedBox(height: 8),
                               ...transfer.items.map((item) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(item.itemName, style: AppTextStyles.titleMedium),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(item.itemName,
+                                              style: AppTextStyles.titleMedium),
+                                        ),
+                                        Text(
+                                          '${item.requestedQuantity} ${item.unitOfMeasure}',
+                                          style: AppTextStyles.titleMedium
+                                              .copyWith(
+                                                  color:
+                                                      AppColors.primaryLight),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '${item.requestedQuantity} ${item.unitOfMeasure}',
-                                      style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryLight),
-                                    ),
-                                  ],
-                                ),
-                              )),
+                                  )),
                               const Divider(height: 20),
                               Row(
                                 children: [
-                                  const Icon(Icons.location_on_rounded, size: 16, color: AppColors.secondary),
+                                  const Icon(Icons.location_on_rounded,
+                                      size: 16, color: AppColors.secondary),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
@@ -385,12 +444,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                               const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  const Icon(Icons.flag_rounded, size: 16, color: AppColors.primary),
+                                  const Icon(Icons.flag_rounded,
+                                      size: 16, color: AppColors.primary),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'To: ${transfer.destinationFacilityName}',
-                                      style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold),
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
@@ -402,7 +463,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         const SizedBox(height: 16),
 
                         // Officer Information (if assigned)
-                        if (transfer.officerName != null && transfer.officerName!.isNotEmpty && transfer.officerName != 'Assigned Officer')
+                        if (transfer.officerName != null &&
+                            transfer.officerName!.isNotEmpty &&
+                            transfer.officerName != 'Assigned Officer')
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
@@ -415,15 +478,21 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                                 const CircleAvatar(
                                   radius: 20,
                                   backgroundColor: AppColors.secondaryLight,
-                                  child: Icon(Icons.person_rounded, color: AppColors.secondary),
+                                  child: Icon(Icons.person_rounded,
+                                      color: AppColors.secondary),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(transfer.officerName!, style: AppTextStyles.titleSmall),
-                                      Text(transfer.officerPhone ?? 'Certified Field Officer', style: AppTextStyles.bodySmall),
+                                      Text(transfer.officerName!,
+                                          style: AppTextStyles.titleSmall),
+                                      Text(
+                                          transfer.officerPhone ??
+                                              'Certified Field Officer',
+                                          style: AppTextStyles.bodySmall),
                                     ],
                                   ),
                                 ),
@@ -434,37 +503,48 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                         const SizedBox(height: 24),
 
                         // Chain of Custody Timeline
-                        Text('Chain of Custody', style: AppTextStyles.titleLarge),
+                        Text('Chain of Custody',
+                            style: AppTextStyles.titleLarge),
                         const SizedBox(height: 14),
 
                         _CustodyStep(
                           title: '1. Requisition Submitted',
-                          desc: 'Request formally raised from facility demand and alert.',
+                          desc:
+                              'Request formally raised from facility demand and alert.',
                           isDone: true,
                         ),
                         _CustodyStep(
                           title: '2. Source Proposal & Review',
-                          desc: statusLower == 'draft' || statusLower == 'requested'
+                          desc: statusLower == 'draft' ||
+                                  statusLower == 'requested'
                               ? 'Analyzing candidate supplying facilities...'
                               : 'Optimal supplying facility proposed by Planning Agent.',
-                          isDone: statusLower != 'draft' && statusLower != 'requested',
+                          isDone: statusLower != 'draft' &&
+                              statusLower != 'requested',
                           isCurrent: statusLower == 'proposed',
                         ),
                         _CustodyStep(
                           title: '3. Manager Approved & Task Reserved',
-                          desc: 'Redistribution manager approved and officer reserved assignment.',
-                          isDone: statusLower == 'approved' || statusLower == 'reserved' || isInTransit || isDelivered,
-                          isCurrent: statusLower == 'approved' || statusLower == 'reserved',
+                          desc:
+                              'Redistribution manager approved and officer reserved assignment.',
+                          isDone: statusLower == 'approved' ||
+                              statusLower == 'reserved' ||
+                              isInTransit ||
+                              isDelivered,
+                          isCurrent: statusLower == 'approved' ||
+                              statusLower == 'reserved',
                         ),
                         _CustodyStep(
                           title: '4. Dispatched / In Transit',
-                          desc: 'Cargo in transit with active GPS telemetry stream.',
+                          desc:
+                              'Cargo in transit with active GPS telemetry stream.',
                           isDone: isDelivered || isInTransit,
                           isCurrent: isInTransit,
                         ),
                         _CustodyStep(
                           title: '5. Delivered & Inventory Restocked',
-                          desc: 'Goods received at facility dock and stock adjusted.',
+                          desc:
+                              'Goods received at facility dock and stock adjusted.',
                           isDone: isDelivered,
                           isCurrent: isDelivered,
                         ),
@@ -483,18 +563,22 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.check_circle_rounded, color: AppColors.success),
+                                const Icon(Icons.check_circle_rounded,
+                                    color: AppColors.success),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Delivery Completed & Stock Restocked',
-                                  style: AppTextStyles.titleSmall.copyWith(color: AppColors.success, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.titleSmall.copyWith(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
                           )
                         else if (canConfirm)
                           ElevatedButton(
-                            onPressed: _isConfirming ? null : _handleConfirmReceipt,
+                            onPressed:
+                                _isConfirming ? null : _handleConfirmReceipt,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.success,
                               minimumSize: const Size(double.infinity, 48),
@@ -503,7 +587,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
                                   )
                                 : const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -580,7 +665,8 @@ class _CustodyStep extends StatelessWidget {
                       : isDone
                           ? AppColors.textPrimary
                           : AppColors.textMuted,
-                  fontWeight: isCurrent || isDone ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      isCurrent || isDone ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
               const SizedBox(height: 2),

@@ -77,7 +77,8 @@ class DemandForecast {
       medicineId: json['medicineId'] as String,
       forecastDate: DateTime.parse(json['forecastDate'] as String),
       predictedDemand: (json['predictedDemand'] as num).toDouble(),
-      averageDailyConsumption: (json['averageDailyConsumption'] as num).toDouble(),
+      averageDailyConsumption:
+          (json['averageDailyConsumption'] as num).toDouble(),
       method: json['method'] as String,
       windowDays: json['windowDays'] as int,
       horizonDays: json['horizonDays'] as int,
@@ -137,7 +138,8 @@ class ShortageAlert {
       medicineId: json['medicineId'] as String,
       demandForecastId: json['demandForecastId'] as String?,
       currentStock: (json['currentStock'] as num).toDouble(),
-      averageDailyConsumption: (json['averageDailyConsumption'] as num).toDouble(),
+      averageDailyConsumption:
+          (json['averageDailyConsumption'] as num).toDouble(),
       daysRemaining: json['daysRemaining'] as int?,
       projectedStockoutDate:
           stockoutDate == null ? null : DateTime.parse(stockoutDate as String),

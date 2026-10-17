@@ -22,10 +22,12 @@ class ConsumptionEntryScreen extends ConsumerStatefulWidget {
   static const String routeName = '/demand/consumption/new';
 
   @override
-  ConsumerState<ConsumptionEntryScreen> createState() => _ConsumptionEntryScreenState();
+  ConsumerState<ConsumptionEntryScreen> createState() =>
+      _ConsumptionEntryScreenState();
 }
 
-class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen> {
+class _ConsumptionEntryScreenState
+    extends ConsumerState<ConsumptionEntryScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -58,10 +60,12 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
   }
 
   Future<void> _submit() async {
-    final String? dateError = ConsumptionEntryValidator.validateDate(_consumptionDate);
+    final String? dateError =
+        ConsumptionEntryValidator.validateDate(_consumptionDate);
 
     if (dateError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dateError)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(dateError)));
       return;
     }
 
@@ -81,7 +85,8 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
       return;
     }
 
-    final ConsumptionEntryState state = ref.read(consumptionEntryControllerProvider);
+    final ConsumptionEntryState state =
+        ref.read(consumptionEntryControllerProvider);
 
     if (state.isSuccess) {
       // The history and shortage screens follow the facility just recorded against,
@@ -105,9 +110,12 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final ConsumptionEntryState state = ref.watch(consumptionEntryControllerProvider);
-    final AsyncValue<List<ReferenceOption>> facilities = ref.watch(facilityOptionsProvider);
-    final AsyncValue<List<ReferenceOption>> medicines = ref.watch(medicineOptionsProvider);
+    final ConsumptionEntryState state =
+        ref.watch(consumptionEntryControllerProvider);
+    final AsyncValue<List<ReferenceOption>> facilities =
+        ref.watch(facilityOptionsProvider);
+    final AsyncValue<List<ReferenceOption>> medicines =
+        ref.watch(medicineOptionsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Record consumption')),
@@ -140,7 +148,8 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
                 key: const Key('quantity-field'),
                 controller: _quantityController,
                 decoration: const InputDecoration(labelText: 'Quantity used'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: ConsumptionEntryValidator.validateQuantity,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -162,7 +171,8 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
               TextFormField(
                 key: const Key('notes-field'),
                 controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                decoration:
+                    const InputDecoration(labelText: 'Notes (optional)'),
                 maxLines: 3,
                 validator: ConsumptionEntryValidator.validateNotes,
               ),
@@ -178,7 +188,8 @@ class _ConsumptionEntryScreenState extends ConsumerState<ConsumptionEntryScreen>
               FilledButton(
                 key: const Key('submit-button'),
                 onPressed: state.isSubmitting ? null : _submit,
-                child: Text(state.isSubmitting ? 'Saving…' : 'Record consumption'),
+                child:
+                    Text(state.isSubmitting ? 'Saving…' : 'Record consumption'),
               ),
             ],
           ),
@@ -211,7 +222,8 @@ class _OptionField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<ReferenceOption> items = options.valueOrNull ?? const <ReferenceOption>[];
+    final List<ReferenceOption> items =
+        options.valueOrNull ?? const <ReferenceOption>[];
 
     final String? helper = options.isLoading
         ? 'Loading…'
@@ -222,7 +234,8 @@ class _OptionField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       key: fieldKey,
       // A selection that is no longer in the list would assert; drop it instead.
-      initialValue: items.any((ReferenceOption o) => o.id == value) ? value : null,
+      initialValue:
+          items.any((ReferenceOption o) => o.id == value) ? value : null,
       isExpanded: true,
       decoration: InputDecoration(labelText: label, helperText: helper),
       validator: validator,

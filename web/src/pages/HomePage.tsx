@@ -20,7 +20,6 @@ import {
   Lock,
   Thermometer,
   Layers,
-  Activity,
   MessageSquare,
   BarChart3,
   GitBranch,

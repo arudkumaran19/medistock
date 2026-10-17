@@ -40,13 +40,13 @@ class InventoryModel {
         (json['reorderLevel'] as num?)?.toInt() ??
         10;
     final isBelowMin = json['isBelowMinimum'] == true || avail <= minThresh;
-    final statusStr = json['status']?.toString() ?? (isBelowMin ? 'LowStock' : 'Optimal');
+    final statusStr =
+        json['status']?.toString() ?? (isBelowMin ? 'LowStock' : 'Optimal');
 
     final unitVal = json['unit']?.toString() ??
         json['unitOfMeasure']?.toString() ??
         'units';
-    final unitDisplayVal = json['unitDisplay']?.toString() ??
-        '$avail $unitVal';
+    final unitDisplayVal = json['unitDisplay']?.toString() ?? '$avail $unitVal';
     final packBreakdownVal = json['packBreakdown']?.toString();
 
     return InventoryModel(

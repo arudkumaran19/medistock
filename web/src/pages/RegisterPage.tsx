@@ -9,13 +9,9 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  ShieldCheck,
   CheckCircle2,
-  Boxes,
   User,
   Sparkles,
-  Truck,
-  Activity,
 } from "lucide-react";
 
 /* ─── Official Brand Mark ────────────────────────────────────────── */

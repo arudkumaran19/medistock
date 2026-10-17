@@ -36,7 +36,8 @@ class TransferApiService {
       queryParams['facilityId'] = facilityId;
     }
 
-    final response = await _apiClient.get('/api/transfers', queryParameters: queryParams);
+    final response =
+        await _apiClient.get('/api/transfers', queryParameters: queryParams);
     if (response is List) {
       return response
           .map((item) => Transfer.fromJson(item as Map<String, dynamic>))
@@ -100,7 +101,8 @@ class TransferApiService {
     final payload = {
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
-    final response = await _apiClient.post('/api/transfers/$id/request', body: payload);
+    final response =
+        await _apiClient.post('/api/transfers/$id/request', body: payload);
     if (response is Map<String, dynamic>) {
       return Transfer.fromJson(response);
     }
@@ -111,13 +113,17 @@ class TransferApiService {
   }
 
   // 4b. POST /api/transfers/{id}/dispatch (Dispatch Transfer)
-  Future<Transfer> dispatchTransfer(String id, {String? notes, String? carrierName, String? trackingNumber}) async {
+  Future<Transfer> dispatchTransfer(String id,
+      {String? notes, String? carrierName, String? trackingNumber}) async {
     final payload = {
       if (notes != null && notes.isNotEmpty) 'notes': notes,
-      if (carrierName != null && carrierName.isNotEmpty) 'carrierName': carrierName,
-      if (trackingNumber != null && trackingNumber.isNotEmpty) 'trackingNumber': trackingNumber,
+      if (carrierName != null && carrierName.isNotEmpty)
+        'carrierName': carrierName,
+      if (trackingNumber != null && trackingNumber.isNotEmpty)
+        'trackingNumber': trackingNumber,
     };
-    final response = await _apiClient.post('/api/transfers/$id/dispatch', body: payload);
+    final response =
+        await _apiClient.post('/api/transfers/$id/dispatch', body: payload);
     if (response is Map<String, dynamic>) {
       return Transfer.fromJson(response);
     }
@@ -148,7 +154,8 @@ class TransferApiService {
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
 
-    final response = await _apiClient.post('/api/transfers/$transferId/receive', body: payload);
+    final response = await _apiClient.post('/api/transfers/$transferId/receive',
+        body: payload);
     if (response is Map<String, dynamic>) {
       return Transfer.fromJson(response);
     }
@@ -187,8 +194,8 @@ class TransferApiService {
       'timestamp': (timestamp ?? DateTime.now().toUtc()).toIso8601String(),
     };
 
-    final response =
-        await _apiClient.post('/api/transfers/$transferId/location', body: payload);
+    final response = await _apiClient
+        .post('/api/transfers/$transferId/location', body: payload);
     if (response is Map<String, dynamic>) {
       return Transfer.fromJson(response);
     }
@@ -218,11 +225,12 @@ class TransferApiService {
       queryParams['transferId'] = transferId;
     }
 
-    final response =
-        await _apiClient.get('/api/notifications', queryParameters: queryParams);
+    final response = await _apiClient.get('/api/notifications',
+        queryParameters: queryParams);
     if (response is List) {
       return response
-          .map((item) => TransferNotificationItem.fromJson(item as Map<String, dynamic>))
+          .map((item) =>
+              TransferNotificationItem.fromJson(item as Map<String, dynamic>))
           .toList();
     }
     return [];

@@ -62,7 +62,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       }
     });
 
-    _shortageDismissedSub = SignalRClient().onShortageAlertDismissed.listen((data) {
+    _shortageDismissedSub =
+        SignalRClient().onShortageAlertDismissed.listen((data) {
       if (mounted) {
         final id = data['id']?.toString() ?? data['Id']?.toString();
         if (id != null && id.isNotEmpty) {
@@ -119,7 +120,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                     alert.severity.toUpperCase() == 'CRITICAL';
                 final urgency = isCritical ? 'CRITICAL' : 'WARNING';
                 final title = 'Shortage Risk: ${alert.medicineName}';
-                final description = 'Stock: ${alert.currentStock} • Recommended reorder: ${alert.suggestedQuantity} units. Facility: ${alert.facilityName}';
+                final description =
+                    'Stock: ${alert.currentStock} • Recommended reorder: ${alert.suggestedQuantity} units. Facility: ${alert.facilityName}';
                 final isNew = !openedAlerts.contains(alert.id);
 
                 return _AlertCard(
@@ -127,12 +129,16 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                   description: description,
                   urgency: urgency,
                   isNew: isNew,
-                  time: '${alert.createdAt.hour.toString().padLeft(2, '0')}:${alert.createdAt.minute.toString().padLeft(2, '0')}',
+                  time:
+                      '${alert.createdAt.hour.toString().padLeft(2, '0')}:${alert.createdAt.minute.toString().padLeft(2, '0')}',
                   onTap: () {
-                    ref.read(openedAlertsProvider.notifier).markAsOpened(alert.id);
+                    ref
+                        .read(openedAlertsProvider.notifier)
+                        .markAsOpened(alert.id);
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => VerifyShortageScreen(shortageAlert: alert.toJson()),
+                        builder: (_) =>
+                            VerifyShortageScreen(shortageAlert: alert.toJson()),
                       ),
                     );
                   },
@@ -199,15 +205,21 @@ class _AlertCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(6)),
-                    child: Text(urgency, style: AppTextStyles.badge.copyWith(color: Colors.white)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Text(urgency,
+                        style:
+                            AppTextStyles.badge.copyWith(color: Colors.white)),
                   ),
                   if (isNew) ...[
                     const SizedBox(width: 8),
                     Container(
                       key: const Key('new-alert-chip'),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(6),

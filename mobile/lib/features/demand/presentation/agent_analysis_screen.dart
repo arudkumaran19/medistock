@@ -26,7 +26,8 @@ class AgentAnalysisScreen extends StatefulWidget {
 class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
   final _client = ApiClient();
   final _inventory = InventoryService();
-  final _objective = TextEditingController(text: 'Will this facility run out of this medicine?');
+  final _objective = TextEditingController(
+      text: 'Will this facility run out of this medicine?');
   final _stock = TextEditingController();
 
   List<InventoryBalance> _balances = const [];
@@ -98,7 +99,8 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
           'facilityId': selected.facilityId,
           'medicineId': selected.medicineId,
           'objective': _objective.text.trim(),
-          'currentStock': int.tryParse(_stock.text.trim()) ?? selected.quantityOnHand,
+          'currentStock':
+              int.tryParse(_stock.text.trim()) ?? selected.quantityOnHand,
           'windowDays': 30,
         },
       );
@@ -153,7 +155,8 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                         maxLines: 2,
                         decoration: const InputDecoration(
                           labelText: 'Objective',
-                          helperText: 'A question, not an instruction. Injected commands are refused.',
+                          helperText:
+                              'A question, not an instruction. Injected commands are refused.',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -170,15 +173,18 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _running || _selected == null ? null : _run_,
+                          onPressed:
+                              _running || _selected == null ? null : _run_,
                           icon: _running
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
                               : const Icon(Icons.auto_awesome),
-                          label: Text(_running ? 'Running agent…' : 'Run agent'),
+                          label:
+                              Text(_running ? 'Running agent…' : 'Run agent'),
                         ),
                       ),
                     ],
@@ -195,16 +201,21 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Color(0xFFDC2626)),
+                        const Icon(Icons.error_outline,
+                            color: Color(0xFFDC2626)),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(_error!, style: const TextStyle(color: Color(0xFF7F1D1D))),
+                          child: Text(_error!,
+                              style: const TextStyle(color: Color(0xFF7F1D1D))),
                         ),
                       ],
                     ),
                   ),
                 ],
-                if (_run != null) ...[const SizedBox(height: 16), ..._results(_run!)],
+                if (_run != null) ...[
+                  const SizedBox(height: 16),
+                  ..._results(_run!)
+                ],
               ],
             ),
     );
@@ -212,15 +223,19 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
 
   List<Widget> _results(Map<String, dynamic> run) {
     final result = Map<String, dynamic>.from(run['result'] as Map? ?? {});
-    final findings = (result['findings'] as List? ?? []).cast<Map<String, dynamic>>();
-    final recommendations = (result['recommendations'] as List? ?? []).cast<Map<String, dynamic>>();
+    final findings =
+        (result['findings'] as List? ?? []).cast<Map<String, dynamic>>();
+    final recommendations =
+        (result['recommendations'] as List? ?? []).cast<Map<String, dynamic>>();
     final status = '${result['status'] ?? '—'}';
     final confidence = (result['confidence'] as num?)?.toDouble() ?? 0;
 
     // The model's narrative is separated from the measured findings so a reader can
     // always tell which numbers were computed and which text was written.
-    final assessment = findings.where((f) => f['code'] == 'AI_ASSESSMENT').toList();
-    final measured = findings.where((f) => f['code'] != 'AI_ASSESSMENT').toList();
+    final assessment =
+        findings.where((f) => f['code'] == 'AI_ASSESSMENT').toList();
+    final measured =
+        findings.where((f) => f['code'] != 'AI_ASSESSMENT').toList();
 
     return [
       _card(
@@ -232,8 +247,13 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _chip(status, status == 'SUCCESS' ? const Color(0xFF0F766E) : const Color(0xFFD97706)),
-                _chip('confidence ${(confidence * 100).round()}%', const Color(0xFF475569)),
+                _chip(
+                    status,
+                    status == 'SUCCESS'
+                        ? const Color(0xFF0F766E)
+                        : const Color(0xFFD97706)),
+                _chip('confidence ${(confidence * 100).round()}%',
+                    const Color(0xFF475569)),
                 _chip('${run['intent'] ?? '—'}', const Color(0xFF475569)),
                 _chip('${run['durationMs'] ?? 0} ms', const Color(0xFF475569)),
               ],
@@ -264,12 +284,14 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                   SizedBox(width: 8),
                   Text(
                     'AI assessment',
-                    style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F766E)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, color: Color(0xFF0F766E)),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Text('${assessment.first['summary']}', style: const TextStyle(height: 1.45)),
+              Text('${assessment.first['summary']}',
+                  style: const TextStyle(height: 1.45)),
               const SizedBox(height: 8),
               const Text(
                 'Written by the model from figures the backend computed. Every number is '
@@ -291,7 +313,9 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          f['code'] == 'SHORTAGE_RISK' ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                          f['code'] == 'SHORTAGE_RISK'
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_outline,
                           size: 18,
                           color: f['code'] == 'SHORTAGE_RISK'
                               ? const Color(0xFFDC2626)
@@ -304,9 +328,13 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                             children: [
                               Text(
                                 '${f['code']}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B)),
                               ),
-                              Text('${f['summary']}', style: const TextStyle(height: 1.35)),
+                              Text('${f['summary']}',
+                                  style: const TextStyle(height: 1.35)),
                             ],
                           ),
                         ),
@@ -340,13 +368,17 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
                         Expanded(
                           child: Text(
                             '${r['code']}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF64748B)),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text('${r['summary']}', style: const TextStyle(height: 1.35)),
+                    Text('${r['summary']}',
+                        style: const TextStyle(height: 1.35)),
                   ],
                 ),
               );
@@ -382,7 +414,9 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           child,
         ],
@@ -399,7 +433,8 @@ class _AgentAnalysisScreenState extends State<AgentAnalysisScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+        style:
+            TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }

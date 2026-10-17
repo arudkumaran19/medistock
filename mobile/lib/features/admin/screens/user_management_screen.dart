@@ -9,7 +9,9 @@ class UserManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = currentUser ?? const AuthUser(userId: '', email: 'admin@medistock.com', roles: ['Administrator']);
+    final user = currentUser ??
+        const AuthUser(
+            userId: '', email: 'admin@medistock.com', roles: ['Administrator']);
 
     return Scaffold(
       appBar: AppBar(
@@ -25,8 +27,8 @@ class UserManagementScreen extends StatelessWidget {
             Text(
               'Admin Access Control',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
             const SizedBox(height: 10),
             Text(
@@ -49,7 +51,8 @@ class UserManagementScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.security, color: Color(0xFF7C3AED)),
                       SizedBox(width: 8),
-                      Text('Administrative controls', style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text('Administrative controls',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -61,7 +64,8 @@ class UserManagementScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Current Role', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('Current Role',
+                style: TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -70,7 +74,8 @@ class UserManagementScreen extends StatelessWidget {
                   .map(
                     (role) => Chip(
                       label: Text(role),
-                      backgroundColor: const Color(0xFF7C3AED).withOpacity(0.12),
+                      backgroundColor:
+                          const Color(0xFF7C3AED).withOpacity(0.12),
                       side: BorderSide.none,
                     ),
                   )

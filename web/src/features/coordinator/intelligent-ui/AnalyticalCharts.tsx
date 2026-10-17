@@ -304,7 +304,7 @@ interface DonorComparisonChartProps {
 
 export function DonorComparisonChart({
   candidates,
-  unit = "units",
+  unit: _unit = "units",
   className = "",
 }: DonorComparisonChartProps) {
   if (!candidates || candidates.length === 0) return null;

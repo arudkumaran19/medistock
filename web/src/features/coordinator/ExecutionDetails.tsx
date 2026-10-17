@@ -9,8 +9,6 @@ import {
   Truck,
   ShoppingCart,
   ShieldCheck,
-  CheckCircle2,
-  Clock,
   FileCode,
   Layers,
 } from "lucide-react";

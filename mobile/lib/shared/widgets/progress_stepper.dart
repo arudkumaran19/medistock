@@ -3,7 +3,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/text_styles.dart';
 
 class ProgressStepper extends StatelessWidget {
-  final int currentStep; // 1: Placed, 2: Verified/Approved, 3: InTransit, 4: Delivered
+  final int
+      currentStep; // 1: Placed, 2: Verified/Approved, 3: InTransit, 4: Delivered
   final List<String> stepLabels;
 
   const ProgressStepper({
@@ -49,10 +50,12 @@ class ProgressStepper extends StatelessWidget {
                         ),
                         child: Center(
                           child: isDone
-                              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                              ? const Icon(Icons.check_rounded,
+                                  size: 14, color: Colors.white)
                               : Text(
                                   '$stepNum',
-                                  style: AppTextStyles.badge.copyWith(color: stepColor),
+                                  style: AppTextStyles.badge
+                                      .copyWith(color: stepColor),
                                 ),
                         ),
                       ),
@@ -61,8 +64,11 @@ class ProgressStepper extends StatelessWidget {
                         stepLabels[index],
                         style: AppTextStyles.bodySmall.copyWith(
                           fontSize: 10,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                          color: isCurrent ? AppColors.textPrimary : AppColors.textMuted,
+                          fontWeight:
+                              isCurrent ? FontWeight.bold : FontWeight.w500,
+                          color: isCurrent
+                              ? AppColors.textPrimary
+                              : AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -72,7 +78,9 @@ class ProgressStepper extends StatelessWidget {
                   Expanded(
                     child: Container(
                       height: 2,
-                      color: stepNum < currentStep ? AppColors.primary : AppColors.border,
+                      color: stepNum < currentStep
+                          ? AppColors.primary
+                          : AppColors.border,
                     ),
                   ),
               ],

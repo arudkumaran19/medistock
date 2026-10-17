@@ -39,24 +39,29 @@ class RoleSelectionScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 36),
+                      child: const Icon(Icons.local_pharmacy_rounded,
+                          color: Colors.white, size: 36),
                     ),
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.primarySurface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
+                        border: Border.all(
+                            color: AppColors.primaryLight.withOpacity(0.3)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.auto_awesome, size: 12, color: AppColors.primary),
+                          const Icon(Icons.auto_awesome,
+                              size: 12, color: AppColors.primary),
                           const SizedBox(width: 4),
                           Text(
                             'AI-POWERED REDISTRIBUTION SYSTEM',
-                            style: AppTextStyles.badge.copyWith(color: AppColors.primaryDark),
+                            style: AppTextStyles.badge
+                                .copyWith(color: AppColors.primaryDark),
                           ),
                         ],
                       ),
@@ -71,7 +76,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                     Text(
                       'Welcome to MediStock AI — Choose your operational role to enter dispatch network.',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                      style: AppTextStyles.bodyMedium
+                          .copyWith(color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -81,7 +87,8 @@ class RoleSelectionScreen extends ConsumerWidget {
 
               // District Pulse Chip
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceSubtle,
                   borderRadius: BorderRadius.circular(20),
@@ -102,7 +109,9 @@ class RoleSelectionScreen extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         'Healthcare Logistics Network Active',
-                        style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        style: AppTextStyles.bodySmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -118,7 +127,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                 badgeColor: AppColors.primary,
                 chipLabel: 'Active Hub',
                 title: 'Facility & Clinic Portal',
-                subtitle: 'Pharmacies, General Hospitals & Community Health Clinics',
+                subtitle:
+                    'Pharmacies, General Hospitals & Community Health Clinics',
                 features: const [
                   'Request emergency medicine reallocations',
                   'Real-time stock shortage AI forecasting',
@@ -128,7 +138,9 @@ class RoleSelectionScreen extends ConsumerWidget {
                 buttonColor: AppColors.primary,
                 iconData: Icons.local_hospital_rounded,
                 onTap: () {
-                  ref.read(authControllerProvider.notifier).selectRole('FACILITY_USER');
+                  ref
+                      .read(authControllerProvider.notifier)
+                      .selectRole('FACILITY_USER');
                   context.push('/login/user');
                 },
               ),
@@ -141,7 +153,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                 badgeColor: AppColors.secondary,
                 chipLabel: 'Cold-Chain',
                 title: 'Logistics Field Fleet',
-                subtitle: 'Medical dispatch couriers & verified cold-chain drivers',
+                subtitle:
+                    'Medical dispatch couriers & verified cold-chain drivers',
                 features: const [
                   'Real-time dispatch mission alerts & prioritization',
                   'Route telemetry & automated chain-of-custody',
@@ -151,7 +164,9 @@ class RoleSelectionScreen extends ConsumerWidget {
                 buttonColor: AppColors.secondary,
                 iconData: Icons.local_shipping_rounded,
                 onTap: () {
-                  ref.read(authControllerProvider.notifier).selectRole('FIELD_OFFICER');
+                  ref
+                      .read(authControllerProvider.notifier)
+                      .selectRole('FIELD_OFFICER');
                   context.push('/login/officer');
                 },
               ),
@@ -173,12 +188,16 @@ class RoleSelectionScreen extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.show_chart_rounded, size: 16, color: AppColors.primary),
+                            const Icon(Icons.show_chart_rounded,
+                                size: 16, color: AppColors.primary),
                             const SizedBox(width: 6),
-                            Text('Network Pulse (Live)', style: AppTextStyles.titleSmall),
+                            Text('Network Pulse (Live)',
+                                style: AppTextStyles.titleSmall),
                           ],
                         ),
-                        Text('99.8% On-Time', style: AppTextStyles.badge.copyWith(color: AppColors.success)),
+                        Text('99.8% On-Time',
+                            style: AppTextStyles.badge
+                                .copyWith(color: AppColors.success)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -269,7 +288,8 @@ class _RoleCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   badgeLabel,
-                  style: AppTextStyles.badge.copyWith(color: badgeColor, fontWeight: FontWeight.bold),
+                  style: AppTextStyles.badge
+                      .copyWith(color: badgeColor, fontWeight: FontWeight.bold),
                 ),
               ),
               Container(
@@ -278,7 +298,9 @@ class _RoleCard extends StatelessWidget {
                   color: badgeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(chipLabel, style: AppTextStyles.bodySmall.copyWith(color: badgeColor, fontWeight: FontWeight.w600)),
+                child: Text(chipLabel,
+                    style: AppTextStyles.bodySmall.copyWith(
+                        color: badgeColor, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -300,10 +322,14 @@ class _RoleCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
-                          Icon(Icons.check_circle_rounded, size: 16, color: badgeColor),
+                          Icon(Icons.check_circle_rounded,
+                              size: 16, color: badgeColor),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(f, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+                            child: Text(f,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w500)),
                           ),
                         ],
                       ),
@@ -317,7 +343,8 @@ class _RoleCard extends StatelessWidget {
             onPressed: onTap,
             style: ElevatedButton.styleFrom(
               backgroundColor: buttonColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -351,7 +378,9 @@ class _StatBox extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(value, style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+            Text(value,
+                style: AppTextStyles.titleMedium.copyWith(
+                    color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
             const SizedBox(height: 2),
             Text(label, style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
           ],

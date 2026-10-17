@@ -19,7 +19,7 @@ export function ContextualFollowUps({
   const med = medicineName || "Paracetamol 500 mg";
   const fac = facilityName || "Central Facility";
 
-  let suggestions: { label: string; prompt: string }[] = [];
+  let suggestions: { label: string; prompt: string }[];
 
   switch (intent) {
     case "InventoryAudit":

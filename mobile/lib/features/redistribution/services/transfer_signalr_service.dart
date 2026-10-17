@@ -48,16 +48,16 @@ class TransferSignalRService {
 
       _hubConnection = HubConnectionBuilder()
           .withUrl(
-            hubUrl,
-            HttpConnectionOptions(
-              accessTokenFactory: () async => token ?? '',
-            ),
-          )
-          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-          .build();
+        hubUrl,
+        HttpConnectionOptions(
+          accessTokenFactory: () async => token ?? '',
+        ),
+      )
+          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]).build();
 
       _hubConnection!.on('TransferStatusChanged', _handleTransferStatusChanged);
-      _hubConnection!.on('TransferLocationUpdated', _handleTransferLocationUpdated);
+      _hubConnection!
+          .on('TransferLocationUpdated', _handleTransferLocationUpdated);
       _hubConnection!.on('NotificationCreated', _handleNotificationCreated);
 
       _hubConnection!.onreconnecting((error) {

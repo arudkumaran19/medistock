@@ -59,7 +59,8 @@ class AuthRepository {
     try {
       final refreshToken = await _storage.getRefreshToken();
       if (refreshToken != null) {
-        await _apiClient.post('/api/auth/logout', body: {'refreshToken': refreshToken}, requireAuth: false);
+        await _apiClient.post('/api/auth/logout',
+            body: {'refreshToken': refreshToken}, requireAuth: false);
       }
     } catch (_) {}
     await _storage.clearAll();

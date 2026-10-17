@@ -25,7 +25,13 @@ class TaskHistoryScreen extends ConsumerStatefulWidget {
 
 class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
   String _selectedStatusFilter = 'ALL';
-  static const List<String> _filters = ['ALL', 'Approved', 'Reserved', 'InTransit', 'Delivered'];
+  static const List<String> _filters = [
+    'ALL',
+    'Approved',
+    'Reserved',
+    'InTransit',
+    'Delivered'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +52,8 @@ class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
           final filteredTasks = _selectedStatusFilter == 'ALL'
               ? tasks
               : tasks.where((t) {
-                  final target = toBackendStatus(_selectedStatusFilter).toLowerCase();
+                  final target =
+                      toBackendStatus(_selectedStatusFilter).toLowerCase();
                   final current = toBackendStatus(t.status).toLowerCase();
                   return current == target;
                 }).toList();
@@ -55,7 +62,8 @@ class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
             children: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: _filters.map((f) {
                     final isSelected = _selectedStatusFilter == f;
@@ -70,15 +78,20 @@ class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
                         label: Text(
                           label,
                           style: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                         selected: isSelected,
                         selectedColor: AppColors.primary,
                         backgroundColor: AppColors.surface,
-                        onSelected: (_) => setState(() => _selectedStatusFilter = f),
+                        onSelected: (_) =>
+                            setState(() => _selectedStatusFilter = f),
                       ),
                     );
                   }).toList(),
@@ -87,31 +100,42 @@ class _TaskHistoryScreenState extends ConsumerState<TaskHistoryScreen> {
               Expanded(
                 child: filteredTasks.isEmpty
                     ? RefreshIndicator(
-                        onRefresh: () async => ref.refresh(assignedTasksProvider),
+                        onRefresh: () async =>
+                            ref.refresh(assignedTasksProvider),
                         child: ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: const [
                             SizedBox(height: 80),
-                            EmptyView(message: 'No deliveries found in this category'),
+                            EmptyView(
+                                message:
+                                    'No deliveries found in this category'),
                           ],
                         ),
                       )
                     : RefreshIndicator(
-                        onRefresh: () async => ref.refresh(assignedTasksProvider),
+                        onRefresh: () async =>
+                            ref.refresh(assignedTasksProvider),
                         child: ListView.separated(
                           padding: const EdgeInsets.all(16),
                           itemCount: filteredTasks.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final task = filteredTasks[index];
                             final medicineTitle = task.items.isNotEmpty
-                                ? task.items.map((i) => '${i.itemName} (${i.requestedQuantity})').join(', ')
+                                ? task.items
+                                    .map((i) =>
+                                        '${i.itemName} (${i.requestedQuantity})')
+                                    .join(', ')
                                 : 'Transfer #${task.transferNumber}';
-                            final route = '${task.sourceFacilityName} ➔ ${task.destinationFacilityName}';
-                            final dateStr = '${task.createdAt.day}/${task.createdAt.month}/${task.createdAt.year}';
+                            final route =
+                                '${task.sourceFacilityName} ➔ ${task.destinationFacilityName}';
+                            final dateStr =
+                                '${task.createdAt.day}/${task.createdAt.month}/${task.createdAt.year}';
 
                             return InkWell(
-                              onTap: () => context.push('/officer/active/${task.id}'),
+                              onTap: () =>
+                                  context.push('/officer/active/${task.id}'),
                               borderRadius: BorderRadius.circular(16),
                               child: _HistoryCard(
                                 id: '#${task.transferNumber}',
@@ -166,7 +190,9 @@ class _HistoryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(id, style: AppTextStyles.titleSmall.copyWith(color: AppColors.secondary)),
+              Text(id,
+                  style: AppTextStyles.titleSmall
+                      .copyWith(color: AppColors.secondary)),
               StatusChip(status: status.toUpperCase()),
             ],
           ),
@@ -179,7 +205,9 @@ class _HistoryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(date, style: AppTextStyles.bodySmall),
-              Text(distance, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+              Text(distance,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
         ],

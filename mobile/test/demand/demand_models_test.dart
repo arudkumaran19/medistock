@@ -28,7 +28,8 @@ void main() {
       expect(alert.coverLabel, '6 days');
     });
 
-    test('treats a null daysRemaining as no projected stockout, not zero days', () {
+    test('treats a null daysRemaining as no projected stockout, not zero days',
+        () {
       final ShortageAlert alert = ShortageAlert.fromJson(<String, dynamic>{
         'id': 'a1',
         'facilityId': 'f1',
@@ -103,7 +104,8 @@ void main() {
       expect(json['quantityUsed'], 20);
     });
 
-    test('sends the chosen calendar day, not local midnight shifted to UTC', () {
+    test('sends the chosen calendar day, not local midnight shifted to UTC',
+        () {
       // What the date picker returns: local midnight on the chosen day. Converting
       // that with toUtc() moved it to the previous day anywhere east of UTC.
       final ConsumptionEntry entry = ConsumptionEntry(

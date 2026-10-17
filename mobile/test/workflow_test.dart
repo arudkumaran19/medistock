@@ -128,15 +128,20 @@ class WorkflowMockApiService extends TransferApiService {
       provider: 'OpenRouteService',
       isFallback: false,
       waypoints: [
-        RouteWaypoint(latitude: 6.9271, longitude: 79.8612, label: 'Central Depot'),
-        RouteWaypoint(latitude: 7.2906, longitude: 80.6337, label: 'Hospital Reception Bay'),
+        RouteWaypoint(
+            latitude: 6.9271, longitude: 79.8612, label: 'Central Depot'),
+        RouteWaypoint(
+            latitude: 7.2906,
+            longitude: 80.6337,
+            label: 'Hospital Reception Bay'),
       ],
     );
   }
 }
 
 void main() {
-  testWidgets('Field Officer Operations Workflow: Pickup (Reserved -> InTransit) -> Tracking -> Delivery (InTransit -> Delivered)',
+  testWidgets(
+      'Field Officer Operations Workflow: Pickup (Reserved -> InTransit) -> Tracking -> Delivery (InTransit -> Delivered)',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, QueryClientContext } from '@tanstack/react-query';
-import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 import { notificationApi, type AppNotification } from '@/services/notificationApi';
 import { useAuth } from '@/features/auth/AuthContext';
 

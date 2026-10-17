@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { WorkflowRun } from "@/types/workflow";
 import { useAuth } from "@/features/auth/AuthContext";
-import { UserCheck, ShieldAlert, Check, X, Lock } from "lucide-react";
+import { UserCheck, Check, X, Lock } from "lucide-react";
 
 interface GovernanceApprovalCardProps {
   workflow: WorkflowRun;

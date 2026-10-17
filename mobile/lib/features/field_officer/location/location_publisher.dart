@@ -39,7 +39,8 @@ class LocationPublisher {
           desiredAccuracy: LocationAccuracy.high,
         );
         if (kDebugMode) {
-          debugPrint('🛰️ [GPS Publisher] Lat: ${position.latitude}, Lng: ${position.longitude}');
+          debugPrint(
+              '🛰️ [GPS Publisher] Lat: ${position.latitude}, Lng: ${position.longitude}');
         }
         await _signalRClient.sendLocationUpdate(
           activeTransferId,
@@ -64,4 +65,3 @@ class LocationPublisher {
 final locationPublisherProvider = Provider<LocationPublisher>((ref) {
   return LocationPublisher();
 });
-

@@ -48,7 +48,8 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
   }
 
   void _showIncomingModal({Map<String, dynamic>? taskData}) {
-    final transferId = taskData?['id']?.toString() ?? taskData?['transferId']?.toString();
+    final transferId =
+        taskData?['id']?.toString() ?? taskData?['transferId']?.toString();
     if (transferId == null || transferId.isEmpty) return;
     showModalBottomSheet(
       context: context,
@@ -59,7 +60,9 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
         onAccept: () async {
           Navigator.pop(context);
           try {
-            await ref.read(officerTaskRepositoryProvider).acceptTask(transferId);
+            await ref
+                .read(officerTaskRepositoryProvider)
+                .acceptTask(transferId);
           } catch (_) {}
           if (context.mounted) {
             context.push('/officer/active/$transferId');
@@ -68,7 +71,9 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
         onDecline: () async {
           Navigator.pop(context);
           try {
-            await ref.read(officerTaskRepositoryProvider).declineTask(transferId);
+            await ref
+                .read(officerTaskRepositoryProvider)
+                .declineTask(transferId);
           } catch (_) {}
         },
       ),
@@ -86,15 +91,20 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 20),
+              decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.local_shipping_rounded,
+                  color: Colors.white, size: 20),
             ),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Logistics Field Officer', style: AppTextStyles.titleMedium),
-                Text('Fleet Courier Console', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                Text('Logistics Field Officer',
+                    style: AppTextStyles.titleMedium),
+                Text('Fleet Courier Console',
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
               ],
             ),
           ],
@@ -106,7 +116,9 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
               radius: 16,
               backgroundColor: AppColors.secondaryLight,
               child: Text(
-                user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'O',
+                user?.name.isNotEmpty == true
+                    ? user!.name.substring(0, 1).toUpperCase()
+                    : 'O',
                 style: AppTextStyles.badge.copyWith(color: AppColors.secondary),
               ),
             ),
@@ -122,9 +134,14 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _isOnline ? AppColors.secondaryLight : AppColors.surfaceSubtle,
+                color: _isOnline
+                    ? AppColors.secondaryLight
+                    : AppColors.surfaceSubtle,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _isOnline ? AppColors.secondary.withOpacity(0.4) : AppColors.border),
+                border: Border.all(
+                    color: _isOnline
+                        ? AppColors.secondary.withOpacity(0.4)
+                        : AppColors.border),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,7 +152,9 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: _isOnline ? AppColors.success : AppColors.textMuted,
+                          color: _isOnline
+                              ? AppColors.success
+                              : AppColors.textMuted,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -143,8 +162,16 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_isOnline ? 'YOU ARE ONLINE' : 'YOU ARE OFFLINE', style: AppTextStyles.titleMedium.copyWith(color: _isOnline ? AppColors.secondary : AppColors.textSecondary)),
-                          Text(_isOnline ? 'Ready for priority dispatch alerts' : 'Tap switch to go online', style: AppTextStyles.bodySmall),
+                          Text(_isOnline ? 'YOU ARE ONLINE' : 'YOU ARE OFFLINE',
+                              style: AppTextStyles.titleMedium.copyWith(
+                                  color: _isOnline
+                                      ? AppColors.secondary
+                                      : AppColors.textSecondary)),
+                          Text(
+                              _isOnline
+                                  ? 'Ready for priority dispatch alerts'
+                                  : 'Tap switch to go online',
+                              style: AppTextStyles.bodySmall),
                         ],
                       ),
                     ],
@@ -168,18 +195,26 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             const SizedBox(height: 20),
 
             // TODAY'S SHIFT STATS
-            Text('TODAY\'S SHIFT PERFORMANCE', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+            Text('TODAY\'S SHIFT PERFORMANCE',
+                style: AppTextStyles.badge
+                    .copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
             LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 360;
                 return Row(
                   children: [
-                    const _OfficerStatCard(title: 'Deliveries', value: '8', sub: 'Completed'),
+                    const _OfficerStatCard(
+                        title: 'Deliveries', value: '8', sub: 'Completed'),
                     SizedBox(width: isCompact ? 6 : 10),
-                    const _OfficerStatCard(title: 'On-Time', value: '100%', sub: 'Rating 4.9★', color: AppColors.success),
+                    const _OfficerStatCard(
+                        title: 'On-Time',
+                        value: '100%',
+                        sub: 'Rating 4.9★',
+                        color: AppColors.success),
                     SizedBox(width: isCompact ? 6 : 10),
-                    const _OfficerStatCard(title: 'Distance', value: '42 km', sub: 'Transit'),
+                    const _OfficerStatCard(
+                        title: 'Distance', value: '42 km', sub: 'Transit'),
                   ],
                 );
               },
@@ -188,92 +223,121 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
             const SizedBox(height: 24),
 
             // ACTIVE DELIVERY MISSION CARD
-            Text('ACTIVE MISSION', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+            Text('ACTIVE MISSION',
+                style: AppTextStyles.badge
+                    .copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
             ref.watch(assignedTasksProvider).when(
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
-              error: (err, _) => Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text('Unable to load active missions', style: AppTextStyles.bodyMedium),
-              ),
-              data: (tasks) {
-                final activeTask = tasks.where((t) {
-                  final s = t.status.toLowerCase();
-                  return s == 'intransit' || s == 'in transit' || s == 'reserved' || s == 'approved';
-                }).firstOrNull;
-
-                if (activeTask == null) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator())),
+                  error: (err, _) => Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.check_circle_outline_rounded, size: 36, color: AppColors.success),
-                        const SizedBox(height: 8),
-                        Text('No Active Missions', style: AppTextStyles.titleMedium),
-                        const SizedBox(height: 4),
-                        Text('Stay online to receive real-time dispatch alerts.', style: AppTextStyles.bodySmall),
-                      ],
-                    ),
-                  );
-                }
-
-                final medicineName = activeTask.items.isNotEmpty ? activeTask.items.first.itemName : 'Medical Supplies';
-                final routeText = '${activeTask.sourceFacilityName} ➔ ${activeTask.destinationFacilityName}';
-
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.secondary.withOpacity(0.4)),
+                    child: Text('Unable to load active missions',
+                        style: AppTextStyles.bodyMedium),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  data: (tasks) {
+                    final activeTask = tasks.where((t) {
+                      final s = t.status.toLowerCase();
+                      return s == 'intransit' ||
+                          s == 'in transit' ||
+                          s == 'reserved' ||
+                          s == 'approved';
+                    }).firstOrNull;
+
+                    if (activeTask == null) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded,
+                                size: 36, color: AppColors.success),
+                            const SizedBox(height: 8),
+                            Text('No Active Missions',
+                                style: AppTextStyles.titleMedium),
+                            const SizedBox(height: 4),
+                            Text(
+                                'Stay online to receive real-time dispatch alerts.',
+                                style: AppTextStyles.bodySmall),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final medicineName = activeTask.items.isNotEmpty
+                        ? activeTask.items.first.itemName
+                        : 'Medical Supplies';
+                    final routeText =
+                        '${activeTask.sourceFacilityName} ➔ ${activeTask.destinationFacilityName}';
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppColors.secondary.withOpacity(0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(activeTask.transferNumber.isNotEmpty ? activeTask.transferNumber : '#REQ-${activeTask.id.substring(0, 8)}', style: AppTextStyles.titleSmall.copyWith(color: AppColors.secondary)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(8)),
-                            child: Text(activeTask.status.toUpperCase(), style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                  activeTask.transferNumber.isNotEmpty
+                                      ? activeTask.transferNumber
+                                      : '#REQ-${activeTask.id.substring(0, 8)}',
+                                  style: AppTextStyles.titleSmall
+                                      .copyWith(color: AppColors.secondary)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: AppColors.secondaryLight,
+                                    borderRadius: BorderRadius.circular(8)),
+                                child: Text(activeTask.status.toUpperCase(),
+                                    style: AppTextStyles.badge
+                                        .copyWith(color: AppColors.secondary)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(medicineName, style: AppTextStyles.titleLarge),
+                          const SizedBox(height: 2),
+                          Text(routeText, style: AppTextStyles.bodySmall),
+                          const SizedBox(height: 14),
+                          ElevatedButton(
+                            onPressed: () => context
+                                .push('/officer/active/${activeTask.id}'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondary),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.navigation_rounded, size: 18),
+                                SizedBox(width: 8),
+                                Text('Open Active Delivery Console'),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(medicineName, style: AppTextStyles.titleLarge),
-                      const SizedBox(height: 2),
-                      Text(routeText, style: AppTextStyles.bodySmall),
-                      const SizedBox(height: 14),
-                      ElevatedButton(
-                        onPressed: () => context.push('/officer/active/${activeTask.id}'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.navigation_rounded, size: 18),
-                            SizedBox(width: 8),
-                            Text('Open Active Delivery Console'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
           ],
         ),
       ),
@@ -288,9 +352,12 @@ class _OfficerHomeScreenState extends ConsumerState<OfficerHomeScreen> {
           if (index == 2) context.push('/officer/profile');
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Task History'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.history_rounded), label: 'Task History'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
         ],
       ),
     );
@@ -303,7 +370,11 @@ class _OfficerStatCard extends StatelessWidget {
   final String sub;
   final Color? color;
 
-  const _OfficerStatCard({required this.title, required this.value, required this.sub, this.color});
+  const _OfficerStatCard(
+      {required this.title,
+      required this.value,
+      required this.sub,
+      this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +391,9 @@ class _OfficerStatCard extends StatelessWidget {
           children: [
             Text(title, style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
             const SizedBox(height: 4),
-            Text(value, style: AppTextStyles.displayMedium.copyWith(fontSize: 20, color: color ?? AppColors.textPrimary)),
+            Text(value,
+                style: AppTextStyles.displayMedium.copyWith(
+                    fontSize: 20, color: color ?? AppColors.textPrimary)),
             const SizedBox(height: 2),
             Text(sub, style: AppTextStyles.bodySmall.copyWith(fontSize: 9)),
           ],

@@ -21,7 +21,9 @@ class InventoryRepository {
       list = data;
     }
 
-    return list.map((j) => InventoryModel.fromJson(j as Map<String, dynamic>)).toList();
+    return list
+        .map((j) => InventoryModel.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 }
 
@@ -29,6 +31,7 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   return InventoryRepository(DioClient().dio);
 });
 
-final inventoryListProvider = FutureProvider.autoDispose.family<List<InventoryModel>, String?>((ref, facilityId) async {
+final inventoryListProvider = FutureProvider.autoDispose
+    .family<List<InventoryModel>, String?>((ref, facilityId) async {
   return ref.watch(inventoryRepositoryProvider).getAll(facilityId: facilityId);
 });

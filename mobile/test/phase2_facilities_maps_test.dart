@@ -12,15 +12,73 @@ import 'package:medistock_mobile/features/redistribution/widgets/transfer_live_m
 import 'package:medistock_mobile/shared/models/facility_model.dart';
 
 const List<int> _kTransparentImage = <int>[
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-  0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
-  0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
-  0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
-  0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
-  0x42, 0x60, 0x82,
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+  0x00,
+  0x00,
+  0x00,
+  0x0D,
+  0x49,
+  0x48,
+  0x44,
+  0x52,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x00,
+  0x01,
+  0x08,
+  0x06,
+  0x00,
+  0x00,
+  0x00,
+  0x1F,
+  0x15,
+  0xC4,
+  0x89,
+  0x00,
+  0x00,
+  0x00,
+  0x0A,
+  0x49,
+  0x44,
+  0x41,
+  0x54,
+  0x78,
+  0x9C,
+  0x63,
+  0x00,
+  0x01,
+  0x00,
+  0x00,
+  0x05,
+  0x00,
+  0x01,
+  0x0D,
+  0x0A,
+  0x2D,
+  0xB4,
+  0x00,
+  0x00,
+  0x00,
+  0x00,
+  0x49,
+  0x45,
+  0x4E,
+  0x44,
+  0xAE,
+  0x42,
+  0x60,
+  0x82,
 ];
 
 class _MockHttpOverrides extends HttpOverrides {
@@ -32,7 +90,8 @@ class _MockHttpClient implements HttpClient {
   @override
   Future<HttpClientRequest> getUrl(Uri url) async => _MockHttpRequest();
   @override
-  Future<HttpClientRequest> openUrl(String method, Uri url) async => _MockHttpRequest();
+  Future<HttpClientRequest> openUrl(String method, Uri url) async =>
+      _MockHttpRequest();
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
@@ -63,7 +122,8 @@ class _MockHttpRequest implements HttpClientRequest {
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
-class _MockHttpResponse extends Stream<List<int>> implements HttpClientResponse {
+class _MockHttpResponse extends Stream<List<int>>
+    implements HttpClientResponse {
   @override
   final HttpHeaders headers = _MockHttpHeaders();
   @override
@@ -91,6 +151,7 @@ class _MockHttpResponse extends Stream<List<int>> implements HttpClientResponse 
       cancelOnError: cancelOnError,
     );
   }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
@@ -101,7 +162,9 @@ void main() {
   });
 
   group('Phase 2: Facilities and Maps Integrity Tests', () {
-    test('1. mobile/lib contains no India or demo text (Chennai, Tamil, Guindy, etc.)', () {
+    test(
+        '1. mobile/lib contains no India or demo text (Chennai, Tamil, Guindy, etc.)',
+        () {
       final libDir = Directory('lib');
       expect(libDir.existsSync(), isTrue, reason: 'lib directory must exist');
 
@@ -121,10 +184,13 @@ void main() {
         RegExp(r'\bFuture\.delayed\b', caseSensitive: false),
         RegExp(r'TODO:\s*replace', caseSensitive: false),
         RegExp(r'\b(mock|dummy)\b', caseSensitive: false),
-        RegExp(r'\b(Rajesh\s+Kumar|Kilpauk|Poonamallee|Rajiv\s+Gandhi)\b', caseSensitive: false),
+        RegExp(r'\b(Rajesh\s+Kumar|Kilpauk|Poonamallee|Rajiv\s+Gandhi)\b',
+            caseSensitive: false),
         RegExp(r'13\.0827|80\.2707'),
-        RegExp(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'),
-        RegExp(r'\b(defaultDestinationFacilityId|defaultMedicineId|defaultSourceFacilityId|defaultFieldUserId)\b'),
+        RegExp(
+            r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'),
+        RegExp(
+            r'\b(defaultDestinationFacilityId|defaultMedicineId|defaultSourceFacilityId|defaultFieldUserId)\b'),
       ];
 
       final violations = <String>[];
@@ -134,13 +200,16 @@ void main() {
           final content = entity.readAsStringSync();
           for (final pattern in forbiddenPatterns) {
             if (pattern.hasMatch(content)) {
-              violations.add('${entity.path} matches pattern "${pattern.pattern}"');
+              violations
+                  .add('${entity.path} matches pattern "${pattern.pattern}"');
             }
           }
         }
       }
 
-      expect(violations, isEmpty, reason: 'Found demo/India strings in mobile/lib:\n${violations.join("\n")}');
+      expect(violations, isEmpty,
+          reason:
+              'Found demo/India strings in mobile/lib:\n${violations.join("\n")}');
     });
 
     test('2. Facility list from API with mocked HTTP and parsing', () async {
@@ -179,11 +248,14 @@ void main() {
         return http.Response('{"success": false}', 404);
       });
 
-      final response = await mockClient.get(Uri.parse('http://localhost:5050/api/facilities'));
+      final response = await mockClient
+          .get(Uri.parse('http://localhost:5050/api/facilities'));
       expect(response.statusCode, equals(200));
 
       final decoded = jsonDecode(response.body);
-      final facilities = (decoded['data'] as List).map((j) => FacilityModel.fromJson(j)).toList();
+      final facilities = (decoded['data'] as List)
+          .map((j) => FacilityModel.fromJson(j))
+          .toList();
 
       expect(facilities.length, equals(2));
       expect(facilities[0].name, equals('National Hospital of Sri Lanka'));
@@ -197,7 +269,9 @@ void main() {
       expect(facilities[1].hasValidCoordinates, isTrue);
     });
 
-    testWidgets('3. TransferLiveMapWidget renders Location unavailable when coordinates are (0, 0)', (WidgetTester tester) async {
+    testWidgets(
+        '3. TransferLiveMapWidget renders Location unavailable when coordinates are (0, 0)',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -215,11 +289,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Location unavailable'), findsOneWidget);
-      expect(find.text('Facility coordinates or transit route data are not available.'), findsOneWidget);
+      expect(
+          find.text(
+              'Facility coordinates or transit route data are not available.'),
+          findsOneWidget);
       expect(find.byIcon(Icons.location_off_rounded), findsOneWidget);
     });
 
-    testWidgets('4. TransferLiveMapWidget camera bounds from route and Sri Lanka center constants', (WidgetTester tester) async {
+    testWidgets(
+        '4. TransferLiveMapWidget camera bounds from route and Sri Lanka center constants',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(800, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -231,7 +310,10 @@ void main() {
       const dest = LatLng(6.0535, 80.2210); // Galle
 
       final waypoints = <RouteWaypoint>[
-        RouteWaypoint(latitude: 6.8000, longitude: 79.9000, label: 'Expressway Interchange'),
+        RouteWaypoint(
+            latitude: 6.8000,
+            longitude: 79.9000,
+            label: 'Expressway Interchange'),
       ];
 
       await tester.pumpWidget(

@@ -9,13 +9,8 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Activity,
-  CheckCircle2,
-  Building2,
-  Thermometer,
   Boxes,
   UserCheck,
-  ShieldAlert,
 } from "lucide-react";
 
 /* ─── Official Brand Mark ────────────────────────────────────────── */

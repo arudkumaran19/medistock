@@ -15,7 +15,9 @@ class ApiException implements Exception {
 
 class AuthException implements Exception {
   final String message;
-  AuthException([this.message = 'Authentication token missing or invalid. Please login again.']);
+  AuthException(
+      [this.message =
+          'Authentication token missing or invalid. Please login again.']);
 
   @override
   String toString() => 'AuthException: $message';

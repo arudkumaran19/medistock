@@ -4,7 +4,8 @@ import '../../auth/presentation/auth_controller.dart';
 import 'data/shortage_repository.dart';
 import 'models/shortage_alert_model.dart';
 
-final openedAlertsProvider = StateNotifierProvider<OpenedAlertsNotifier, Set<String>>((ref) {
+final openedAlertsProvider =
+    StateNotifierProvider<OpenedAlertsNotifier, Set<String>>((ref) {
   return OpenedAlertsNotifier();
 });
 
@@ -32,9 +33,12 @@ class OpenedAlertsNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final alertsProvider = StateNotifierProvider<AlertsNotifier, AsyncValue<List<ShortageAlertModel>>>((ref) {
+final alertsProvider =
+    StateNotifierProvider<AlertsNotifier, AsyncValue<List<ShortageAlertModel>>>(
+        (ref) {
   final user = ref.watch(authControllerProvider).user;
-  return AlertsNotifier(ref.watch(shortageRepositoryProvider), facilityId: user?.facilityId);
+  return AlertsNotifier(ref.watch(shortageRepositoryProvider),
+      facilityId: user?.facilityId);
 });
 
 final unreadAlertCountProvider = Provider<int>((ref) {
@@ -46,18 +50,21 @@ final unreadAlertCountProvider = Provider<int>((ref) {
   );
 });
 
-class AlertsNotifier extends StateNotifier<AsyncValue<List<ShortageAlertModel>>> {
+class AlertsNotifier
+    extends StateNotifier<AsyncValue<List<ShortageAlertModel>>> {
   final ShortageRepository _repo;
   final String? facilityId;
 
-  AlertsNotifier(this._repo, {this.facilityId}) : super(const AsyncValue.loading()) {
+  AlertsNotifier(this._repo, {this.facilityId})
+      : super(const AsyncValue.loading()) {
     load();
   }
 
   Future<void> load() async {
     try {
       final alerts = await _repo.getMyAlerts(facilityId: facilityId);
-      final activeAlerts = alerts.where((a) => a.status.toUpperCase() != 'DISMISSED').toList();
+      final activeAlerts =
+          alerts.where((a) => a.status.toUpperCase() != 'DISMISSED').toList();
       // Sort by createdAt descending so newest is first
       activeAlerts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       state = AsyncValue.data(activeAlerts);

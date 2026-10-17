@@ -8,7 +8,8 @@ class ProcurementRequestScreen extends StatefulWidget {
   const ProcurementRequestScreen({super.key});
 
   @override
-  State<ProcurementRequestScreen> createState() => _ProcurementRequestScreenState();
+  State<ProcurementRequestScreen> createState() =>
+      _ProcurementRequestScreenState();
 }
 
 class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
@@ -89,12 +90,16 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
     final qty = int.tryParse(_quantityController.text);
     final price = double.tryParse(_priceController.text);
 
-    if (_selectedMedicineId == null || _selectedFacilityId == null || _selectedSupplierId == null) {
-      setState(() => _errorMessage = 'Please select a medicine, facility, and supplier.');
+    if (_selectedMedicineId == null ||
+        _selectedFacilityId == null ||
+        _selectedSupplierId == null) {
+      setState(() =>
+          _errorMessage = 'Please select a medicine, facility, and supplier.');
       return;
     }
     if (qty == null || qty <= 0) {
-      setState(() => _errorMessage = 'Requested quantity must be greater than zero.');
+      setState(() =>
+          _errorMessage = 'Requested quantity must be greater than zero.');
       return;
     }
     if (price == null || price < 0) {
@@ -126,7 +131,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
 
       if (mounted) {
         setState(() {
-          _successMessage = 'Purchase requisition submitted successfully (Ref: ${po.id.substring(0, 8)}…).';
+          _successMessage =
+              'Purchase requisition submitted successfully (Ref: ${po.id.substring(0, 8)}…).';
           _isSubmitting = false;
         });
       }
@@ -169,7 +175,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                       border: Border.all(color: Colors.red.shade200),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade800)),
+                    child: Text(_errorMessage!,
+                        style: TextStyle(color: Colors.red.shade800)),
                   ),
                 if (_successMessage != null)
                   Container(
@@ -180,7 +187,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                       border: Border.all(color: Colors.green.shade200),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(_successMessage!, style: TextStyle(color: Colors.green.shade800)),
+                    child: Text(_successMessage!,
+                        style: TextStyle(color: Colors.green.shade800)),
                   ),
                 Card(
                   elevation: 0,
@@ -196,7 +204,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                       children: [
                         const Text(
                           'Select Requisition Parameters',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
@@ -211,7 +220,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                               child: Text('${m.name} (${m.code})'),
                             );
                           }).toList(),
-                          onChanged: (v) => setState(() => _selectedMedicineId = v),
+                          onChanged: (v) =>
+                              setState(() => _selectedMedicineId = v),
                         ),
                         const SizedBox(height: 14),
                         DropdownButtonFormField<String>(
@@ -244,7 +254,8 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                               child: Text(f.name),
                             );
                           }).toList(),
-                          onChanged: (v) => setState(() => _selectedFacilityId = v),
+                          onChanged: (v) =>
+                              setState(() => _selectedFacilityId = v),
                         ),
                         const SizedBox(height: 14),
                         Row(
@@ -264,7 +275,9 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                             Expanded(
                               child: TextField(
                                 controller: _priceController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Unit Price (\$) *',
                                   border: OutlineInputBorder(),
@@ -283,9 +296,13 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _validationResult!.isValid ? Colors.teal.shade50 : Colors.amber.shade50,
+                      color: _validationResult!.isValid
+                          ? Colors.teal.shade50
+                          : Colors.amber.shade50,
                       border: Border.all(
-                        color: _validationResult!.isValid ? Colors.teal.shade300 : Colors.amber.shade400,
+                        color: _validationResult!.isValid
+                            ? Colors.teal.shade300
+                            : Colors.amber.shade400,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -296,7 +313,9 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                           'Policy Check: ${_validationResult!.isValid ? "COMPLIANT" : "FLAGGED"}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: _validationResult!.isValid ? Colors.teal.shade900 : Colors.amber.shade900,
+                            color: _validationResult!.isValid
+                                ? Colors.teal.shade900
+                                : Colors.amber.shade900,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -309,7 +328,10 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               '⚠️ Requires ${_validationResult!.approverRole ?? "managerial"} sign-off.',
-                              style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.amber.shade900,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                       ],
@@ -327,10 +349,13 @@ class _ProcurementRequestScreenState extends State<ProcurementRequestScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2),
                         )
                       : const Icon(Icons.send),
-                  label: Text(_isSubmitting ? 'Submitting Requisition…' : 'Submit for Approval'),
+                  label: Text(_isSubmitting
+                      ? 'Submitting Requisition…'
+                      : 'Submit for Approval'),
                 ),
               ],
             ),

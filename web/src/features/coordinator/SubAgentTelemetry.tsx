@@ -59,7 +59,7 @@ interface AgentCardProps {
   children: React.ReactNode;
 }
 
-function AgentCard({ icon, name, badge, badgeColor, iconBg, iconColor, children }: AgentCardProps) {
+function AgentCard({ icon, name, badge, badgeColor, iconBg, iconColor: _iconColor, children }: AgentCardProps) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.slate200}`, borderRadius: 8,
       padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>

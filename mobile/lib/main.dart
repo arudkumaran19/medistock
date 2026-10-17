@@ -6,5 +6,5 @@ import 'features/auth/data/auth_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await MobileAuthService().tryRestoreSession();
-  runApp(const MediStockApp());
+  runApp(const ProviderScope(child: MediStockApp()));
 }

@@ -76,7 +76,8 @@ class AppRouter {
   static const tracking = '/tracking';
   static const receive = '/receive';
 
-  static Route<dynamic> generateRoute(RouteSettings settings) => generate(settings);
+  static Route<dynamic> generateRoute(RouteSettings settings) =>
+      generate(settings);
 
   static Route<dynamic> generate(RouteSettings settings) {
     final Widget page;
@@ -91,7 +92,8 @@ class AppRouter {
         break;
 
       case dashboard:
-        final user = (settings.arguments as AuthUser?) ?? _authService.currentUser;
+        final user =
+            (settings.arguments as AuthUser?) ?? _authService.currentUser;
         if (user == null) {
           page = const LoginScreen(roleType: 'user');
         } else {
@@ -103,7 +105,7 @@ class AppRouter {
         final user = _authService.currentUser;
         page = user != null && user.isAdmin
             ? UserManagementScreen(currentUser: user)
-            : const LoginScreen();
+            : const LoginScreen(roleType: 'user');
         break;
 
       // ─── Root: guard → dashboard or login ────────────────────────────

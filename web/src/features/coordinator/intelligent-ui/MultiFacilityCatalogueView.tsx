@@ -106,8 +106,8 @@ export function MultiFacilityCatalogueView({
       let central = 0;
       let kandy = 0;
       let northside = 0;
-      let eastview = 0;
-      let westgate = 0;
+      const eastview = 0;
+      const westgate = 0;
 
       if (name.includes("Amoxicillin 500")) {
         colombo = Math.round(total * 0.45);

@@ -28,7 +28,8 @@ class PagedResponse<T> {
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromItem,
   ) {
-    final List<dynamic> rawItems = (json['items'] as List<dynamic>?) ?? <dynamic>[];
+    final List<dynamic> rawItems =
+        (json['items'] as List<dynamic>?) ?? <dynamic>[];
 
     return PagedResponse<T>(
       items: rawItems

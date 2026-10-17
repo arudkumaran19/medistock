@@ -4,12 +4,10 @@ import { MarkdownMessage } from "../MarkdownMessage";
 import { MessageToolbar } from "./MessageToolbar";
 import { ContextualFollowUps } from "./ContextualFollowUps";
 import { MedicineStockCard, type MedicineStockData } from "./MedicineStockCard";
-import { MedicineCatalogueTable, type CatalogueItem } from "./MedicineCatalogueTable";
+import type { CatalogueItem } from "./MedicineCatalogueTable";
 import {
   StockThresholdChart,
   DemandRunwayChart,
-  DonorComparisonChart,
-  SupplierComparisonChart,
 } from "./AnalyticalCharts";
 import { DecisionProposalCard } from "./DecisionProposalCard";
 import { MultiFacilityCatalogueView } from "./MultiFacilityCatalogueView";
@@ -43,7 +41,7 @@ export function AdaptiveResponseRenderer({
     } catch {
       return null;
     }
-  }, [message.workflowRun?.resultJson]);
+  }, [message.workflowRun]);
 
   // Extract catalogue items either from structured payload or from markdown table in text
   const catalogueList: CatalogueItem[] | null = useMemo(() => {

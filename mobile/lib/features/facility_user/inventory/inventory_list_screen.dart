@@ -11,7 +11,8 @@ class InventoryListScreen extends ConsumerStatefulWidget {
   const InventoryListScreen({super.key});
 
   @override
-  ConsumerState<InventoryListScreen> createState() => _InventoryListScreenState();
+  ConsumerState<InventoryListScreen> createState() =>
+      _InventoryListScreenState();
 }
 
 class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
@@ -52,10 +53,14 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
 
   List<InventoryModel> get _filteredItems {
     return _items.where((item) {
-      final matchesSearch = item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item.itemCode.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesSearch =
+          item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              item.itemCode.toLowerCase().contains(_searchQuery.toLowerCase());
       if (_filter == 'LOW_STOCK') return matchesSearch && item.isLowStock;
-      if (_filter == 'EXPIRING') return matchesSearch && item.nextExpiryDate != null && item.nextExpiryDate!.difference(DateTime.now()).inDays <= 30;
+      if (_filter == 'EXPIRING')
+        return matchesSearch &&
+            item.nextExpiryDate != null &&
+            item.nextExpiryDate!.difference(DateTime.now()).inDays <= 30;
       return matchesSearch;
     }).toList();
   }
@@ -120,14 +125,16 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                     ? ListView.separated(
                         itemCount: 5,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (_, __) => const LoadingSkeleton(height: 90),
+                        itemBuilder: (_, __) =>
+                            const LoadingSkeleton(height: 90),
                       )
                     : _errorMessage != null
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text('Failed to load inventory: $_errorMessage', textAlign: TextAlign.center),
+                                Text('Failed to load inventory: $_errorMessage',
+                                    textAlign: TextAlign.center),
                                 const SizedBox(height: 12),
                                 ElevatedButton(
                                   onPressed: _fetchInventory,
@@ -139,11 +146,13 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                         : _filteredItems.isEmpty
                             ? const EmptyStateWidget(
                                 title: 'No Inventory Items Found',
-                                message: 'Try adjusting your search criteria or filter chips.',
+                                message:
+                                    'Try adjusting your search criteria or filter chips.',
                               )
                             : ListView.separated(
                                 itemCount: _filteredItems.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final item = _filteredItems[index];
                                   return _InventoryCard(item: item);
@@ -181,7 +190,8 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? activeColor : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? activeColor : AppColors.border),
+          border:
+              Border.all(color: isSelected ? activeColor : AppColors.border),
         ),
         child: Text(
           label,
@@ -202,7 +212,9 @@ class _InventoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final daysToExpiry = item.nextExpiryDate != null ? item.nextExpiryDate!.difference(DateTime.now()).inDays : 999;
+    final daysToExpiry = item.nextExpiryDate != null
+        ? item.nextExpiryDate!.difference(DateTime.now()).inDays
+        : 999;
     final isExpiring = daysToExpiry <= 30;
 
     return Container(
@@ -210,14 +222,19 @@ class _InventoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: item.isLowStock ? AppColors.error.withOpacity(0.4) : AppColors.border),
+        border: Border.all(
+            color: item.isLowStock
+                ? AppColors.error.withOpacity(0.4)
+                : AppColors.border),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: item.isLowStock ? AppColors.errorLight : AppColors.primarySurface,
+              color: item.isLowStock
+                  ? AppColors.errorLight
+                  : AppColors.primarySurface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -233,7 +250,9 @@ class _InventoryCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(item.itemCode, style: AppTextStyles.badge.copyWith(color: AppColors.textMuted)),
+                    Text(item.itemCode,
+                        style: AppTextStyles.badge
+                            .copyWith(color: AppColors.textMuted)),
                     const SizedBox(width: 6),
                     Text('• ${item.category}', style: AppTextStyles.bodySmall),
                   ],
@@ -247,20 +266,24 @@ class _InventoryCard extends StatelessWidget {
                       'Qty: ${item.unitDisplay.isNotEmpty ? item.unitDisplay : "${item.quantityAvailable} ${item.unitOfMeasure}"}',
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: item.isLowStock ? AppColors.error : AppColors.textPrimary,
+                        color: item.isLowStock
+                            ? AppColors.error
+                            : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 12),
                     if (isExpiring)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppColors.warningLight,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'Exp: ${daysToExpiry}d',
-                          style: AppTextStyles.badge.copyWith(color: AppColors.warning),
+                          style: AppTextStyles.badge
+                              .copyWith(color: AppColors.warning),
                         ),
                       ),
                   ],

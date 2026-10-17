@@ -8,7 +8,6 @@ import {
   Info,
   Building2,
   ExternalLink,
-  Navigation,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthContext';
 import { RouteMap } from '../features/redistribution/RouteMap';

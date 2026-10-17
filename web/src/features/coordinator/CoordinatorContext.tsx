@@ -270,7 +270,7 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
    * Helper: build an assistant ChatMessage from a completed WorkflowRun.
    */
 
-  function buildAssistantMessage(run: WorkflowRun, userMsgId: string): ChatMessage {
+  function buildAssistantMessage(run: WorkflowRun, _userMsgId?: string): ChatMessage {
     let parsedResult: Record<string, any> | null = null;
     if (run.resultJson) {
       try {
@@ -405,7 +405,7 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
         setError(errText);
 
         const lowerErr = errText.toLowerCase();
-        let formattedText = "";
+        let formattedText: string;
         if (
           lowerErr.includes("access denied") ||
           lowerErr.includes("permission") ||
@@ -550,7 +550,9 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
           void queryClient.invalidateQueries({ queryKey: ["approvals", "pending"] });
           void queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
           void queryClient.invalidateQueries({ queryKey: ["workflows"] });
-        } catch {}
+        } catch {
+          /* ignore cache invalidation errors in test or offline environment */
+        }
 
         // Broadcast authoritative synchronization event to any active listeners
         try {
@@ -566,7 +568,9 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
               })
             );
           }
-        } catch {}
+        } catch {
+          /* ignore event dispatch errors in headless test environments */
+        }
 
         const successNotice = `Governance authorization recorded: ${decision}. State updated across systems.`;
         setActionSuccess(successNotice);
@@ -721,9 +725,6 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
           };
 
           // Also remove workflows linked to truncated messages
-          const truncatedMessageIds = new Set(
-            s.messages.slice(msgIndex + 1).map((m) => m.id)
-          );
           const truncatedWorkflowIds = new Set(
             s.messages
               .slice(msgIndex + 1)

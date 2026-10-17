@@ -35,24 +35,34 @@ class OfficerProfileScreen extends ConsumerWidget {
                     radius: 36,
                     backgroundColor: AppColors.secondaryLight,
                     child: Text(
-                      user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'O',
-                      style: AppTextStyles.displayMedium.copyWith(color: AppColors.secondary),
+                      user?.name.isNotEmpty == true
+                          ? user!.name.substring(0, 1).toUpperCase()
+                          : 'O',
+                      style: AppTextStyles.displayMedium
+                          .copyWith(color: AppColors.secondary),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(user?.name ?? 'Logistics Officer', style: AppTextStyles.titleLarge),
+                  Text(user?.name ?? 'Logistics Officer',
+                      style: AppTextStyles.titleLarge),
                   const SizedBox(height: 2),
-                  Text(user?.email.isNotEmpty == true ? user!.email : 'Not available', style: AppTextStyles.bodyMedium),
+                  Text(
+                      user?.email.isNotEmpty == true
+                          ? user!.email
+                          : 'Not available',
+                      style: AppTextStyles.bodyMedium),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.secondaryLight,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       'ROLE: ${user?.role.isNotEmpty == true ? user!.role.toUpperCase() : "Not available"}',
-                      style: AppTextStyles.badge.copyWith(color: AppColors.secondary),
+                      style: AppTextStyles.badge
+                          .copyWith(color: AppColors.secondary),
                     ),
                   ),
                 ],
@@ -72,17 +82,25 @@ class OfficerProfileScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ASSIGNED FACILITY', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+                  Text('ASSIGNED FACILITY',
+                      style: AppTextStyles.badge
+                          .copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.local_hospital_rounded, size: 20, color: AppColors.secondary),
+                      const Icon(Icons.local_hospital_rounded,
+                          size: 20, color: AppColors.secondary),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           user?.facilities.isNotEmpty == true
-                              ? user!.facilities.map((f) => f['name'] ?? '').where((n) => n.isNotEmpty).join(', ')
-                              : (user?.facilityName?.isNotEmpty == true ? user!.facilityName! : 'Not available'),
+                              ? user!.facilities
+                                  .map((f) => f['name'] ?? '')
+                                  .where((n) => n.isNotEmpty)
+                                  .join(', ')
+                              : (user?.facilityName?.isNotEmpty == true
+                                  ? user!.facilityName!
+                                  : 'Not available'),
                           style: AppTextStyles.bodyMedium,
                         ),
                       ),
@@ -102,13 +120,19 @@ class OfficerProfileScreen extends ConsumerWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: ListTile(
-                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
-                title: Text('Switch to Facility User View', style: AppTextStyles.titleSmall),
-                subtitle: const Text('Access facility inventory, requisitions, and shortage alerts'),
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                leading: const Icon(Icons.swap_horiz_rounded,
+                    color: AppColors.primary),
+                title: Text('Switch to Facility User View',
+                    style: AppTextStyles.titleSmall),
+                subtitle: const Text(
+                    'Access facility inventory, requisitions, and shortage alerts'),
+                trailing: const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textMuted),
                 onTap: () async {
                   await SecureStorageService().saveSelectedRole('FACILITYUSER');
-                  ref.read(authControllerProvider.notifier).selectRole('FACILITYUSER');
+                  ref
+                      .read(authControllerProvider.notifier)
+                      .selectRole('FACILITYUSER');
                   if (context.mounted) {
                     context.go('/user/dashboard');
                   }

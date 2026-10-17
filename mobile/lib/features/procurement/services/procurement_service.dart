@@ -2,15 +2,20 @@ import '../../../core/network/api_client.dart';
 import '../models/procurement_models.dart';
 
 class MobileProcurementService {
-  MobileProcurementService({ApiClient? client}) : _client = client ?? ApiClient();
+  MobileProcurementService({ApiClient? client})
+      : _client = client ?? ApiClient();
 
   final ApiClient _client;
 
   Future<List<MobileSupplier>> getSuppliers({bool? isActive}) async {
-    final path = isActive != null ? '/api/suppliers?isActive=$isActive' : '/api/suppliers';
+    final path = isActive != null
+        ? '/api/suppliers?isActive=$isActive'
+        : '/api/suppliers';
     final res = await _client.request(path);
     if (res is List) {
-      return res.map((e) => MobileSupplier.fromJson(e as Map<String, dynamic>)).toList();
+      return res
+          .map((e) => MobileSupplier.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
@@ -18,7 +23,9 @@ class MobileProcurementService {
   Future<List<MobilePurchaseOrder>> getPurchaseOrders() async {
     final res = await _client.request('/api/purchase-orders');
     if (res is List) {
-      return res.map((e) => MobilePurchaseOrder.fromJson(e as Map<String, dynamic>)).toList();
+      return res
+          .map((e) => MobilePurchaseOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
@@ -26,7 +33,9 @@ class MobileProcurementService {
   Future<List<MobilePurchaseOrder>> getPendingApprovals() async {
     final res = await _client.request('/api/approvals/pending');
     if (res is List) {
-      return res.map((e) => MobilePurchaseOrder.fromJson(e as Map<String, dynamic>)).toList();
+      return res
+          .map((e) => MobilePurchaseOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
@@ -41,21 +50,25 @@ class MobileProcurementService {
       'facilityId': facilityId,
       'items': items.map((e) => e.toJson()).toList(),
     };
-    final res = await _client.request('/api/purchase-orders', method: 'POST', body: body);
+    final res = await _client.request('/api/purchase-orders',
+        method: 'POST', body: body);
     return MobilePurchaseOrder.fromJson(res as Map<String, dynamic>);
   }
 
   Future<MobilePurchaseOrder> submitPurchaseOrder(String id) async {
-    final res = await _client.request('/api/purchase-orders/$id/submit', method: 'POST');
+    final res = await _client.request('/api/purchase-orders/$id/submit',
+        method: 'POST');
     return MobilePurchaseOrder.fromJson(res as Map<String, dynamic>);
   }
 
   Future<MobilePurchaseOrder> approvePurchaseOrder(String id) async {
-    final res = await _client.request('/api/approvals/purchase-orders/$id/approve', method: 'POST');
+    final res = await _client
+        .request('/api/approvals/purchase-orders/$id/approve', method: 'POST');
     return MobilePurchaseOrder.fromJson(res as Map<String, dynamic>);
   }
 
-  Future<MobilePurchaseOrder> rejectPurchaseOrder(String id, String reason) async {
+  Future<MobilePurchaseOrder> rejectPurchaseOrder(
+      String id, String reason) async {
     final res = await _client.request(
       '/api/approvals/purchase-orders/$id/reject',
       method: 'POST',
@@ -85,13 +98,16 @@ class MobileProcurementService {
       'totalCost': totalCost,
       'totalQuantity': totalQuantity,
     };
-    final res = await _client.request('/api/validation/procurement', method: 'POST', body: body);
+    final res = await _client.request('/api/validation/procurement',
+        method: 'POST', body: body);
     return MobilePolicyValidationResult.fromJson(res as Map<String, dynamic>);
   }
 
-  Future<MobileDelivery?> getDeliveryByPurchaseOrder(String purchaseOrderId) async {
+  Future<MobileDelivery?> getDeliveryByPurchaseOrder(
+      String purchaseOrderId) async {
     try {
-      final res = await _client.request('/api/deliveries/purchase-orders/$purchaseOrderId');
+      final res = await _client
+          .request('/api/deliveries/purchase-orders/$purchaseOrderId');
       if (res is Map<String, dynamic>) {
         return MobileDelivery.fromJson(res);
       }
@@ -108,8 +124,10 @@ class MobileProcurementService {
     String? notes,
   }) async {
     final body = <String, dynamic>{
-      if (expectedAt != null) 'expectedAt': expectedAt.toUtc().toIso8601String(),
-      if (trackingNumber != null && trackingNumber.isNotEmpty) 'trackingNumber': trackingNumber,
+      if (expectedAt != null)
+        'expectedAt': expectedAt.toUtc().toIso8601String(),
+      if (trackingNumber != null && trackingNumber.isNotEmpty)
+        'trackingNumber': trackingNumber,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
     final res = await _client.request(
@@ -132,4 +150,3 @@ class MobileProcurementService {
     return MobileDelivery.fromJson(res as Map<String, dynamic>);
   }
 }
-

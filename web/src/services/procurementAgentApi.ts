@@ -136,7 +136,7 @@ export const procurementAgentApi = {
       return response.json() as Promise<CoordinatorTaskResponse>;
     } catch (e) {
       if (e instanceof Error && (e.message.includes("Failed to fetch") || e.message.includes("NetworkError") || e.message.includes("fetch failed"))) {
-        throw new Error("Unable to connect to the procurement service. Please check your network connection and try again.");
+        throw new Error("Unable to connect to the procurement service. Please check your network connection and try again.", { cause: e });
       }
       throw e;
     }

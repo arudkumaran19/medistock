@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import {
   LayoutDashboard,
@@ -22,7 +22,6 @@ import {
   X,
   Sparkles,
   Loader2,
-  Truck,
   ArrowRightLeft,
   Clock,
   ShieldCheck,

@@ -174,7 +174,8 @@ void main() {
 
       mockSignalR.emitNotificationCreated(mockNotif);
       await tester.pump(); // Deliver stream event
-      await tester.pump(const Duration(milliseconds: 300)); // Trigger SnackBar animation
+      await tester.pump(
+          const Duration(milliseconds: 300)); // Trigger SnackBar animation
 
       // In-app banner SnackBar should be displayed with title and message
       expect(find.byType(SnackBar), findsOneWidget);

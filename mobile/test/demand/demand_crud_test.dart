@@ -17,14 +17,18 @@ import 'fakes.dart';
 void main() {
   Widget wrapAlerts(FakeDemandRepository repository) {
     return ProviderScope(
-      overrides: <Override>[demandRepositoryProvider.overrideWithValue(repository)],
+      overrides: <Override>[
+        demandRepositoryProvider.overrideWithValue(repository)
+      ],
       child: const MaterialApp(home: ShortageAlertsScreen()),
     );
   }
 
   Widget wrapHistory(FakeDemandRepository repository) {
     return ProviderScope(
-      overrides: <Override>[demandRepositoryProvider.overrideWithValue(repository)],
+      overrides: <Override>[
+        demandRepositoryProvider.overrideWithValue(repository)
+      ],
       child: const MaterialApp(home: DemandHistoryScreen()),
     );
   }
@@ -86,7 +90,8 @@ void main() {
       expect(find.byKey(const Key('resolve-button')), findsOneWidget);
     });
 
-    testWidgets('shows the status alongside the risk badge', (WidgetTester tester) async {
+    testWidgets('shows the status alongside the risk badge',
+        (WidgetTester tester) async {
       final FakeDemandRepository repository = FakeDemandRepository(
         shortages: pageOf(<ShortageAlert>[buildAlert(status: 'ACKNOWLEDGED')]),
       );
@@ -101,7 +106,8 @@ void main() {
   group('Consumption history', () {
     testWidgets('corrects a quantity', (WidgetTester tester) async {
       final FakeDemandRepository repository = FakeDemandRepository(
-        consumption: pageOf(<ConsumptionRecord>[buildRecord(quantityUsed: 200)]),
+        consumption:
+            pageOf(<ConsumptionRecord>[buildRecord(quantityUsed: 200)]),
       );
 
       await tester.pumpWidget(wrapHistory(repository));
@@ -112,7 +118,8 @@ void main() {
       await tester.tap(find.text('Correct quantity'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byKey(const Key('edit-quantity-field')), '20');
+      await tester.enterText(
+          find.byKey(const Key('edit-quantity-field')), '20');
       await tester.tap(find.byKey(const Key('edit-save-button')));
       await tester.pumpAndSettle();
 
@@ -120,7 +127,8 @@ void main() {
       expect(repository.lastEntry!.quantityUsed, 20);
     });
 
-    testWidgets('rejects a non-positive correction', (WidgetTester tester) async {
+    testWidgets('rejects a non-positive correction',
+        (WidgetTester tester) async {
       final FakeDemandRepository repository = FakeDemandRepository(
         consumption: pageOf(<ConsumptionRecord>[buildRecord()]),
       );
@@ -155,7 +163,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // The warning names what is lost rather than asking a bare "are you sure?".
-      expect(find.textContaining('every later forecast is derived from'), findsOneWidget);
+      expect(find.textContaining('every later forecast is derived from'),
+          findsOneWidget);
 
       await tester.tap(find.byKey(const Key('delete-confirm-button')));
       await tester.pumpAndSettle();

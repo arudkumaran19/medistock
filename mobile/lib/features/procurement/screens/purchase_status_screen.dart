@@ -33,7 +33,8 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                 o.status.toLowerCase() == 'approved' ||
                 o.status.toLowerCase() == 'received')
             .map((o) async {
-          final del = await _procurementService.getDeliveryByPurchaseOrder(o.id);
+          final del =
+              await _procurementService.getDeliveryByPurchaseOrder(o.id);
           return MapEntry(o.id, del);
         }),
       );
@@ -71,8 +72,11 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
   }
 
   Future<void> _showScheduleDeliveryDialog(MobilePurchaseOrder order) async {
-    final trackingCtrl = TextEditingController(text: 'TRK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}');
-    final notesCtrl = TextEditingController(text: 'Cold chain verified delivery');
+    final trackingCtrl = TextEditingController(
+        text:
+            'TRK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}');
+    final notesCtrl =
+        TextEditingController(text: 'Cold chain verified delivery');
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -93,8 +97,12 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Schedule')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Schedule')),
         ],
       ),
     );
@@ -121,18 +129,21 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
     }
   }
 
-  Future<void> _showDeliverDialog(MobilePurchaseOrder order, MobileDelivery delivery) async {
+  Future<void> _showDeliverDialog(
+      MobilePurchaseOrder order, MobileDelivery delivery) async {
     final batchCtrl = TextEditingController(text: 'BATCH-001');
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Receive Goods into Inventory (PO-${order.id.substring(0, 8)})'),
+        title: Text(
+            'Receive Goods into Inventory (PO-${order.id.substring(0, 8)})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Items to receive: ${order.items.length} items (${order.totalQuantity} total units)'),
+            Text(
+                'Items to receive: ${order.items.length} items (${order.totalQuantity} total units)'),
             const SizedBox(height: 12),
             TextField(
               controller: batchCtrl,
@@ -149,9 +160,12 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.green.shade800),
+            style:
+                FilledButton.styleFrom(backgroundColor: Colors.green.shade800),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Confirm & Receive Stock'),
           ),
@@ -164,20 +178,23 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
       final now = DateTime.now();
       final oneYear = now.add(const Duration(days: 365));
 
-      final itemsPayload = order.items.map((it) => {
-        'medicineId': it.medicineId,
-        'quantity': it.requestedQuantity,
-        'batchNumber': batchNo,
-        'expiryDateUtc': oneYear.toUtc().toIso8601String(),
-        'manufacturingDateUtc': now.toUtc().toIso8601String(),
-      }).toList();
+      final itemsPayload = order.items
+          .map((it) => {
+                'medicineId': it.medicineId,
+                'quantity': it.requestedQuantity,
+                'batchNumber': batchNo,
+                'expiryDateUtc': oneYear.toUtc().toIso8601String(),
+                'manufacturingDateUtc': now.toUtc().toIso8601String(),
+              })
+          .toList();
 
       try {
         await _procurementService.markDelivered(delivery.id, itemsPayload);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Delivery confirmed! Inventory balances and stock batches have been updated.'),
+            content: Text(
+                'Delivery confirmed! Inventory balances and stock batches have been updated.'),
             backgroundColor: Color(0xff17634d),
           ),
         );
@@ -226,7 +243,8 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'New Requisition',
-            onPressed: () => Navigator.pushNamed(context, '/procurement/request'),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/procurement/request'),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -253,7 +271,8 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
           if (_errorMessage != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade800)),
+              child: Text(_errorMessage!,
+                  style: TextStyle(color: Colors.red.shade800)),
             ),
           Expanded(
             child: _isLoading
@@ -289,22 +308,31 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           'PO-${order.id.substring(0, 8)}',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16),
                                         ),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: color.withOpacity(0.12),
-                                            borderRadius: BorderRadius.circular(4),
-                                            border: Border.all(color: color.withOpacity(0.4)),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            border: Border.all(
+                                                color: color.withOpacity(0.4)),
                                           ),
                                           child: Text(
                                             order.status,
-                                            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+                                            style: TextStyle(
+                                                color: color,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12),
                                           ),
                                         ),
                                       ],
@@ -312,12 +340,16 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                                     const SizedBox(height: 8),
                                     Text(
                                       '${order.items.length} item(s) • Total: \$${totalCost.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
+                                      style: TextStyle(
+                                          color: Colors.grey.shade800,
+                                          fontSize: 14),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       'Requested: ${order.requestedAt.toLocal().toString().split(' ')[0]}',
-                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                      style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12),
                                     ),
                                     if (delivery != null)
                                       Padding(
@@ -325,9 +357,10 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                                         child: Text(
                                           'Delivery: ${delivery.status} (Track: ${delivery.trackingNumber ?? "N/A"})',
                                           style: TextStyle(
-                                            color: delivery.status == 'Delivered'
-                                                ? Colors.teal.shade800
-                                                : Colors.blue.shade800,
+                                            color:
+                                                delivery.status == 'Delivered'
+                                                    ? Colors.teal.shade800
+                                                    : Colors.blue.shade800,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 12,
                                           ),
@@ -338,7 +371,9 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                                         padding: const EdgeInsets.only(top: 6),
                                         child: Text(
                                           'Rejection: ${order.rejectionReason}',
-                                          style: TextStyle(color: Colors.red.shade800, fontSize: 12),
+                                          style: TextStyle(
+                                              color: Colors.red.shade800,
+                                              fontSize: 12),
                                         ),
                                       ),
                                     if (order.revisionReason != null)
@@ -346,60 +381,89 @@ class _PurchaseStatusScreenState extends State<PurchaseStatusScreen> {
                                         padding: const EdgeInsets.only(top: 6),
                                         child: Text(
                                           'Revision: ${order.revisionReason}',
-                                          style: TextStyle(color: Colors.orange.shade900, fontSize: 12),
+                                          style: TextStyle(
+                                              color: Colors.orange.shade900,
+                                              fontSize: 12),
                                         ),
                                       ),
                                     if (order.status.toLowerCase() == 'draft' ||
-                                        order.status.toLowerCase() == 'revisionrequired')
+                                        order.status.toLowerCase() ==
+                                            'revisionrequired')
                                       Padding(
                                         padding: const EdgeInsets.only(top: 12),
                                         child: SizedBox(
                                           width: double.infinity,
                                           child: OutlinedButton(
-                                            onPressed: () => _submitDraft(order.id),
-                                            child: const Text('Submit for Approval'),
+                                            onPressed: () =>
+                                                _submitDraft(order.id),
+                                            child: const Text(
+                                                'Submit for Approval'),
                                           ),
                                         ),
                                       ),
-                                    if (order.status.toLowerCase() == 'approved' && delivery == null)
+                                    if (order.status.toLowerCase() ==
+                                            'approved' &&
+                                        delivery == null)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 12),
                                         child: SizedBox(
                                           width: double.infinity,
                                           child: FilledButton.icon(
-                                            style: FilledButton.styleFrom(backgroundColor: const Color(0xff0f766e)),
-                                            icon: const Icon(Icons.local_shipping, size: 18),
-                                            label: const Text('Schedule Delivery'),
-                                            onPressed: () => _showScheduleDeliveryDialog(order),
+                                            style: FilledButton.styleFrom(
+                                                backgroundColor:
+                                                    const Color(0xff0f766e)),
+                                            icon: const Icon(
+                                                Icons.local_shipping,
+                                                size: 18),
+                                            label:
+                                                const Text('Schedule Delivery'),
+                                            onPressed: () =>
+                                                _showScheduleDeliveryDialog(
+                                                    order),
                                           ),
                                         ),
                                       ),
-                                    if (order.status.toLowerCase() == 'approved' &&
+                                    if (order.status.toLowerCase() ==
+                                            'approved' &&
                                         delivery != null &&
-                                        delivery.status.toLowerCase() != 'delivered')
+                                        delivery.status.toLowerCase() !=
+                                            'delivered')
                                       Padding(
                                         padding: const EdgeInsets.only(top: 12),
                                         child: SizedBox(
                                           width: double.infinity,
                                           child: FilledButton.icon(
-                                            style: FilledButton.styleFrom(backgroundColor: const Color(0xff1d4ed8)),
-                                            icon: const Icon(Icons.inventory, size: 18),
-                                            label: const Text('Mark Delivered (Receive Stock)'),
-                                            onPressed: () => _showDeliverDialog(order, delivery),
+                                            style: FilledButton.styleFrom(
+                                                backgroundColor:
+                                                    const Color(0xff1d4ed8)),
+                                            icon: const Icon(Icons.inventory,
+                                                size: 18),
+                                            label: const Text(
+                                                'Mark Delivered (Receive Stock)'),
+                                            onPressed: () => _showDeliverDialog(
+                                                order, delivery),
                                           ),
                                         ),
                                       ),
-                                    if (order.status.toLowerCase() == 'received' ||
-                                        (delivery != null && delivery.status.toLowerCase() == 'delivered'))
+                                    if (order.status.toLowerCase() ==
+                                            'received' ||
+                                        (delivery != null &&
+                                            delivery.status.toLowerCase() ==
+                                                'delivered'))
                                       Padding(
                                         padding: const EdgeInsets.only(top: 10),
                                         child: Row(
                                           children: [
-                                            Icon(Icons.check_circle, size: 16, color: Colors.teal.shade700),
+                                            Icon(Icons.check_circle,
+                                                size: 16,
+                                                color: Colors.teal.shade700),
                                             const SizedBox(width: 6),
                                             Text(
                                               'Goods received into facility inventory',
-                                              style: TextStyle(color: Colors.teal.shade800, fontSize: 12, fontWeight: FontWeight.w600),
+                                              style: TextStyle(
+                                                  color: Colors.teal.shade800,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600),
                                             ),
                                           ],
                                         ),

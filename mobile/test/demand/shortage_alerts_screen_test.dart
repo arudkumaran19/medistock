@@ -20,13 +20,15 @@ void main() {
     );
   }
 
-  testWidgets('shows a loading state before the alerts arrive', (WidgetTester tester) async {
+  testWidgets('shows a loading state before the alerts arrive',
+      (WidgetTester tester) async {
     await tester.pumpWidget(wrap(FakeDemandRepository()));
 
     expect(find.byType(LoadingView), findsOneWidget);
   });
 
-  testWidgets('renders the derived figures for an alert', (WidgetTester tester) async {
+  testWidgets('renders the derived figures for an alert',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository =
         FakeDemandRepository(shortages: pageOf(<ShortageAlert>[buildAlert()]));
 
@@ -39,7 +41,8 @@ void main() {
     expect(find.text('10 days'), findsOneWidget);
   });
 
-  testWidgets('explains that a manager reviews the response', (WidgetTester tester) async {
+  testWidgets('explains that a manager reviews the response',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository =
         FakeDemandRepository(shortages: pageOf(<ShortageAlert>[buildAlert()]));
 
@@ -50,7 +53,8 @@ void main() {
     expect(find.byKey(const Key('requires-transfer-note')), findsOneWidget);
   });
 
-  testWidgets('shows no projected stockout rather than zero days', (WidgetTester tester) async {
+  testWidgets('shows no projected stockout rather than zero days',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository = FakeDemandRepository(
       shortages: pageOf(<ShortageAlert>[
         buildAlert(
@@ -69,7 +73,8 @@ void main() {
     expect(find.byKey(const Key('requires-transfer-note')), findsNothing);
   });
 
-  testWidgets('shows an empty state when there are no alerts', (WidgetTester tester) async {
+  testWidgets('shows an empty state when there are no alerts',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository =
         FakeDemandRepository(shortages: emptyPage<ShortageAlert>());
 
@@ -79,7 +84,8 @@ void main() {
     expect(find.byType(EmptyView), findsOneWidget);
   });
 
-  testWidgets('shows the backend message when the request fails', (WidgetTester tester) async {
+  testWidgets('shows the backend message when the request fails',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository = FakeDemandRepository(
       shortageError: const ApiFailure(
         code: 'NETWORK_UNAVAILABLE',
@@ -94,7 +100,8 @@ void main() {
     expect(find.textContaining('could not be reached'), findsOneWidget);
   });
 
-  testWidgets('passes the selected risk level to the repository', (WidgetTester tester) async {
+  testWidgets('passes the selected risk level to the repository',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository =
         FakeDemandRepository(shortages: pageOf(<ShortageAlert>[buildAlert()]));
 
