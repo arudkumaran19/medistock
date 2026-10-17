@@ -103,7 +103,7 @@ class AppRouter {
         final user = _authService.currentUser;
         page = user != null && user.isAdmin
             ? UserManagementScreen(currentUser: user)
-            : const LoginScreen(roleType: 'user');
+            : const LoginScreen();
         break;
 
       // ─── Root: guard → dashboard or login ────────────────────────────

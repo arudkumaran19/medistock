@@ -1,3 +1,5 @@
+export * from '@/features/redistribution/api';
+
 export type TransferStatus =
   | 'Draft'
   | 'Proposed'
@@ -11,7 +13,7 @@ export type TransferStatus =
   | 'Dispatched'
   | 'Received';
 
-export type TransferPriority = 'Routine' | 'Urgent' | 'Emergency';
+export type TransferPriority = 'Routine' | 'Urgent' | 'Emergency' | 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface TransferStatusHistoryDto {
   id: string;

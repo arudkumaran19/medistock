@@ -152,6 +152,48 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
     return <LoadingState label="Loading shortage alert…" />;
   }
 
+  // Live calculation for preview
+  const numStock = currentStock !== '' ? Number(currentStock) : null;
+  const numDaily = averageDaily !== '' ? Number(averageDaily) : null;
+  const numLead = leadTimeDays !== '' ? Number(leadTimeDays) : null;
+
+  const isDormant = numDaily !== null && !Number.isNaN(numDaily) && numDaily === 0;
+
+  const previewDaysCover =
+    numStock !== null && !Number.isNaN(numStock) && numDaily !== null && !Number.isNaN(numDaily) && numDaily > 0
+      ? numStock / numDaily
+      : null;
+
+  const previewStockoutDate =
+    previewDaysCover !== null
+      ? new Date(Date.now() + previewDaysCover * 86400000).toISOString().split('T')[0]
+      : null;
+
+  const previewRiskLevel: 'HIGH' | 'MEDIUM' | null =
+    numStock !== null && !Number.isNaN(numStock) && numDaily !== null && !Number.isNaN(numDaily)
+      ? isDormant
+        ? 'MEDIUM'
+        : previewDaysCover !== null
+          ? numLead !== null && !Number.isNaN(numLead) && numLead > 0
+            ? previewDaysCover <= numLead
+              ? 'HIGH'
+              : 'MEDIUM'
+            : previewDaysCover <= 7
+              ? 'HIGH'
+              : 'MEDIUM'
+          : null
+      : null;
+
+  const previewRequiresTransfer =
+    previewDaysCover !== null && numLead !== null && !Number.isNaN(numLead) && numLead > 0
+      ? previewDaysCover <= numLead
+      : false;
+
+  const leadTimeDeficit =
+    previewDaysCover !== null && numLead !== null && !Number.isNaN(numLead)
+      ? Math.round((numLead - previewDaysCover) * 10) / 10
+      : null;
+
   return (
     <section aria-labelledby="shortage-form-heading" className="demand-vertical stack" data-theme="light">
       <header className="page-header">
@@ -164,147 +206,420 @@ export function ShortageForm({ shortageId }: { shortageId?: string }) {
         <DemandChain active="alert" />
       </header>
 
-      <div className="card">
-        <div className="card__header">
-          <span className="card__title">Observed figures</span>
-          <span className="card__hint">Risk is calculated, never entered</span>
-        </div>
+      <div className="split">
+        {/* Left Column: Form & Clinical Inputs */}
+        <div className="card">
+          <div className="card__header">
+            <div>
+              <span className="card__title">{isEdit ? 'Correct Alert Parameters' : 'Clinical Inputs & Observed Figures'}</span>
+              <p className="card__hint" style={{ marginTop: 2 }}>
+                Risk is calculated deterministically by the system, never typed manually.
+              </p>
+            </div>
+          </div>
 
-        <div className="card__body">
-          <form onSubmit={handleSubmit} aria-label="Shortage alert" noValidate>
-            <div className="form-grid">
-              <label className="field">
-                Facility
-                <select
-                  aria-label="Facility"
-                  value={facilityId}
-                  disabled={isEdit || facilitiesLoading}
-                  onChange={(event) => selectTarget(() => setFacilityId(event.target.value))}
-                >
-                  <option value="">
-                    {facilitiesLoading ? 'Loading facilities…' : 'Select a facility'}
-                  </option>
-                  {(facilities ?? [])
-                    .filter((facility) => facility.latitude != null && facility.longitude != null && (facility.latitude !== 0 || facility.longitude !== 0))
-                    .map((facility) => (
-                    <option key={facility.id} value={facility.id}>
-                      {facility.name}
-                    </option>
-                  ))}
-                  {/* An alert being edited may reference a facility the list no
-                      longer returns; keep it selectable rather than silently blank. */}
-                  {facilityId && !(facilities ?? []).some((f) => f.id === facilityId) && (
-                    <option value={facilityId}>{facilityId}</option>
-                  )}
-                </select>
-              </label>
-
-              <label className="field">
-                Medicine
-                <select
-                  aria-label="Medicine"
-                  value={medicineId}
-                  disabled={isEdit || medicinesLoading}
-                  onChange={(event) => selectTarget(() => setMedicineId(event.target.value))}
-                >
-                  <option value="">
-                    {medicinesLoading ? 'Loading medicines…' : 'Select a medicine'}
-                  </option>
-                  {(medicines ?? []).map((medicine) => (
-                    <option key={medicine.id} value={medicine.id}>
-                      {medicine.name}
-                    </option>
-                  ))}
-                  {medicineId && !(medicines ?? []).some((m) => m.id === medicineId) && (
-                    <option value={medicineId}>{medicineId}</option>
-                  )}
-                </select>
-              </label>
-
-              <label className="field">
-                Stock on hand
-                <input
-                  type="number"
-                  aria-label="Stock on hand"
-                  value={currentStock}
-                  min={0}
-                  onChange={(event) => {
-                    setStockEdited(true);
-                    setCurrentStock(event.target.value);
-                  }}
-                />
-                {!isEdit && facilityId && medicineId && (
-                  <span className="card__hint" data-testid="stock-source">
-                    {stockLoading
-                      ? 'Reading Inventory…'
-                      : inventoryStock
-                        ? `From Inventory: ${formatNumber(inventoryStock.quantityOnHand)} on hand − ` +
-                          `${formatNumber(inventoryStock.quantityReserved)} reserved. You can change it.`
-                        : inventoryStock === null
-                          ? 'Inventory has no balance for this medicine here. Enter the stock on hand.'
-                          : null}
-                  </span>
-                )}
-              </label>
-
-              <label className="field">
-                Average per day
-                <input
-                  type="number"
-                  aria-label="Average per day"
-                  value={averageDaily}
-                  min={0}
-                  disabled={isEdit}
-                  placeholder="Derived from history"
-                  onChange={(event) => setAverageDaily(event.target.value)}
-                />
-              </label>
-
-              <label className="field">
-                Lead time (days)
-                <input
-                  type="number"
-                  aria-label="Lead time in days"
-                  value={leadTimeDays}
-                  min={0}
-                  placeholder="From reorder rule"
-                  onChange={(event) => setLeadTimeDays(event.target.value)}
-                />
-              </label>
-
-              {isEdit && (
+          <div className="card__body">
+            <form onSubmit={handleSubmit} aria-label="Shortage alert" noValidate>
+              <div className="form-grid">
                 <label className="field">
-                  Status
+                  Facility
                   <select
-                    value={status}
-                    aria-label="Status"
-                    onChange={(event) => setStatus(event.target.value as ShortageStatus)}
+                    aria-label="Facility"
+                    value={facilityId}
+                    disabled={isEdit || facilitiesLoading}
+                    onChange={(event) => selectTarget(() => setFacilityId(event.target.value))}
                   >
-                    {SHORTAGE_STATUSES.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
+                    <option value="">
+                      {facilitiesLoading ? 'Loading facilities…' : 'Select a facility'}
+                    </option>
+                    {(facilities ?? []).map((facility) => (
+                      <option key={facility.id} value={facility.id}>
+                        {facility.name}
                       </option>
                     ))}
+                    {facilityId && !(facilities ?? []).some((f) => f.id === facilityId) && (
+                      <option value={facilityId}>{facilityId}</option>
+                    )}
                   </select>
                 </label>
+
+                <label className="field">
+                  Medicine
+                  <select
+                    aria-label="Medicine"
+                    value={medicineId}
+                    disabled={isEdit || medicinesLoading}
+                    onChange={(event) => selectTarget(() => setMedicineId(event.target.value))}
+                  >
+                    <option value="">
+                      {medicinesLoading ? 'Loading medicines…' : 'Select a medicine'}
+                    </option>
+                    {(medicines ?? []).map((medicine) => (
+                      <option key={medicine.id} value={medicine.id}>
+                        {medicine.name}
+                      </option>
+                    ))}
+                    {medicineId && !(medicines ?? []).some((m) => m.id === medicineId) && (
+                      <option value={medicineId}>{medicineId}</option>
+                    )}
+                  </select>
+                </label>
+
+                {/* Inventory Balances Badge Strip */}
+                {!isEdit && facilityId && medicineId && inventoryStock && (
+                  <div
+                    style={{
+                      gridColumn: '1 / -1',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      padding: '10px 14px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 8,
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <span style={{ color: '#64748b' }}>Inventory Balances:</span>
+                    <strong style={{ color: '#0f172a' }}>{formatNumber(inventoryStock.quantityOnHand)} On Hand</strong>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span style={{ color: '#e11d48' }}>{formatNumber(inventoryStock.quantityReserved)} Reserved</span>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <strong style={{ color: '#059669' }}>{formatNumber(inventoryStock.availableQuantity)} Available</strong>
+                  </div>
+                )}
+
+                <label className="field">
+                  Stock on hand
+                  <input
+                    type="number"
+                    aria-label="Stock on hand"
+                    value={currentStock}
+                    min={0}
+                    onChange={(event) => {
+                      setStockEdited(true);
+                      setCurrentStock(event.target.value);
+                    }}
+                  />
+                  {!isEdit && facilityId && medicineId && (
+                    <span className="card__hint" data-testid="stock-source">
+                      {stockLoading
+                        ? 'Reading Inventory…'
+                        : inventoryStock
+                          ? `From Inventory: ${formatNumber(inventoryStock.quantityOnHand)} on hand − ` +
+                            `${formatNumber(inventoryStock.quantityReserved)} reserved. You can change it.`
+                          : inventoryStock === null
+                            ? 'Inventory has no balance for this medicine here. Enter the stock on hand.'
+                            : null}
+                    </span>
+                  )}
+                </label>
+
+                <label className="field">
+                  Average per day
+                  <input
+                    type="number"
+                    aria-label="Average per day"
+                    value={averageDaily}
+                    min={0}
+                    disabled={isEdit}
+                    placeholder="Derived from history"
+                    onChange={(event) => setAverageDaily(event.target.value)}
+                  />
+                  <span className="card__hint">Units consumed per 24-hour cycle</span>
+                </label>
+
+                <label className="field">
+                  Lead time (days)
+                  <input
+                    type="number"
+                    aria-label="Lead time in days"
+                    value={leadTimeDays}
+                    min={0}
+                    placeholder="From reorder rule"
+                    onChange={(event) => setLeadTimeDays(event.target.value)}
+                  />
+                  <span className="card__hint">Supplier turnaround window</span>
+                </label>
+
+                {isEdit && (
+                  <label className="field">
+                    Status
+                    <select
+                      value={status}
+                      aria-label="Status"
+                      onChange={(event) => setStatus(event.target.value as ShortageStatus)}
+                    >
+                      {SHORTAGE_STATUSES.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              <div className="form-actions" style={{ marginTop: 'var(--space-5)' }}>
+                <button type="submit" disabled={pending} className="button--primary">
+                  {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Raise alert'}
+                </button>
+                <button type="button" onClick={() => navigate('/demand/shortages')} disabled={pending}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+
+            {formError && (
+              <div style={{ marginTop: 'var(--space-4)' }}>
+                <ErrorState message={formError} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Live Clinical Risk Assessment Preview */}
+        <div className="stack">
+          <div className="card">
+            <div className="card__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid #e2e8f0' }}>
+              <span className="card__title">Real-Time Risk Preview</span>
+              {previewRiskLevel ? (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '3px 10px',
+                    borderRadius: 9999,
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    background: previewRiskLevel === 'HIGH' ? '#ffe4e6' : '#fef3c7',
+                    color: previewRiskLevel === 'HIGH' ? '#be123c' : '#92400e',
+                    border: `1px solid ${previewRiskLevel === 'HIGH' ? '#fecdd3' : '#fde68a'}`,
+                  }}
+                >
+                  {previewRiskLevel} Risk
+                </span>
+              ) : (
+                <span className="card__hint">Awaiting input</span>
               )}
             </div>
 
-            <div className="form-actions">
-              <button type="submit" disabled={pending}>
-                {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Raise alert'}
-              </button>
-              <button type="button" onClick={() => navigate('/demand/shortages')} disabled={pending}>
-                Cancel
-              </button>
-            </div>
-          </form>
+            <div className="card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              {previewDaysCover !== null ? (
+                <>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Days of Cover
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '1.4rem',
+                          fontWeight: 700,
+                          color: previewDaysCover <= (numLead ?? 7) ? '#be123c' : '#0f172a',
+                          marginTop: 4,
+                        }}
+                      >
+                        {previewDaysCover < 1 ? previewDaysCover.toFixed(1) : Math.floor(previewDaysCover)} days
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
+                        {numStock ?? 0} units ÷ {numDaily ?? 1}/day
+                      </div>
+                    </div>
 
-          {formError && (
-            <div style={{ marginTop: 'var(--space-4)' }}>
-              <ErrorState message={formError} />
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Projected Stockout
+                      </div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginTop: 6 }}>
+                        {previewStockoutDate ?? '—'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4 }}>
+                        Depletion timeline
+                      </div>
+                    </div>
+                  </div>
+
+                  {numLead !== null && !Number.isNaN(numLead) && numLead > 0 && (
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 8,
+                        background: previewRequiresTransfer ? '#fff1f2' : '#f0fdf4',
+                        border: `1px solid ${previewRequiresTransfer ? '#fecdd3' : '#bbf7d0'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: previewRequiresTransfer ? '#9f1239' : '#166534' }}>
+                          {previewRequiresTransfer ? 'Supply Deficit Detected' : 'Cover Exceeds Lead Time'}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 6,
+                            background: previewRequiresTransfer ? '#e11d48' : '#16a34a',
+                            color: '#ffffff',
+                          }}
+                        >
+                          {previewRequiresTransfer ? 'Transfer Required' : 'Buffer Intact'}
+                        </span>
+                      </div>
+                      <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: previewRequiresTransfer ? '#be123c' : '#15803d' }}>
+                        {previewRequiresTransfer
+                          ? `Stock will be exhausted ${Math.abs(leadTimeDeficit ?? 0)} days before supplier replenishment can arrive (${numLead} days lead time).`
+                          : `Current stock covers the full ${numLead} day lead time with surplus buffer.`}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : isDormant && numStock !== null ? (
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: 8,
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Days of Cover
+                      </div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#d97706', marginTop: 4 }}>
+                        Dormant
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
+                        0 units consumed / day
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Projected Stockout
+                      </div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginTop: 4 }}>
+                        No Runout
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
+                        Stock not depleting
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      background: '#fffbeb',
+                      border: '1px solid #fde68a',
+                      borderRadius: 6,
+                      fontSize: '0.8rem',
+                      color: '#92400e',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Zero units consumed per 24 hours. The alert will be recorded and tracked under <strong>MEDIUM</strong> risk without raising false emergency transfer requisitions.
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '20px 16px',
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                    border: '1px dashed #cbd5e1',
+                  }}
+                >
+                  <p style={{ margin: 0, fontWeight: 600, color: '#334155', fontSize: '0.9rem' }}>
+                    Parameters needed to derive risk
+                  </p>
+                  <ul
+                    style={{
+                      margin: '10px 0 0',
+                      padding: '0 0 0 20px',
+                      textAlign: 'left',
+                      fontSize: '0.8rem',
+                      color: '#64748b',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {!facilityId && <li>Select an operational facility</li>}
+                    {!medicineId && <li>Select a medicine catalogue item</li>}
+                    {currentStock === '' && <li>Enter or verify stock on hand</li>}
+                    {averageDaily === '' && <li>Enter daily consumption rate</li>}
+                    {leadTimeDays === '' && <li>Specify supplier lead time</li>}
+                  </ul>
+                </div>
+              )}
+
+              {/* Clinical Protocol & Audit Notice */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  fontSize: '0.75rem',
+                  color: '#475569',
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong style={{ color: '#1e293b' }}>Clinical Governance:</strong> Raising this alert records a
+                tamper-evident audit event (<code>SHORTAGE_ALERT_RAISED</code>). If an active alert already exists for
+                this facility and medicine, it will be updated rather than duplicated. Shortages cannot be resolved without
+                verified stock coverage or delivery confirmation.
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </section>

@@ -93,6 +93,7 @@ public sealed class ApplicationDbContext
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.MedicineId, x.FacilityId }).IsUnique();
+            entity.Property(x => x.UpdatedAtUtc).IsConcurrencyToken();
 
             entity.HasOne(x => x.Medicine)
                 .WithMany(x => x.InventoryBalances)

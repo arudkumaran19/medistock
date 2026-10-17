@@ -60,10 +60,3 @@ MediStock-Architecture-Blueprint-Final.md
 .fake
 
 /.agents/
-# Build publish artifacts
-backend/publish/
-
-# Scratch / local work
-scratch/
-**/scratch/
-merge-disputed-backup/

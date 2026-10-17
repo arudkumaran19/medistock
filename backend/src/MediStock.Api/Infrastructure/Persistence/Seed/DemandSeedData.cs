@@ -96,7 +96,9 @@ public static class DemandSeedData
         SeedData.CentralFacilityId,
         SeedData.EastHospitalFacilityId,
         SeedData.NorthClinicFacilityId,
-        SeedData.WestDispensaryFacilityId
+        SeedData.WestDispensaryFacilityId,
+        SeedData.ColomboHospitalFacilityId,
+        SeedData.KandyHospitalFacilityId
     ];
 
     /// <summary>develop's real medicines, from the Inventory owners' SeedData.</summary>
@@ -104,11 +106,32 @@ public static class DemandSeedData
     [
         SeedData.ParacetamolId,
         SeedData.AmoxicillinId,
+        SeedData.Amoxicillin500mgId,
         SeedData.IbuprofenId,
         SeedData.CetirizineId,
         SeedData.OmeprazoleId,
         SeedData.AzithromycinId,
-        SeedData.VitaminCId
+        SeedData.VitaminCId,
+        // Extended formulary - added with DemoVolumeSeed (idempotent by code)
+        SeedData.MetforminId,
+        SeedData.AtorvastatinId,
+        SeedData.MetronidazoleId,
+        SeedData.DexamethasoneId,
+        SeedData.SalbutamolId,
+        SeedData.MorphineId,
+        SeedData.DiclofenacId,
+        SeedData.OrsSachetId,
+    ];
+
+    /// <summary>Additional clinical formulary medicines seeded via DemoVolumeSeed.</summary>
+    public static readonly Guid[] ExtendedMedicineIds =
+    [
+        DemoVolumeSeed.CiprofloxacinId,
+        DemoVolumeSeed.InsulinRegularId,
+        DemoVolumeSeed.OmeprazoleIvId,
+        DemoVolumeSeed.FurosemideId,
+        DemoVolumeSeed.HeparinSodiumId,
+        DemoVolumeSeed.CeftriaxoneId,
     ];
 
     /// <summary>
@@ -181,9 +204,10 @@ public static class DemandSeedData
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
+        var allCandidateIds = RealMedicineIds.Concat(ExtendedMedicineIds).ToArray();
         var medicines = await db.Medicines
             .AsNoTracking()
-            .Where(x => RealMedicineIds.Contains(x.Id))
+            .Where(x => allCandidateIds.Contains(x.Id))
             .Select(x => new { x.Id, x.MinimumStockLevel })
             .ToListAsync(cancellationToken);
 
@@ -225,68 +249,276 @@ public static class DemandSeedData
             .ToHashSet();
     }
 
+    /// <summary>
+    /// Loads the consumption history the forecast, demand-analysis and shortage scans
+    /// depend on.
+    ///
+    /// IDEMPOTENCY: the check is per series (facility + medicine + date), not "does the
+    /// table hold anything". A single global guard meant that once the blueprint demo
+    /// rows existed, every real facility was silently skipped and the real facilities
+    /// had no history at all - so forecasting, demand analysis and shortage detection
+    /// had nothing to work on. Existing rows are never modified or deleted.
+    /// </summary>
     private static async Task SeedConsumptionAsync(ApplicationDbContext db, CancellationToken cancellationToken)
     {
-        if (await db.ConsumptionRecords.AnyAsync(cancellationToken))
-        {
-            return;
-        }
-
         var today = DateTime.UtcNow.Date;
         var records = new List<ConsumptionRecord>();
 
-        // Amoxicillin at Hospital B: exactly 20 units a day across the 30-day window,
-        // which is the input that makes the worked example reproducible.
-        for (var dayOffset = DemoWindowDays; dayOffset >= 1; dayOffset--)
+        // Every (facility, medicine, date) combination already present, so a re-run adds
+        // only what is genuinely missing and never duplicates or overwrites anything.
+        var existing = (await db.ConsumptionRecords
+                .AsNoTracking()
+                .Select(x => new { x.FacilityId, x.MedicineId, x.ConsumptionDate })
+                .ToListAsync(cancellationToken))
+            .Select(x => (x.FacilityId, x.MedicineId, x.ConsumptionDate.Date))
+            .ToHashSet();
+
+        void Add(Guid facilityId, Guid medicineId, DateTime date, decimal quantity, string notes)
         {
-            records.Add(new ConsumptionRecord
+            if (existing.Add((facilityId, medicineId, date.Date)))
             {
-                Id = Guid.NewGuid(),
-                FacilityId = FacilityBId,
-                MedicineId = AmoxicillinId,
-                QuantityUsed = DemoDailyConsumption,
-                ConsumptionDate = DateTime.SpecifyKind(today.AddDays(-dayOffset), DateTimeKind.Utc),
-                Source = "SEED",
-                Notes = "Seeded demonstration consumption",
-                CreatedAt = DateTime.UtcNow
-            });
+                records.Add(MakeRecord(facilityId, medicineId, date, quantity, "SEED", notes));
+            }
         }
 
-        // Paracetamol at Hospital B: a rising trend, so the trend forecasting method
-        // produces a visibly different result from the flat moving average.
-        for (var dayOffset = DemoWindowDays; dayOffset >= 1; dayOffset--)
-        {
-            var quantity = 10m + ((DemoWindowDays - dayOffset) * 0.5m);
+        const int WindowDays = 90; // 90-day rolling window for meaningful forecasts
 
-            records.Add(new ConsumptionRecord
-            {
-                Id = Guid.NewGuid(),
-                FacilityId = FacilityBId,
-                MedicineId = ParacetamolId,
-                QuantityUsed = decimal.Round(quantity, 2),
-                ConsumptionDate = DateTime.SpecifyKind(today.AddDays(-dayOffset), DateTimeKind.Utc),
-                Source = "SEED",
-                Notes = "Seeded demonstration consumption",
-                CreatedAt = DateTime.UtcNow
-            });
+        // ── Demo facilities (blueprint example) ──────────────────────────────
+        // Amoxicillin at Hospital B: exactly 20 units/day - reproduces worked example.
+        for (var d = WindowDays; d >= 1; d--)
+            Add(FacilityBId, AmoxicillinId, today.AddDays(-d), DemoDailyConsumption, "Blueprint demo: steady amoxicillin consumption");
+
+        // Paracetamol at Hospital B: rising trend (10→25/day) - demonstrates trend forecasting.
+        for (var d = WindowDays; d >= 1; d--)
+        {
+            var qty = 10m + ((WindowDays - d) * (15m / WindowDays));
+            Add(FacilityBId, ParacetamolId, today.AddDays(-d), decimal.Round(qty, 2), "Blueprint demo: rising paracetamol demand");
         }
 
-        // Amoxicillin at Hospital A: lower usage, the surplus side of the example.
-        for (var dayOffset = DemoWindowDays; dayOffset >= 1; dayOffset--)
+        // Amoxicillin at Hospital A: lower usage (surplus side of example)
+        for (var d = WindowDays; d >= 1; d--)
+            Add(FacilityAId, AmoxicillinId, today.AddDays(-d), 8m, "Blueprint demo: stable low amoxicillin usage");
+
+        // ── Real facilities ───────────────────────────────────────────────────
+        // Daily consumption rates: realistic per-medicine-per-facility values.
+        // Seasonal variation: ±15% using a sine wave (peak ~45 days ago, trough now)
+        // This gives the trend algorithm something to detect.
+        var realConsumptionSchedule = new (Guid Facility, Guid Medicine, decimal BaseRate, string Pattern)[]
         {
-            records.Add(new ConsumptionRecord
+            // Central Facility - high-volume hub
+            (SeedData.CentralFacilityId,      SeedData.ParacetamolId,     20.0m, "stable"),
+            (SeedData.CentralFacilityId,      SeedData.AmoxicillinId,     14.5m, "declining"),
+            (SeedData.CentralFacilityId,      SeedData.IbuprofenId,        8.0m, "stable"),
+            (SeedData.CentralFacilityId,      SeedData.OmeprazoleId,       6.0m, "rising"),
+            (SeedData.CentralFacilityId,      SeedData.CetirizineId,       4.5m, "seasonal"),
+            (SeedData.CentralFacilityId,      SeedData.VitaminCId,         3.0m, "stable"),
+            (SeedData.CentralFacilityId,      SeedData.AzithromycinId,     3.5m, "seasonal"),
+            (SeedData.CentralFacilityId,      SeedData.Amoxicillin500mgId, 5.0m, "stable"),
+
+            // East Hospital - medium volume
+            (SeedData.EastHospitalFacilityId, SeedData.IbuprofenId,       12.0m, "stable"),
+            (SeedData.EastHospitalFacilityId, SeedData.ParacetamolId,     15.0m, "rising"),
+            (SeedData.EastHospitalFacilityId, SeedData.AmoxicillinId,      7.0m, "stable"),
+            (SeedData.EastHospitalFacilityId, SeedData.Amoxicillin500mgId, 4.0m, "declining"),
+            (SeedData.EastHospitalFacilityId, SeedData.OmeprazoleId,       5.0m, "stable"),
+            (SeedData.EastHospitalFacilityId, SeedData.CetirizineId,       3.0m, "seasonal"),
+            (SeedData.EastHospitalFacilityId, SeedData.AzithromycinId,     2.5m, "seasonal"),
+            (SeedData.EastHospitalFacilityId, SeedData.VitaminCId,         2.0m, "stable"),
+
+            // North Clinic - small clinic, focus on antibiotics
+            (SeedData.NorthClinicFacilityId,  SeedData.AzithromycinId,     2.5m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,  SeedData.AmoxicillinId,      3.0m, "rising"),
+            (SeedData.NorthClinicFacilityId,  SeedData.ParacetamolId,      5.0m, "stable"),
+            (SeedData.NorthClinicFacilityId,  SeedData.IbuprofenId,        3.5m, "stable"),
+            (SeedData.NorthClinicFacilityId,  SeedData.CetirizineId,       2.0m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,  SeedData.OmeprazoleId,       1.5m, "stable"),
+            (SeedData.NorthClinicFacilityId,  SeedData.VitaminCId,         1.0m, "stable"),
+            (SeedData.NorthClinicFacilityId,  SeedData.Amoxicillin500mgId, 1.5m, "stable"),
+
+            // West Dispensary - chronic disease + OTC focus
+            (SeedData.WestDispensaryFacilityId, SeedData.CetirizineId,     6.0m, "seasonal"),
+            (SeedData.WestDispensaryFacilityId, SeedData.OmeprazoleId,     5.5m, "rising"),
+            (SeedData.WestDispensaryFacilityId, SeedData.ParacetamolId,    8.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId, SeedData.IbuprofenId,      5.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId, SeedData.VitaminCId,       4.0m, "rising"),
+            (SeedData.WestDispensaryFacilityId, SeedData.AmoxicillinId,    2.5m, "stable"),
+            (SeedData.WestDispensaryFacilityId, SeedData.AzithromycinId,   1.5m, "stable"),
+            (SeedData.WestDispensaryFacilityId, SeedData.Amoxicillin500mgId,2.0m,"stable"),
+
+            // Colombo General Hospital - largest volume
+            (SeedData.ColomboHospitalFacilityId, SeedData.ParacetamolId,  20.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.Amoxicillin500mgId, 14.5m, "declining"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.IbuprofenId,    10.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.AmoxicillinId,   8.0m, "rising"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.OmeprazoleId,    7.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.CetirizineId,    5.0m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.AzithromycinId,  4.0m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.VitaminCId,      3.5m, "rising"),
+
+            // Kandy Base Hospital - rising demand (population growth scenario)
+            (SeedData.KandyHospitalFacilityId, SeedData.ParacetamolId,    16.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId, SeedData.AmoxicillinId,    10.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId, SeedData.Amoxicillin500mgId,6.0m, "stable"),
+            (SeedData.KandyHospitalFacilityId, SeedData.IbuprofenId,       8.0m, "stable"),
+            (SeedData.KandyHospitalFacilityId, SeedData.OmeprazoleId,      5.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId, SeedData.CetirizineId,      4.0m, "seasonal"),
+            (SeedData.KandyHospitalFacilityId, SeedData.AzithromycinId,    3.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId, SeedData.VitaminCId,        2.5m, "stable"),
+
+            // ── Extended formulary: chronic-care & essential medicines ─────────
+            // Metformin 500 mg: high-volume chronic-care, rising with diabetes prevalence
+            (SeedData.CentralFacilityId,         SeedData.MetforminId,    28.0m, "rising"),
+            (SeedData.EastHospitalFacilityId,    SeedData.MetforminId,    20.0m, "rising"),
+            (SeedData.NorthClinicFacilityId,     SeedData.MetforminId,     8.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.MetforminId,    18.0m, "rising"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.MetforminId,    25.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.MetforminId,    15.0m, "rising"),
+
+            // Atorvastatin 20 mg: steady lipid-lowering therapy
+            (SeedData.CentralFacilityId,         SeedData.AtorvastatinId, 14.0m, "stable"),
+            (SeedData.EastHospitalFacilityId,    SeedData.AtorvastatinId,  9.0m, "stable"),
+            (SeedData.NorthClinicFacilityId,     SeedData.AtorvastatinId,  4.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.AtorvastatinId, 12.0m, "rising"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.AtorvastatinId, 16.0m, "stable"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.AtorvastatinId,  7.0m, "stable"),
+
+            // Metronidazole 400 mg: episodic antibiotic, seasonal peaks
+            (SeedData.CentralFacilityId,         SeedData.MetronidazoleId, 7.0m, "seasonal"),
+            (SeedData.EastHospitalFacilityId,    SeedData.MetronidazoleId, 5.0m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,     SeedData.MetronidazoleId, 2.5m, "seasonal"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.MetronidazoleId, 4.0m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.MetronidazoleId, 8.0m, "seasonal"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.MetronidazoleId, 5.5m, "seasonal"),
+
+            // Dexamethasone 4 mg: acute use, highly variable (stable mean with jitter)
+            (SeedData.CentralFacilityId,         SeedData.DexamethasoneId, 3.5m, "stable"),
+            (SeedData.EastHospitalFacilityId,    SeedData.DexamethasoneId, 2.5m, "stable"),
+            (SeedData.NorthClinicFacilityId,     SeedData.DexamethasoneId, 1.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.DexamethasoneId, 4.0m, "stable"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.DexamethasoneId, 2.0m, "stable"),
+
+            // Salbutamol Inhaler: seasonal respiratory peaks (flu season)
+            (SeedData.CentralFacilityId,         SeedData.SalbutamolId,    2.0m, "seasonal"),
+            (SeedData.EastHospitalFacilityId,    SeedData.SalbutamolId,    1.5m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,     SeedData.SalbutamolId,    1.0m, "seasonal"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.SalbutamolId,    2.5m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.SalbutamolId,    2.0m, "seasonal"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.SalbutamolId,    1.5m, "seasonal"),
+
+            // Morphine Sulfate 10 mg: tightly controlled, very low and stable
+            (SeedData.CentralFacilityId,         SeedData.MorphineId,      1.2m, "stable"),
+            (SeedData.EastHospitalFacilityId,    SeedData.MorphineId,      0.8m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.MorphineId,      1.5m, "stable"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.MorphineId,      0.9m, "stable"),
+
+            // Diclofenac 50 mg: analgesic/anti-inflammatory, declining as IBU preferred
+            (SeedData.CentralFacilityId,         SeedData.DiclofenacId,   10.0m, "declining"),
+            (SeedData.EastHospitalFacilityId,    SeedData.DiclofenacId,    7.0m, "declining"),
+            (SeedData.NorthClinicFacilityId,     SeedData.DiclofenacId,    3.5m, "stable"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.DiclofenacId,    8.0m, "declining"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.DiclofenacId,   12.0m, "declining"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.DiclofenacId,    6.0m, "stable"),
+
+            // ORS Sachet: oral rehydration, strong seasonal peaks (diarrhoeal disease)
+            (SeedData.CentralFacilityId,         SeedData.OrsSachetId,    18.0m, "seasonal"),
+            (SeedData.EastHospitalFacilityId,    SeedData.OrsSachetId,    14.0m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,     SeedData.OrsSachetId,     7.0m, "seasonal"),
+            (SeedData.WestDispensaryFacilityId,  SeedData.OrsSachetId,    10.0m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, SeedData.OrsSachetId,    22.0m, "seasonal"),
+            (SeedData.KandyHospitalFacilityId,   SeedData.OrsSachetId,    12.0m, "seasonal"),
+
+            // ── Added clinical formulary schedules ──────────────────────────────
+            // Ciprofloxacin 500 mg: broad antibiotic, acute surges
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.CiprofloxacinId,  16.0m, "rising"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.CiprofloxacinId,  11.0m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,     DemoVolumeSeed.CiprofloxacinId,   4.0m, "seasonal"),
+            (SeedData.WestDispensaryFacilityId,  DemoVolumeSeed.CiprofloxacinId,   6.5m, "rising"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.CiprofloxacinId,  18.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.CiprofloxacinId,   9.0m, "seasonal"),
+
+            // Insulin Regular 100IU/ml: critical endocrine chronic care
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.InsulinRegularId,  8.0m, "stable"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.InsulinRegularId,  5.0m, "stable"),
+            (SeedData.NorthClinicFacilityId,     DemoVolumeSeed.InsulinRegularId,  2.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId,  DemoVolumeSeed.InsulinRegularId,  4.5m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.InsulinRegularId, 12.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.InsulinRegularId,  6.0m, "stable"),
+
+            // Omeprazole IV 40 mg: inpatient acute care
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.OmeprazoleIvId,    6.0m, "stable"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.OmeprazoleIvId,    4.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.OmeprazoleIvId,    8.5m, "stable"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.OmeprazoleIvId,    4.5m, "stable"),
+
+            // Furosemide 40 mg: cardiac care and diuresis
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.FurosemideId,     10.0m, "stable"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.FurosemideId,      6.0m, "stable"),
+            (SeedData.NorthClinicFacilityId,     DemoVolumeSeed.FurosemideId,      3.0m, "stable"),
+            (SeedData.WestDispensaryFacilityId,  DemoVolumeSeed.FurosemideId,      7.0m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.FurosemideId,     14.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.FurosemideId,      5.5m, "stable"),
+
+            // Heparin Sodium 5000IU/ml: high-acuity surgical / ICU
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.HeparinSodiumId,   3.0m, "stable"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.HeparinSodiumId,   1.5m, "stable"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.HeparinSodiumId,   4.5m, "stable"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.HeparinSodiumId,   2.0m, "stable"),
+
+            // Ceftriaxone 1g IV: hospital-wide broad spectrum antibiotic
+            (SeedData.CentralFacilityId,         DemoVolumeSeed.CeftriaxoneId,    12.0m, "seasonal"),
+            (SeedData.EastHospitalFacilityId,    DemoVolumeSeed.CeftriaxoneId,     8.0m, "seasonal"),
+            (SeedData.NorthClinicFacilityId,     DemoVolumeSeed.CeftriaxoneId,     2.5m, "seasonal"),
+            (SeedData.ColomboHospitalFacilityId, DemoVolumeSeed.CeftriaxoneId,    15.0m, "rising"),
+            (SeedData.KandyHospitalFacilityId,   DemoVolumeSeed.CeftriaxoneId,     7.0m, "seasonal"),
+        };
+
+
+        foreach (var (facility, medicine, baseRate, pattern) in realConsumptionSchedule)
+        {
+            for (var d = WindowDays; d >= 1; d--)
             {
-                Id = Guid.NewGuid(),
-                FacilityId = FacilityAId,
-                MedicineId = AmoxicillinId,
-                QuantityUsed = 8m,
-                ConsumptionDate = DateTime.SpecifyKind(today.AddDays(-dayOffset), DateTimeKind.Utc),
-                Source = "SEED",
-                Notes = "Seeded demonstration consumption",
-                CreatedAt = DateTime.UtcNow
-            });
+                var qty = pattern switch
+                {
+                    "rising"    => decimal.Round(baseRate * (0.7m + (0.6m * (WindowDays - d) / WindowDays)), 2),
+                    "declining" => decimal.Round(baseRate * (1.3m - (0.6m * (WindowDays - d) / WindowDays)), 2),
+                    "seasonal"  => decimal.Round(baseRate * (1m + 0.2m * (decimal)Math.Sin(2 * Math.PI * d / 30.0)), 2),
+                    // Deterministic jitter: a stable hash of the series and day, so a
+                    // re-run reproduces exactly the same history instead of a new
+                    // Random() draw that would make the seed non-reproducible.
+                    _ => decimal.Round(baseRate * (0.9m + 0.2m * Jitter(facility, medicine, d)), 2),
+                };
+                Add(facility, medicine, today.AddDays(-d), Math.Max(0.5m, qty), $"Seeded {pattern} consumption pattern");
+            }
         }
 
-        db.ConsumptionRecords.AddRange(records);
+        if (records.Count > 0)
+        {
+            db.ConsumptionRecords.AddRange(records);
+        }
     }
+
+    /// <summary>
+    /// Stable per-series, per-day jitter in [0, 1), derived from a hash rather than a
+    /// random generator, so the seed is fully deterministic and reproducible.
+    /// </summary>
+    private static decimal Jitter(Guid facilityId, Guid medicineId, int day)
+    {
+        var hash = HashCode.Combine(facilityId, medicineId, day * 31);
+        // Map to an unsigned value in [0, 1).
+        return (uint)hash / (decimal)uint.MaxValue;
+    }
+
+    private static ConsumptionRecord MakeRecord(Guid facilityId, Guid medicineId, DateTime date, decimal qty, string source, string notes) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = facilityId,
+            MedicineId = medicineId,
+            QuantityUsed = qty,
+            ConsumptionDate = DateTime.SpecifyKind(date, DateTimeKind.Utc),
+            Source = source,
+            Notes = notes,
+            CreatedAt = DateTime.UtcNow
+        };
 }
+

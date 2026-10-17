@@ -24,7 +24,7 @@ public class AgentServiceOptions
     /// <summary>
     /// Shared secret sent as X-Internal-Token. Supplied by environment, never committed.
     /// </summary>
-    public string ServiceToken { get; init; } = "medistock-internal-agent-token-2024";
+    public string ServiceToken { get; init; } = string.Empty;
 
     /// <summary>Request timeout. The agent calls tools of its own, so this is generous.</summary>
     public int TimeoutSeconds { get; init; } = 30;

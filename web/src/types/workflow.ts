@@ -1,49 +1,95 @@
-export interface WorkflowStepDto {
+export type WorkflowStatus =
+  | 'Pending'
+  | 'Running'
+  | 'WaitingForApproval'
+  | 'Approved'
+  | 'Completed'
+  | 'Failed'
+  | 'Rejected'
+  | 'Cancelled';
+
+export type ApprovalDecision = 'Pending' | 'Approved' | 'Rejected';
+
+export interface WorkflowStep {
   id: string;
-  stepName: string;
+  stepOrder: number;
+  stepKey: string;
+  agentName: string;
+  action: string;
   status: string;
-  agentProvider: string;
-  promptTokens: number;
-  completionTokens: number;
-  executionTimeMs: number;
-  outputSummary: string;
-  toolCallsJson: string;
-  startedAt: string;
-  completedAt: string | null;
+  outputSummary?: string;
+  outputJson?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
-export interface WorkflowRunDto {
+export interface Approval {
+  id: string;
+  approvalType: string;
+  requiredRole: string;
+  decision: ApprovalDecision;
+  decidedByUserId?: string;
+  decidedByUserName?: string;
+  comments?: string;
+  requestedAt: string;
+  decidedAt?: string;
+}
+
+export interface WorkflowRun {
   id: string;
   workflowType: string;
-  status: string;
-  currentStep: string;
-  destinationFacilityId: string;
-  medicineId: string;
-  shortageQuantity: number;
-  selectedFacilityId: string | null;
-  proposedQuantity: number;
-  provider: string;
-  reasoning: string;
-  errorMessage?: string | null;
-  initiatedAt: string;
-  completedAt: string | null;
-  steps: WorkflowStepDto[];
+  objective: string;
+  status: WorkflowStatus;
+  facilityId?: string;
+  medicineId?: string;
+  initiatedByUserId?: string;
+  requiresApproval: boolean;
+  errorMessage?: string;
+  resultJson?: string;
+  sessionId?: string;
+  messageId?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  steps: WorkflowStep[];
+  approvals: Approval[];
+  currentStep?: string;
+  destinationFacilityId?: string;
+  shortageQuantity?: number;
+  selectedFacilityId?: string;
+  proposedQuantity?: number;
+  provider?: string;
+  reasoning?: string;
+  initiatedAt?: string;
 }
 
+
+
 export interface StartWorkflowRequest {
-  transferRequestId?: string;
-  destinationFacilityId: string;
-  medicineId: string;
-  shortageQuantity: number;
+  objective?: string;
   workflowType?: string;
+  facilityId?: string;
+  medicineId?: string;
+  parameters?: Record<string, unknown>;
+  sessionId?: string;
+  messageId?: string;
+  transferRequestId?: string;
+  destinationFacilityId?: string;
+  shortageQuantity?: number;
+  initiatorUserId?: string;
   additionalContext?: string;
 }
 
-export interface ApprovalRequest {
-  approverUserId?: string;
-  reviewerUserId?: string;
-  decisionNotes?: string;
+
+export interface SubmitApprovalRequest {
+  decision: ApprovalDecision;
   comments?: string;
-  decision?: 'Approve' | 'Reject';
-  modifiedQuantity?: number;
 }
+
+export type WorkflowRunDto = WorkflowRun;
+
+export interface ApprovalRequest {
+  approverUserId: string;
+  decisionNotes?: string;
+}
+

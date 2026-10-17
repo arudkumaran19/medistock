@@ -6,67 +6,26 @@ import 'api_exceptions.dart';
 import 'auth_interceptor.dart';
 
 class ApiClient {
-  ApiClient({
-    String? baseUrl,
-    http.Client? httpClient,
-    AuthInterceptor? authInterceptor,
-    String? authToken,
-  })  : baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _httpClient = httpClient ?? http.Client(),
-        _authInterceptor = authInterceptor ?? AuthInterceptor(readToken: () async => authToken),
+  ApiClient({String? baseUrl, String? authToken})
+      : baseUrl = baseUrl ?? _resolveDefaultBaseUrl(),
         _instanceAuthToken = authToken;
 
   final String baseUrl;
-  final http.Client _httpClient;
-  final AuthInterceptor _authInterceptor;
-  final SecureStorageService _storage = SecureStorageService();
-
   static String? globalAuthToken;
   final String? _instanceAuthToken;
 
   String? get authToken => _instanceAuthToken ?? globalAuthToken;
   set authToken(String? token) {
     globalAuthToken = token;
-    if (token != null) {
-      _storage.saveToken(token);
-    }
   }
 
-  Future<String?> _getOrRequireToken({bool requireAuth = true}) async {
-    String? token;
-    try {
-      token = await _storage.getToken().timeout(const Duration(milliseconds: 100));
-    } catch (_) {
-      // Platform channels like flutter_secure_storage may not be available in headless test environments
+  static String _resolveDefaultBaseUrl() {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5050';
     }
-    token ??= authToken;
-    if (requireAuth && (token == null || token.isEmpty)) {
-      throw AuthException('No authentication token found. Please log in.');
-    }
-    return token;
-  }
-
-  Uri _buildUri(String path, [Map<String, dynamic>? queryParameters]) {
-    final cleanPath = path.startsWith('/') ? path : '/$path';
-    final fullUrl = '$baseUrl$cleanPath';
-    final uri = Uri.parse(fullUrl);
-
-    if (queryParameters != null && queryParameters.isNotEmpty) {
-      final stringParams = queryParameters.map(
-        (key, value) => MapEntry(key, value?.toString() ?? ''),
-      );
-      return uri.replace(queryParameters: stringParams);
-    }
-    return uri;
-  }
-
-  Future<Map<String, String>> _getHeaders({bool requireAuth = true, Map<String, String>? extraHeaders}) async {
-    final token = await _getOrRequireToken(requireAuth: requireAuth);
-    final headers = await _authInterceptor.getHeaders(extraHeaders: extraHeaders);
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
+    return 'http://localhost:5050';
   }
 
   Future<dynamic> request(

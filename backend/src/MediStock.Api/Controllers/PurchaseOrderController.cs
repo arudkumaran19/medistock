@@ -72,6 +72,7 @@ public sealed class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
+    [Authorize(Policy = "ProcurementApprovalAccess")]
     public async Task<ActionResult<PurchaseOrderResponse>> Approve(
         Guid id,
         CancellationToken cancellationToken)
@@ -84,6 +85,7 @@ public sealed class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = "ProcurementApprovalAccess")]
     public async Task<ActionResult<PurchaseOrderResponse>> Reject(
         Guid id,
         [FromBody] PurchaseOrderWorkflowRequest request,
@@ -98,6 +100,7 @@ public sealed class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("{id:guid}/request-revision")]
+    [Authorize(Policy = "ProcurementApprovalAccess")]
     public async Task<ActionResult<PurchaseOrderResponse>> RequestRevision(
         Guid id,
         [FromBody] PurchaseOrderWorkflowRequest request,

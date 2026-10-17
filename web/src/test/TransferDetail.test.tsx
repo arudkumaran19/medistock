@@ -127,7 +127,9 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     vi.spyOn(workflowApi, 'getWorkflowRun').mockResolvedValue({
       id: 'wf-run-001',
       workflowType: 'RedistributionPlanning',
+      objective: 'Redistribution planning for amoxicillin',
       status: 'WaitingForApproval',
+      requiresApproval: true,
       currentStep: 'Human Manager Approval',
       destinationFacilityId: 'dest-fac-01',
       medicineId: 'med-01',
@@ -137,9 +139,13 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
       provider: 'LangGraphAgent',
       reasoning: 'Optimal route',
       initiatedAt: '2026-09-28T08:00:00Z',
-      completedAt: null,
+      createdAt: '2026-09-28T08:00:00Z',
+      updatedAt: '2026-09-28T08:00:00Z',
+      completedAt: undefined,
       steps: [],
+      approvals: [],
     });
+
 
     render(
       <MemoryRouter initialEntries={['/transfers/tr-proposed-002']}>

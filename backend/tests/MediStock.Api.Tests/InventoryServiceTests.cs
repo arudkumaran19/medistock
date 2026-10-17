@@ -80,4 +80,59 @@ public sealed class InventoryServiceTests
 
     [Fact] public async Task Transaction_history_is_read_only_and_contains_balance_after()
     { var (db, inventory, medicine, facility) = Create(); await inventory.ReceiveAsync(new ReceiveStockRequest(medicine, facility, "BATCH-012", 8, DateTime.UtcNow.AddDays(100), DateTime.UtcNow.AddDays(-10)), default); await inventory.AdjustAsync(new AdjustStockRequest(medicine, facility, -2, "cycle count"), default); var history = await new StockTransactionService(db).GetHistoryAsync(medicine, facility, default); Assert.Equal(2, history.Count); Assert.Equal("ADJUSTMENT", history[0].Type); Assert.Equal(-2, history[0].Quantity); Assert.Equal("cycle count", history[0].Reason); Assert.Equal(6, history[0].BalanceAfter); Assert.Equal("RECEIPT", history[1].Type); }
+
+    [Fact]
+    public async Task Concurrency_retry_protects_against_over_reservation()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(dbName).Options;
+        var medicineId = Guid.NewGuid();
+        var facilityId = Guid.NewGuid();
+
+        using (var setupDb = new ApplicationDbContext(options))
+        {
+            setupDb.Medicines.Add(new Medicine { Id = medicineId, Code = "CONC-1", Name = "Conc Test", MinimumStockLevel = 5 });
+            setupDb.Facilities.Add(new Facility { Id = facilityId, Code = "CONC-F", Name = "Conc Facility" });
+            await setupDb.SaveChangesAsync();
+            var inventoryService = new InventoryService(setupDb);
+            await inventoryService.ReceiveAsync(new ReceiveStockRequest(medicineId, facilityId, "BATCH-999", 10, DateTime.UtcNow.AddDays(100), DateTime.UtcNow.AddDays(-10)), default);
+        }
+
+        var barrier = new Barrier(2);
+        var task1 = Task.Run(async () =>
+        {
+            using var db1 = new ApplicationDbContext(options);
+            var s1 = new InventoryService(db1);
+            barrier.SignalAndWait();
+            return await s1.ReserveAsync(new ReserveStockRequest(medicineId, facilityId, 7, "res-1"), default);
+        });
+
+        var task2 = Task.Run(async () =>
+        {
+            using var db2 = new ApplicationDbContext(options);
+            var s2 = new InventoryService(db2);
+            barrier.SignalAndWait();
+            return await s2.ReserveAsync(new ReserveStockRequest(medicineId, facilityId, 7, "res-2"), default);
+        });
+
+        var results = await Task.WhenAll(
+            task1.ContinueWith(t => (Success: t.IsCompletedSuccessfully, Exception: t.Exception?.InnerException)),
+            task2.ContinueWith(t => (Success: t.IsCompletedSuccessfully, Exception: t.Exception?.InnerException))
+        );
+
+        Assert.Equal(1, results.Count(r => r.Success));
+        Assert.Equal(1, results.Count(r => !r.Success));
+        var failure = results.Single(r => !r.Success).Exception;
+        Assert.IsType<InventoryException>(failure);
+        Assert.Equal("INSUFFICIENT_STOCK", ((InventoryException)failure!).Code);
+
+        using (var checkDb = new ApplicationDbContext(options))
+        {
+            var finalBalance = await checkDb.InventoryBalances.SingleAsync(b => b.MedicineId == medicineId && b.FacilityId == facilityId);
+            Assert.Equal(10, finalBalance.QuantityOnHand);
+            Assert.Equal(7, finalBalance.QuantityReserved);
+            Assert.Equal(3, finalBalance.AvailableQuantity);
+        }
+    }
 }
+

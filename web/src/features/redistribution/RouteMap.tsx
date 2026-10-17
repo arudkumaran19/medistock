@@ -32,21 +32,6 @@ function project(lat: number, lon: number): [number, number] {
 }
 
 export function RouteMap({ route }: { route: TransferRoute }) {
-  if (
-    !route.sourceLatitude ||
-    !route.sourceLongitude ||
-    !route.destinationLatitude ||
-    !route.destinationLongitude ||
-    route.sourceLatitude === 0 ||
-    route.destinationLatitude === 0
-  ) {
-    return (
-      <div className="card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted, #64748b)' }}>
-        Location unavailable for this route.
-      </div>
-    );
-  }
-
   const outline = OUTLINE.map(([lon, lat]) => project(lat, lon).join(',')).join(' ');
   const [sx, sy] = project(route.sourceLatitude, route.sourceLongitude);
   const [dx, dy] = project(route.destinationLatitude, route.destinationLongitude);
