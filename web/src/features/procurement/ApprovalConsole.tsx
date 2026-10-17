@@ -379,7 +379,12 @@ export function ApprovalConsole() {
                             <Clock size={12} /> Bulk Volume (1k+ units)
                           </span>
                         )}
-                        {!isHighValue && !isBulk && (
+                        {order.items?.some((it) => it.unitPrice === 0) && (
+                          <span className={styles.badgeWarning} style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+                            System suggested (change if needed)
+                          </span>
+                        )}
+                        {!isHighValue && !isBulk && !order.items?.some((it) => it.unitPrice === 0) && (
                           <span className={styles.badgeSuccess}>
                             <CheckCircle2 size={12} /> Standard Threshold
                           </span>

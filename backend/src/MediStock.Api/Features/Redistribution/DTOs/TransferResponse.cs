@@ -36,6 +36,7 @@ public class TransferResponse
     public string? RejectionReason { get; set; }
     public string? Notes { get; set; }
     public Guid? WorkflowRunId { get; set; }
+    public Guid? PurchaseOrderId { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

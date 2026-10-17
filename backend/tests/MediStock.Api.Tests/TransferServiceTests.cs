@@ -18,6 +18,9 @@ using Microsoft.Extensions.DependencyInjection;
 using MediStock.Api.Common;
 using MediStock.Api.Features.Workflow.DTOs;
 using MediStock.Api.Features.Workflow.Services;
+using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Features.Demand.Models;
+using MediStock.Api.Infrastructure.Persistence;
 
 namespace MediStock.Api.Tests;
 
@@ -746,6 +749,371 @@ public class TransferServiceTests
         var proposedItem = proposedList.Items.First(t => t.Id == createdId);
         proposedItem.SourceFacilityId.Should().Be(sourceFacilityId);
         proposedItem.SourceFacilityName.Should().Be("Colombo National Hospital");
+    }
+
+    private (MediStockDbContext mediDb, ApplicationDbContext appDb) CreatePairedContexts()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var mediOptions = new DbContextOptionsBuilder<MediStockDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        var appOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        return (new MediStockDbContext(mediOptions), new ApplicationDbContext(appOptions));
+    }
+
+    [Fact]
+    public async Task SubmitTransferRequest_ZeroEligibleCandidates_TransitionsToRejected_CreatesSinglePurchaseOrderAndNotification()
+    {
+        // Arrange
+        var (mediDb, appDb) = CreatePairedContexts();
+        using var _ = mediDb;
+        using var __ = appDb;
+
+        var destFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var destFacility = new Facility
+        {
+            Id = destFacilityId,
+            Name = "Negombo District General Hospital",
+            FacilityCode = "FAC-NEG",
+            Latitude = 7.21,
+            Longitude = 79.84,
+            IsActive = true
+        };
+        mediDb.Facilities.Add(destFacility);
+
+        var medicine = new Medicine
+        {
+            Id = medicineId,
+            Name = "Cetirizine 10mg",
+            GenericName = "Cetirizine",
+            Sku = "MED-CET-01",
+            UnitOfMeasure = "tablets",
+            IsActive = true
+        };
+        mediDb.Medicines.Add(medicine);
+
+        // Add supplier with shortest lead time
+        var supplier = new Supplier
+        {
+            Id = Guid.NewGuid(),
+            Name = "CureMed Wholesale",
+            LeadTimeDays = 5,
+            IsActive = true
+        };
+        appDb.Suppliers.Add(supplier);
+
+        // ShortageAlert in Open status
+        var shortageAlert = new ShortageAlert
+        {
+            Id = Guid.NewGuid(),
+            FacilityId = destFacilityId,
+            MedicineId = medicineId,
+            CurrentStock = 0,
+            AverageDailyConsumption = 20,
+            DaysRemaining = 3,
+            LeadTimeDays = 5,
+            Status = ShortageAlertStatuses.Open,
+            GeneratedAt = DateTime.UtcNow
+        };
+        appDb.ShortageAlerts.Add(shortageAlert);
+        await mediDb.SaveChangesAsync();
+        await appDb.SaveChangesAsync();
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-2026-NEG-CET",
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Draft,
+            Priority = TransferPriority.Urgent,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    MedicineId = medicineId,
+                    MedicineName = "Cetirizine 10mg",
+                    RequestedQuantity = 300,
+                    UnitOfMeasure = "tablets"
+                }
+            }
+        };
+        mediDb.TransferRequests.Add(transfer);
+        await mediDb.SaveChangesAsync();
+
+        var routingMock = new Mock<IRoutingService>();
+        var candidateFacilityMock = new Mock<ICandidateFacilityService>();
+        // Return 0 candidates
+        candidateFacilityMock.Setup(c => c.FindCandidatesForTransferAsync(transfer.Id, default))
+            .ReturnsAsync(new List<CandidateFacilityResponse>());
+
+        var notificationServiceMock = new Mock<ITransferNotificationService>();
+
+        var service = new TransferService(
+            mediDb,
+            routingMock.Object,
+            candidateFacilityMock.Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object,
+            serviceProvider: null,
+            notificationService: notificationServiceMock.Object,
+            appDbContext: appDb);
+
+        // Act
+        var result = await service.SubmitTransferRequestAsync(transfer.Id, userId);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Status.Should().Be(TransferStatus.Rejected);
+        result.Data.RejectionReason.Should().Be("No facility has surplus stock for this medicine");
+        result.Data.PurchaseOrderId.Should().NotBeNull();
+
+        // Exactly 1 PO in PendingApproval
+        var pos = await appDb.PurchaseOrders.Include(p => p.Items).ToListAsync();
+        pos.Should().HaveCount(1);
+        var po = pos.First();
+        po.Status.Should().Be(PurchaseOrderStatus.PendingApproval);
+        po.FacilityId.Should().Be(destFacilityId);
+        po.SupplierId.Should().Be(supplier.Id);
+        po.Items.Should().HaveCount(1);
+        po.Items.First().RequestedQuantity.Should().Be(300);
+        po.Items.First().UnitPrice.Should().Be(0.00m);
+
+        // ShortageAlert moved to DEMAND_RAISED
+        var updatedAlert = await appDb.ShortageAlerts.FindAsync(shortageAlert.Id);
+        updatedAlert!.Status.Should().Be(ShortageAlertStatuses.DemandRaised);
+
+        // Status history recorded
+        var updatedTransfer = await mediDb.TransferRequests.Include(t => t.StatusHistory).FirstAsync(t => t.Id == transfer.Id);
+        updatedTransfer.Status.Should().Be(TransferStatus.Rejected);
+        updatedTransfer.StatusHistory.Should().Contain(h => h.ToStatus == TransferStatus.Rejected && h.Reason == "No facility has surplus stock for this medicine");
+
+        // Notifications created
+        var notifications = await mediDb.TransferNotifications.ToListAsync();
+        notifications.Should().Contain(n => n.Audience == "FieldOfficer" && n.Title == "Transfer rejected");
+        notifications.Should().Contain(n => n.Audience == "Manager" && n.Message.Contains("no redistribution source"));
+    }
+
+    [Fact]
+    public async Task SubmitTransferRequest_RetryOnRejected_DoesNotCreateSecondPurchaseOrder()
+    {
+        // Arrange
+        var (mediDb, appDb) = CreatePairedContexts();
+        using var _ = mediDb;
+        using var __ = appDb;
+
+        var destFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var existingPoId = Guid.NewGuid();
+
+        mediDb.Facilities.Add(new Facility { Id = destFacilityId, Name = "Negombo Hospital", IsActive = true });
+        mediDb.Medicines.Add(new Medicine { Id = medicineId, Name = "Cetirizine 10mg", IsActive = true });
+
+        var supplier = new Supplier { Id = Guid.NewGuid(), Name = "CureMed", LeadTimeDays = 5, IsActive = true };
+        appDb.Suppliers.Add(supplier);
+
+        // Seed existing PO
+        appDb.PurchaseOrders.Add(new PurchaseOrder
+        {
+            Id = existingPoId,
+            SupplierId = supplier.Id,
+            FacilityId = destFacilityId,
+            Status = PurchaseOrderStatus.PendingApproval,
+            RequestedAt = DateTime.UtcNow
+        });
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-2026-IDEMP",
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Rejected,
+            RejectionReason = "No facility has surplus stock for this medicine",
+            Notes = $"Redistribution not possible | [PO:{existingPoId}]",
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem>
+            {
+                new() { Id = Guid.NewGuid(), MedicineId = medicineId, RequestedQuantity = 100 }
+            }
+        };
+        mediDb.TransferRequests.Add(transfer);
+        await mediDb.SaveChangesAsync();
+        await appDb.SaveChangesAsync();
+
+        var candidateFacilityMock = new Mock<ICandidateFacilityService>();
+        candidateFacilityMock.Setup(c => c.FindCandidatesForTransferAsync(transfer.Id, default))
+            .ReturnsAsync(new List<CandidateFacilityResponse>());
+
+        var service = new TransferService(
+            mediDb,
+            new Mock<IRoutingService>().Object,
+            candidateFacilityMock.Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object,
+            appDbContext: appDb);
+
+        // Act - retry submit
+        var result = await service.SubmitTransferRequestAsync(transfer.Id, userId);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.PurchaseOrderId.Should().Be(existingPoId);
+
+        // Must still be exactly 1 PO in database
+        var poCount = await appDb.PurchaseOrders.CountAsync();
+        poCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SubmitTransferRequest_AgentPlanningError_StaysInRequestedWithoutPurchaseOrder()
+    {
+        // Arrange
+        var (mediDb, appDb) = CreatePairedContexts();
+        using var _ = mediDb;
+        using var __ = appDb;
+
+        var destFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        mediDb.Facilities.Add(new Facility { Id = destFacilityId, Name = "Negombo Hospital", IsActive = true });
+        mediDb.Medicines.Add(new Medicine { Id = medicineId, Name = "Cetirizine 10mg", IsActive = true });
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-2026-ERR",
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Requested,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem>
+            {
+                new() { Id = Guid.NewGuid(), MedicineId = medicineId, RequestedQuantity = 100 }
+            }
+        };
+        mediDb.TransferRequests.Add(transfer);
+        await mediDb.SaveChangesAsync();
+
+        var candidateFacilityMock = new Mock<ICandidateFacilityService>();
+        // Simulate ORS / Network error
+        candidateFacilityMock.Setup(c => c.FindCandidatesForTransferAsync(It.IsAny<Guid>(), default))
+            .ThrowsAsync(new InvalidOperationException("ORS service connection failed"));
+
+        var service = new TransferService(
+            mediDb,
+            new Mock<IRoutingService>().Object,
+            candidateFacilityMock.Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object,
+            appDbContext: appDb);
+
+        // Act
+        var result = await service.SubmitTransferRequestAsync(transfer.Id, userId);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Status.Should().Be(TransferStatus.Requested);
+        result.Data.PurchaseOrderId.Should().BeNull();
+        result.Message.Should().Contain("retry");
+
+        // No PO created
+        var poCount = await appDb.PurchaseOrders.CountAsync();
+        poCount.Should().Be(0);
+
+        // WorkflowRun recorded as Failed
+        var runs = await mediDb.WorkflowRuns.Include(w => w.Steps).ToListAsync();
+        runs.Should().Contain(r => r.Status == WorkflowStatus.Failed);
+    }
+
+    [Fact]
+    public async Task SubmitTransferRequest_PartialSurplus_TransitionsToProposed_WithShortfallReported()
+    {
+        // Arrange
+        var (mediDb, appDb) = CreatePairedContexts();
+        using var _ = mediDb;
+        using var __ = appDb;
+
+        var destFacilityId = Guid.NewGuid();
+        var sourceFacilityId = Guid.NewGuid();
+        var medicineId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        mediDb.Facilities.Add(new Facility { Id = destFacilityId, Name = "Dest Hospital", Latitude = 7.2, Longitude = 79.8, IsActive = true });
+        mediDb.Facilities.Add(new Facility { Id = sourceFacilityId, Name = "Source Hospital", Latitude = 6.9, Longitude = 79.8, IsActive = true });
+        mediDb.Medicines.Add(new Medicine { Id = medicineId, Name = "Paracetamol 500mg", IsActive = true });
+
+        var transfer = new TransferRequest
+        {
+            Id = Guid.NewGuid(),
+            TransferNumber = "TR-2026-PARTIAL",
+            DestinationFacilityId = destFacilityId,
+            Status = TransferStatus.Draft,
+            RequestedByUserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            Items = new List<TransferItem>
+            {
+                new() { Id = Guid.NewGuid(), MedicineId = medicineId, RequestedQuantity = 500 }
+            }
+        };
+        mediDb.TransferRequests.Add(transfer);
+        await mediDb.SaveChangesAsync();
+
+        var candidateFacilityMock = new Mock<ICandidateFacilityService>();
+        // Only 200 available surplus (requested 500)
+        candidateFacilityMock.Setup(c => c.FindCandidatesForTransferAsync(transfer.Id, default))
+            .ReturnsAsync(new List<CandidateFacilityResponse>
+            {
+                new()
+                {
+                    FacilityId = sourceFacilityId,
+                    FacilityName = "Source Hospital",
+                    StockOnHand = 300,
+                    SafetyStockThreshold = 100,
+                    AvailableSurplus = 200,
+                    DistanceKm = 30,
+                    EstimatedDurationMinutes = 45,
+                    Score = 95
+                }
+            });
+
+        var routingMock = new Mock<IRoutingService>();
+        routingMock.Setup(r => r.CalculateRouteAsync(It.IsAny<Facility>(), It.IsAny<Facility>(), default))
+            .ReturnsAsync(new RouteResponse { DistanceKm = 30m, DurationMinutes = 45m });
+
+        var service = new TransferService(
+            mediDb,
+            routingMock.Object,
+            candidateFacilityMock.Object,
+            new TransferValidator(),
+            new Mock<ILogger<TransferService>>().Object,
+            appDbContext: appDb);
+
+        // Act
+        var result = await service.SubmitTransferRequestAsync(transfer.Id, userId);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Status.Should().Be(TransferStatus.Proposed);
+        result.Data.Items.First().AllocatedQuantity.Should().Be(200);
+        result.Data.SourceFacilityId.Should().Be(sourceFacilityId);
+        result.Data.PurchaseOrderId.Should().BeNull();
+
+        // No PO created
+        var poCount = await appDb.PurchaseOrders.CountAsync();
+        poCount.Should().Be(0);
     }
 }
 

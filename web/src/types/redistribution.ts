@@ -49,6 +49,8 @@ export interface TransferDto {
   dispatchedAt: string | null;
   deliveredAt: string | null;
   workflowRunId?: string | null;
+  rejectionReason?: string | null;
+  purchaseOrderId?: string | null;
   routePolyline?: string | null;
   routingProvider?: string | null;
   lastLatitude?: number | null;

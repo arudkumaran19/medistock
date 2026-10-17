@@ -9,6 +9,8 @@ import {
   Compass,
   Navigation,
   Package,
+  RefreshCw,
+  FileText,
   ShieldCheck,
   Truck,
   Users,
@@ -284,8 +286,27 @@ export const TransferDetail: React.FC = () => {
     });
   };
 
+  const handleRetryPlanning = async () => {
+    if (!transfer) return;
+    setActionLoading(true);
+    try {
+      await redistributionApi.requestTransfer(transfer.id);
+      await fetchTransfer();
+    } catch (err: any) {
+      setError(err.message || 'Failed to retry transfer planning.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) return <LoadingState message="Loading transfer records..." />;
   if (error || !transfer) return <ErrorState message={error || 'Transfer not found.'} onRetry={fetchTransfer} />;
+
+  const isPlanningFailed =
+    transfer.status === 'Requested' &&
+    (workflowRun?.status === 'Failed' ||
+      workflowRun?.steps?.some((s) => s.status === 'Failed') ||
+      Boolean(transfer.notes && transfer.notes.toLowerCase().includes('error')));
 
   const currentStepIndex = STATUS_PIPELINE.indexOf(transfer.status);
   // Manager Approve/Reject in React only when Proposed per ADR and workflow specification
@@ -381,8 +402,39 @@ export const TransferDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Requested: AI planning agent in progress */}
-          {transfer.status === 'Requested' && (
+          {/* Requested: AI planning agent in progress or Retry if failed */}
+          {transfer.status === 'Requested' && isPlanningFailed && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#dc2626',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                }}
+              >
+                <AlertTriangle size={15} />
+                <span>Planning failed, retry</span>
+              </div>
+              <button
+                onClick={handleRetryPlanning}
+                className="btn btn-primary"
+                disabled={actionLoading}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={14} className={actionLoading ? 'spin' : ''} />
+                Retry
+              </button>
+            </div>
+          )}
+
+          {transfer.status === 'Requested' && !isPlanningFailed && (
             <div
               style={{
                 display: 'inline-flex',
@@ -399,6 +451,27 @@ export const TransferDetail: React.FC = () => {
             >
               <Clock size={15} />
               <span>AI planning agent in progress</span>
+            </div>
+          )}
+
+          {/* Rejected status button */}
+          {transfer.status === 'Rejected' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#dc2626',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+              }}
+            >
+              <XCircle size={15} />
+              <span>Rejected - no source with stock</span>
             </div>
           )}
 
@@ -461,6 +534,72 @@ export const TransferDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Rejected Banner with Purchase Request Link */}
+      {transfer.status === 'Rejected' && (
+        <div
+          className="glass-panel"
+          style={{
+            padding: '20px 24px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: 'var(--radius-md, 8px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#dc2626',
+                  flexShrink: 0,
+                }}
+              >
+                <XCircle size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#991b1b', margin: 0 }}>
+                  Rejected - no source with stock
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#b91c1c' }}>
+                  {transfer.rejectionReason || 'No facility has surplus stock for this medicine'}
+                </p>
+              </div>
+            </div>
+
+            {transfer.purchaseOrderId && (
+              <button
+                onClick={() => navigate('/procurement/approvals')}
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#0284c7',
+                  borderColor: '#0284c7',
+                }}
+              >
+                <FileText size={16} />
+                View Purchase Request in Approvals
+              </button>
+            )}
+          </div>
+          {transfer.purchaseOrderId && (
+            <div style={{ fontSize: '0.8125rem', color: '#64748b', borderTop: '1px solid #fee2e2', paddingTop: '10px' }}>
+              Automated Purchase Order Reference: <code style={{ fontWeight: 600, color: '#0f172a' }}>PO-{transfer.purchaseOrderId.slice(0, 8)}</code>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Progression Pipeline Timeline */}
       <div className="glass-panel" style={{ padding: '24px' }}>

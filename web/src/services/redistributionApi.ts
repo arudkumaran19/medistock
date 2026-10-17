@@ -44,6 +44,8 @@ function normalizeTransfer(t: any): TransferDto {
     dispatchedAt: t.dispatchedAt ?? null,
     deliveredAt: t.deliveredAt ?? null,
     workflowRunId: t.workflowRunId ?? null,
+    rejectionReason: t.rejectionReason ?? null,
+    purchaseOrderId: t.purchaseOrderId ?? (t.notes ? (t.notes.match(/\[PO:([0-9a-fA-F-]+)\]/)?.[1] ?? null) : null),
     routingProvider: t.routingProvider ?? null,
     routePolyline: t.routePolyline ?? null,
     items: t.items || [],

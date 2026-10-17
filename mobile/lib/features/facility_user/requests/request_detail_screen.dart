@@ -222,6 +222,125 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (statusLower == 'rejected')
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorLight,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.cancel_rounded, color: AppColors.error, size: 22),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Rejected - no source with stock',
+                                        style: AppTextStyles.titleMedium.copyWith(
+                                          color: AppColors.error,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  transfer.rejectionReason ?? 'No facility has surplus stock for this medicine',
+                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary),
+                                ),
+                                if (transfer.purchaseOrderId != null) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.shopping_cart_outlined, size: 18, color: AppColors.info),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Purchase Request: PO-${transfer.purchaseOrderId!.length >= 8 ? transfer.purchaseOrderId!.substring(0, 8) : transfer.purchaseOrderId}',
+                                            style: AppTextStyles.bodySmall.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.info,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        if (statusLower == 'requested' && ((transfer.notes?.toLowerCase().contains('error') ?? false) || (transfer.notes?.toLowerCase().contains('failed') ?? false)))
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningLight,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 22),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Planning failed, retry',
+                                        style: AppTextStyles.titleMedium.copyWith(
+                                          color: AppColors.warning,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Planning encountered an error. Tap retry to restart planning.',
+                                        style: AppTextStyles.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    try {
+                                      await ref.read(transferRepositoryProvider).submitRequest(transfer.id);
+                                      ref.invalidate(transferByIdProvider(widget.requestId));
+                                      ref.invalidate(myRequestsProvider);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Retry failed: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                                  label: const Text('Retry'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.warning,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Logistics Transfer Card
                         Container(
                           padding: const EdgeInsets.all(16),

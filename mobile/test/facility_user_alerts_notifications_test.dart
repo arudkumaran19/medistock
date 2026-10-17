@@ -11,6 +11,9 @@ import 'package:medistock_mobile/features/facility_user/alerts/models/shortage_a
 import 'package:medistock_mobile/features/facility_user/alerts/verify_shortage_screen.dart';
 import 'package:medistock_mobile/features/facility_user/dashboard/user_home_screen.dart';
 import 'package:medistock_mobile/shared/models/user_model.dart';
+import 'package:medistock_mobile/features/facility_user/requests/request_detail_screen.dart';
+import 'package:medistock_mobile/features/facility_user/requests/data/transfer_repository.dart';
+import 'package:medistock_mobile/shared/models/transfer_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeShortageRepository implements ShortageRepository {
@@ -409,4 +412,109 @@ void main() {
     expect(find.byKey(const Key('conflict-error-snackbar')), findsOneWidget);
     expect(find.textContaining('Only OPEN or ACKNOWLEDGED alerts can be dismissed'), findsOneWidget);
   });
+
+  testWidgets('RequestDetailScreen shows Rejected - no source with stock, reason, and purchase request', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final rejectedTransfer = TransferModel(
+      id: 'req-rej-1',
+      transferNumber: 'TR-2026-REJ',
+      sourceFacilityId: '',
+      sourceFacilityName: '',
+      destinationFacilityId: testFacilityId,
+      destinationFacilityName: 'Negombo Base Hospital',
+      status: 'REJECTED',
+      priority: 'Normal',
+      createdAt: DateTime.now(),
+      currentLatitude: 0.0,
+      currentLongitude: 0.0,
+      rejectionReason: 'No facility has surplus stock for this medicine',
+      purchaseOrderId: 'c9d8e7f6-1111-2222-3333-444455556666',
+      items: [
+        TransferItemModel(
+          id: 'item-1',
+          inventoryItemId: 'med-1',
+          itemName: 'Cetirizine 10mg',
+          requestedQuantity: 50,
+          fulfilledQuantity: 0,
+        ),
+      ],
+    );
+
+    final container = ProviderContainer(
+      overrides: [
+        transferByIdProvider('req-rej-1').overrideWith((ref) => Future.value(rejectedTransfer)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: RequestDetailScreen(requestId: 'req-rej-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rejected - no source with stock'), findsOneWidget);
+    expect(find.text('No facility has surplus stock for this medicine'), findsOneWidget);
+    expect(find.textContaining('Purchase Request: PO-c9d8e7f6'), findsOneWidget);
+  });
+
+  testWidgets('RequestDetailScreen shows Planning failed, retry and Retry button when planning failed', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final failedTransfer = TransferModel(
+      id: 'req-fail-1',
+      transferNumber: 'TR-2026-FAIL',
+      sourceFacilityId: '',
+      sourceFacilityName: '',
+      destinationFacilityId: testFacilityId,
+      destinationFacilityName: 'Negombo Base Hospital',
+      status: 'Requested',
+      priority: 'Normal',
+      createdAt: DateTime.now(),
+      currentLatitude: 0.0,
+      currentLongitude: 0.0,
+      notes: 'Planning failed: ORS routing service timed out',
+      items: [
+        TransferItemModel(
+          id: 'item-2',
+          inventoryItemId: 'med-2',
+          itemName: 'Paracetamol 500mg',
+          requestedQuantity: 100,
+          fulfilledQuantity: 0,
+        ),
+      ],
+    );
+
+    final container = ProviderContainer(
+      overrides: [
+        transferByIdProvider('req-fail-1').overrideWith((ref) => Future.value(failedTransfer)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: RequestDetailScreen(requestId: 'req-fail-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Planning failed, retry'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
 }
+
