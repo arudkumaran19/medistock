@@ -42,6 +42,9 @@ class TransferModel {
   final double currentLatitude;
   final double currentLongitude;
   final String? otp;
+  final String? rejectionReason;
+  final String? notes;
+  final String? purchaseOrderId;
   final List<TransferItemModel> items;
 
   TransferModel({
@@ -59,6 +62,9 @@ class TransferModel {
     required this.currentLatitude,
     required this.currentLongitude,
     this.otp,
+    this.rejectionReason,
+    this.notes,
+    this.purchaseOrderId,
     required this.items,
   });
 
@@ -71,6 +77,15 @@ class TransferModel {
 
   factory TransferModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] as List<dynamic>? ?? [];
+    final notes = json['notes']?.toString();
+    String? poId = json['purchaseOrderId']?.toString();
+    if (poId == null && notes != null) {
+      final match = RegExp(r'\[PO:([0-9a-fA-F-]+)\]').firstMatch(notes);
+      if (match != null) {
+        poId = match.group(1);
+      }
+    }
+
     return TransferModel(
       id: json['id']?.toString() ?? '',
       transferNumber: json['transferNumber']?.toString() ?? json['code']?.toString() ?? '',
@@ -88,6 +103,9 @@ class TransferModel {
       currentLatitude: (json['currentLatitude'] as num?)?.toDouble() ?? (json['lastLatitude'] as num?)?.toDouble() ?? 0.0,
       currentLongitude: (json['currentLongitude'] as num?)?.toDouble() ?? (json['lastLongitude'] as num?)?.toDouble() ?? 0.0,
       otp: json['otp']?.toString(),
+      rejectionReason: json['rejectionReason']?.toString(),
+      notes: notes,
+      purchaseOrderId: poId,
       items: rawItems.map((e) => TransferItemModel.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { useQueryClient } from '@tanstack/react-query';
 import { TransferDto, TransferLocationUpdate, TransferNotificationDto } from '../../types/redistribution';
+import { getStoredToken } from '../../services/apiClient';
+import { useAuth } from '../auth/AuthContext';
 
 interface UseTransferSignalROptions {
   transferId?: string;
@@ -29,6 +31,9 @@ export function useTransferSignalR({
   } catch {
     queryClient = null;
   }
+  const { token } = useAuth();
+  const currentToken = token || getStoredToken();
+
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<string>('Disconnected');
   const connectionRef = useRef<signalR.HubConnection | null>(null);
@@ -57,6 +62,7 @@ export function useTransferSignalR({
         .withUrl(hubUrl, {
           skipNegotiation: false,
           transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
+          accessTokenFactory: () => getStoredToken() ?? '',
         })
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .configureLogging(signalR.LogLevel.None)
@@ -219,7 +225,7 @@ export function useTransferSignalR({
       setIsConnected(false);
       setConnectionState('Disconnected');
     };
-  }, [transferId, isManager, enabled]);
+  }, [transferId, isManager, enabled, currentToken]);
 
   return { isConnected, connectionState };
 }

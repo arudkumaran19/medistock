@@ -170,4 +170,80 @@ describe('TransferDetail Component - Client Responsibility Split (ADR-008)', () 
     // Request Notes label
     expect(screen.getByText('Request Notes:')).toBeInTheDocument();
   });
+
+  it('renders Rejected transfer with Rejected - no source with stock, reason and link to Approvals purchase request', async () => {
+    const mockRejectedTransfer: TransferDto = {
+      ...mockDraftTransfer,
+      id: 'tr-rejected-004',
+      transferNumber: 'TR-2026-REJ',
+      status: 'Rejected',
+      rejectionReason: 'No facility has surplus stock for this medicine',
+      purchaseOrderId: 'po-12345678-abcd-1234-abcd-1234567890ab',
+      notes: 'Redistribution not possible: transfer TR-2026-REJ | [PO:po-12345678-abcd-1234-abcd-1234567890ab]',
+    };
+    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockRejectedTransfer);
+
+    render(
+      <MemoryRouter initialEntries={['/transfers/tr-rejected-004']}>
+        <Routes>
+          <Route path="/transfers/:id" element={<TransferDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Transfer TR-2026-REJ')).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText('Rejected - no source with stock').length).toBeGreaterThan(0);
+    expect(screen.getByText('No facility has surplus stock for this medicine')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /View Purchase Request in Approvals/i })).toBeInTheDocument();
+    expect(screen.getByText(/PO-po-12345/i)).toBeInTheDocument();
+  });
+
+  it('renders Requested transfer with Planning failed, retry and Retry button when planning fails', async () => {
+    const mockFailedRequested: TransferDto = {
+      ...mockRequestedTransfer,
+      notes: 'Planning encountered an error. Transfer remains in Requested status for retry.',
+    };
+    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockFailedRequested);
+    vi.spyOn(workflowApi, 'getWorkflowRun').mockResolvedValue({
+      id: 'wf-run-001',
+      status: 'Failed',
+      steps: [{ status: 'Failed' }] as any,
+    } as any);
+
+    render(
+      <MemoryRouter initialEntries={['/transfers/tr-requested-003']}>
+        <Routes>
+          <Route path="/transfers/:id" element={<TransferDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Transfer TR-2026-REQ')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Planning failed, retry')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+  });
+
+  it('displays SignalR Live badge when connected', async () => {
+    vi.spyOn(redistributionApi, 'getTransferById').mockResolvedValue(mockDraftTransfer);
+    const signalRModule = await import('../features/redistribution/useTransferSignalR');
+    vi.spyOn(signalRModule, 'useTransferSignalR').mockReturnValue({ isConnected: true, connectionState: 'Connected' });
+
+    render(
+      <MemoryRouter initialEntries={['/transfers/tr-draft-001']}>
+        <Routes>
+          <Route path="/transfers/:id" element={<TransferDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('SignalR Live')).toBeInTheDocument();
+    });
+  });
 });

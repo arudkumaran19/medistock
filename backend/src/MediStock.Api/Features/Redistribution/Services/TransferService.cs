@@ -18,8 +18,10 @@ using MediStock.Api.Features.Demand.Services;
 using MediStock.Api.Features.Workflow.DTOs;
 using MediStock.Api.Features.Workflow.Models;
 using MediStock.Api.Features.Workflow.Services;
-
 using MediStock.Api.Infrastructure.Persistence;
+using MediStock.Api.Features.Procurement.DTOs;
+using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Features.Demand.Models;
 
 namespace MediStock.Api.Features.Redistribution.Services;
 
@@ -33,6 +35,7 @@ public class TransferService : ITransferService
     private readonly ILogger<TransferService> _logger;
     private readonly IServiceProvider? _serviceProvider;
     private readonly ITransferNotificationService? _notificationService;
+    private readonly MediStock.Api.Features.Procurement.Services.ProcurementService? _procurementService;
 
     public TransferService(
         MediStockDbContext dbContext,
@@ -42,7 +45,8 @@ public class TransferService : ITransferService
         ILogger<TransferService> logger,
         IServiceProvider? serviceProvider = null,
         ITransferNotificationService? notificationService = null,
-        ApplicationDbContext? appDbContext = null)
+        ApplicationDbContext? appDbContext = null,
+        MediStock.Api.Features.Procurement.Services.ProcurementService? procurementService = null)
     {
         _dbContext = dbContext;
         _routingService = routingService;
@@ -52,6 +56,7 @@ public class TransferService : ITransferService
         _serviceProvider = serviceProvider;
         _notificationService = notificationService;
         _appDbContext = appDbContext;
+        _procurementService = procurementService;
     }
 
 
@@ -111,11 +116,11 @@ public class TransferService : ITransferService
         };
 
         var totalCount = await query.CountAsync(ct);
-        var items = await query
+        var entities = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(t => MapToResponse(t))
             .ToListAsync(ct);
+        var items = entities.Select(MapToResponse).ToList();
 
         return new PagedResponse<TransferResponse>(items, totalCount, page, pageSize);
     }
@@ -270,10 +275,13 @@ public class TransferService : ITransferService
             return ApiResponse<TransferResponse>.Fail($"Transfer request {transferId} not found.");
         }
 
-        var (isValid, error) = _validator.ValidateStatusTransition(transfer.Status, TransferStatus.Requested);
-        if (!isValid)
+        if (transfer.Status != TransferStatus.Requested && transfer.Status != TransferStatus.Rejected)
         {
-            return ApiResponse<TransferResponse>.Fail(error!);
+            var (isValid, error) = _validator.ValidateStatusTransition(transfer.Status, TransferStatus.Requested);
+            if (!isValid)
+            {
+                return ApiResponse<TransferResponse>.Fail(error!);
+            }
         }
 
         var previousStatus = transfer.Status;
@@ -285,7 +293,10 @@ public class TransferService : ITransferService
             transfer.Notes = string.IsNullOrWhiteSpace(transfer.Notes) ? notes : $"{transfer.Notes} | {notes}";
         }
 
-        AddStatusHistory(transfer, previousStatus, TransferStatus.Requested, userId, notes ?? "Formally submitted transfer request for approval.");
+        if (previousStatus != TransferStatus.Requested)
+        {
+            AddStatusHistory(transfer, previousStatus, TransferStatus.Requested, userId, notes ?? "Formally submitted transfer request for approval.");
+        }
         await _dbContext.SaveChangesAsync(ct);
 
         await CreateAndBroadcastNotificationsAsync(
@@ -331,6 +342,7 @@ public class TransferService : ITransferService
                     {
                         workflowTriggered = true;
                         transfer.WorkflowRunId = workflowResult.Data.Id;
+                        await _dbContext.SaveChangesAsync(ct);
                         _logger.LogInformation("AI planning workflow auto-triggered for transfer {TransferId}, WorkflowRunId: {RunId}", transfer.Id, workflowResult.Data.Id);
                     }
                 }
@@ -341,92 +353,415 @@ public class TransferService : ITransferService
             }
         }
 
-        if (!workflowTriggered)
+        if (!workflowTriggered && (transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty) && firstItem != null && medId != Guid.Empty)
         {
-            // Fallback: auto-propose best candidate source facility and route so transfer advances to Proposed
+            bool planningError = false;
+            string? planningErrorMessage = null;
+            List<CandidateFacilityResponse> candidates = new();
+
             try
             {
-                var candidates = await _candidateFacilityService.FindCandidatesForTransferAsync(transfer.Id, ct);
-                var bestCandidate = candidates.FirstOrDefault(c => c.AvailableSurplus > 0) ?? candidates.FirstOrDefault();
-                if (bestCandidate != null)
-                {
-                    await ProposeCandidateInternalAsync(transfer.Id, bestCandidate.FacilityId, userId, ct);
-                }
+                candidates = await _candidateFacilityService.FindCandidatesForTransferAsync(transfer.Id, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not auto-propose fallback candidate facility for transfer {TransferId}", transfer.Id);
+                planningError = true;
+                planningErrorMessage = ex.Message;
+                _logger.LogError(ex, "Candidate search or route calculation error for transfer {TransferId}", transfer.Id);
             }
 
-            // Fallback: Ensure a linked WorkflowRun exists in WaitingForApproval state
-            if (transfer.WorkflowRunId == null || transfer.WorkflowRunId == Guid.Empty)
+            if (planningError)
             {
-                var run = new WorkflowRun
+                // =====================================================================
+                // Outcome B: Agent/ORS/database error
+                // Keep Requested, record error on workflow run, show "Planning failed, retry"
+                // No rejection, no purchase request.
+                // =====================================================================
+                if (transfer.WorkflowRunId.HasValue && transfer.WorkflowRunId.Value != Guid.Empty)
                 {
-                    Id = Guid.NewGuid(),
-                    WorkflowType = "RedistributionPlanning",
-                    Status = WorkflowStatus.WaitingForApproval,
-                    InitiatorUserId = userId != Guid.Empty ? userId : transfer.RequestedByUserId,
-                    StartedAt = DateTime.UtcNow,
-                    ContextJson = System.Text.Json.JsonSerializer.Serialize(new
+                    var existingRun = await _dbContext.WorkflowRuns.FindAsync(new object[] { transfer.WorkflowRunId.Value }, ct);
+                    if (existingRun != null)
                     {
-                        transferRequestId = transfer.Id,
-                        transferNumber = transfer.TransferNumber,
-                        destinationFacilityId = transfer.DestinationFacilityId,
-                        sourceFacilityId = transfer.SourceFacilityId,
-                        priority = transfer.Priority.ToString(),
-                        notes = transfer.Notes
-                    })
-                };
-
-                run.Steps.Add(new WorkflowPlanStep
+                        existingRun.Status = WorkflowStatus.Failed;
+                        existingRun.Steps.Add(new WorkflowPlanStep
+                        {
+                            Id = Guid.NewGuid(),
+                            WorkflowRunId = existingRun.Id,
+                            StepNumber = existingRun.Steps.Count + 1,
+                            StepName = "Planning execution error",
+                            Status = WorkflowStatus.Failed,
+                            OutputJson = System.Text.Json.JsonSerializer.Serialize(new { error = planningErrorMessage }),
+                            ExecutedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                else
                 {
-                    Id = Guid.NewGuid(),
-                    WorkflowRunId = run.Id,
-                    StepNumber = 1,
-                    StepName = "Detect Shortage & Initialize Context",
-                    Status = WorkflowStatus.Completed,
-                    InputJson = System.Text.Json.JsonSerializer.Serialize(new { transferId = transfer.Id, transferNumber = transfer.TransferNumber }),
-                    OutputJson = System.Text.Json.JsonSerializer.Serialize(new { status = "Requested", submittedBy = userId }),
-                    ExecutedAt = DateTime.UtcNow
-                });
+                    var run = new WorkflowRun
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowType = "RedistributionPlanning",
+                        Status = WorkflowStatus.Failed,
+                        InitiatorUserId = userId != Guid.Empty ? userId : transfer.RequestedByUserId,
+                        StartedAt = DateTime.UtcNow,
+                        CompletedAt = DateTime.UtcNow,
+                        ContextJson = System.Text.Json.JsonSerializer.Serialize(new { transferId = transfer.Id, error = planningErrorMessage })
+                    };
+                    run.Steps.Add(new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowRunId = run.Id,
+                        StepNumber = 1,
+                        StepName = "Planning execution error",
+                        Status = WorkflowStatus.Failed,
+                        OutputJson = System.Text.Json.JsonSerializer.Serialize(new { error = planningErrorMessage }),
+                        ExecutedAt = DateTime.UtcNow
+                    });
+                    _dbContext.WorkflowRuns.Add(run);
+                    transfer.WorkflowRunId = run.Id;
+                }
 
-                run.Steps.Add(new WorkflowPlanStep
-                {
-                    Id = Guid.NewGuid(),
-                    WorkflowRunId = run.Id,
-                    StepNumber = 2,
-                    StepName = "Awaiting Human-in-the-Loop Management Approval",
-                    Status = WorkflowStatus.WaitingForApproval,
-                    InputJson = System.Text.Json.JsonSerializer.Serialize(new { prompt = "Transfer request submitted and ready for manager sign-off." }),
-                    ExecutedAt = DateTime.UtcNow
-                });
-
-                _dbContext.WorkflowRuns.Add(run);
-                transfer.WorkflowRunId = run.Id;
                 await _dbContext.SaveChangesAsync(ct);
+                _logger.LogWarning("Planning failed due to error for transfer {TransferNumber}. Remains in Requested status for retry.", transfer.TransferNumber);
+
+                return ApiResponse<TransferResponse>.Ok(MapToResponse(transfer), "Planning encountered an error. Transfer remains in Requested status for retry.");
+            }
+
+            var eligibleCandidates = (candidates ?? new List<CandidateFacilityResponse>())
+                .Where(c => c != null && c.AvailableSurplus > 0)
+                .ToList();
+
+            if (eligibleCandidates.Any())
+            {
+                // =====================================================================
+                // Outcome A: Candidates found
+                // Advance to Proposed (unchanged behavior)
+                // =====================================================================
+                var bestCandidate = eligibleCandidates.First();
+                if (firstItem != null)
+                {
+                    var surplus = bestCandidate.AvailableSurplus;
+                    var requested = firstItem.RequestedQuantity;
+                    var recommendedQty = Math.Min(requested, surplus);
+                    firstItem.AllocatedQuantity = recommendedQty;
+                }
+                var prevStatusBeforeProposed = transfer.Status;
+                var sourceFacility = await _dbContext.Facilities.FindAsync(new object[] { bestCandidate.FacilityId }, ct);
+                transfer.SourceFacilityId = bestCandidate.FacilityId;
+                transfer.SourceFacility = sourceFacility;
+                transfer.Status = TransferStatus.Proposed;
+                transfer.EstimatedDistanceKm = bestCandidate.DistanceKm;
+                transfer.EstimatedDurationMinutes = bestCandidate.EstimatedDurationMinutes;
+                transfer.RoutingProvider = bestCandidate.RoutingProvider;
+                transfer.UpdatedAt = DateTime.UtcNow;
+                AddStatusHistory(transfer, prevStatusBeforeProposed, TransferStatus.Proposed, userId, $"Proposed candidate source facility {bestCandidate.FacilityName}");
+
+                if (transfer.WorkflowRunId == null || transfer.WorkflowRunId == Guid.Empty)
+                {
+                    var run = new WorkflowRun
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowType = "RedistributionPlanning",
+                        Status = WorkflowStatus.WaitingForApproval,
+                        InitiatorUserId = userId != Guid.Empty ? userId : transfer.RequestedByUserId,
+                        StartedAt = DateTime.UtcNow,
+                        ContextJson = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            transferRequestId = transfer.Id,
+                            transferNumber = transfer.TransferNumber,
+                            destinationFacilityId = transfer.DestinationFacilityId,
+                            sourceFacilityId = transfer.SourceFacilityId,
+                            priority = transfer.Priority.ToString(),
+                            notes = transfer.Notes
+                        })
+                    };
+
+                    run.Steps.Add(new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowRunId = run.Id,
+                        StepNumber = 1,
+                        StepName = "Detect Shortage & Initialize Context",
+                        Status = WorkflowStatus.Completed,
+                        InputJson = System.Text.Json.JsonSerializer.Serialize(new { transferId = transfer.Id, transferNumber = transfer.TransferNumber }),
+                        OutputJson = System.Text.Json.JsonSerializer.Serialize(new { status = "Requested", submittedBy = userId }),
+                        ExecutedAt = DateTime.UtcNow
+                    });
+
+                    run.Steps.Add(new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowRunId = run.Id,
+                        StepNumber = 2,
+                        StepName = "Awaiting Human-in-the-Loop Management Approval",
+                        Status = WorkflowStatus.WaitingForApproval,
+                        InputJson = System.Text.Json.JsonSerializer.Serialize(new { prompt = "Transfer request submitted and ready for manager sign-off." }),
+                        ExecutedAt = DateTime.UtcNow
+                    });
+
+                    _dbContext.WorkflowRuns.Add(run);
+                    transfer.WorkflowRunId = run.Id;
+                    await _dbContext.SaveChangesAsync(ct);
+                }
+                else
+                {
+                    var existingRun = await _dbContext.WorkflowRuns.FindAsync(new object[] { transfer.WorkflowRunId.Value }, ct);
+                    if (existingRun != null && existingRun.Status != WorkflowStatus.Approved && existingRun.Status != WorkflowStatus.Rejected)
+                    {
+                        existingRun.Status = WorkflowStatus.WaitingForApproval;
+                        await _dbContext.SaveChangesAsync(ct);
+                    }
+                }
             }
             else
             {
-                var existingRun = await _dbContext.WorkflowRuns.FindAsync(new object[] { transfer.WorkflowRunId.Value }, ct);
-                if (existingRun != null && existingRun.Status != WorkflowStatus.Approved && existingRun.Status != WorkflowStatus.Rejected)
+                // =====================================================================
+                // Outcome C: Planning completed successfully with ZERO eligible candidates
+                // (no facility with surplus > 0 and valid coordinates)
+                // Set existing Rejected status with rejectionReason
+                // "No facility has surplus stock for this medicine", write TransferStatusHistory,
+                // and auto-create exactly one Purchase Order in PendingApproval.
+                // =====================================================================
+                var prev = transfer.Status;
+                transfer.Status = TransferStatus.Rejected;
+                transfer.RejectionReason = "No facility has surplus stock for this medicine";
+                transfer.UpdatedAt = DateTime.UtcNow;
+
+                AddStatusHistory(transfer, prev, TransferStatus.Rejected, userId, "No facility has surplus stock for this medicine");
+
+                if (transfer.WorkflowRunId.HasValue && transfer.WorkflowRunId.Value != Guid.Empty)
                 {
-                    existingRun.Status = WorkflowStatus.WaitingForApproval;
-                    await _dbContext.SaveChangesAsync(ct);
+                    var existingRun = await _dbContext.WorkflowRuns.FindAsync(new object[] { transfer.WorkflowRunId.Value }, ct);
+                    if (existingRun != null)
+                    {
+                        existingRun.Status = WorkflowStatus.Rejected;
+                    }
                 }
+                else
+                {
+                    var run = new WorkflowRun
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowType = "RedistributionPlanning",
+                        Status = WorkflowStatus.Rejected,
+                        InitiatorUserId = userId != Guid.Empty ? userId : transfer.RequestedByUserId,
+                        StartedAt = DateTime.UtcNow,
+                        CompletedAt = DateTime.UtcNow,
+                        ContextJson = System.Text.Json.JsonSerializer.Serialize(new { transferId = transfer.Id, result = "Zero eligible candidate facilities with surplus" })
+                    };
+                    run.Steps.Add(new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        WorkflowRunId = run.Id,
+                        StepNumber = 1,
+                        StepName = "Redistribution Candidate Analysis",
+                        Status = WorkflowStatus.Completed,
+                        OutputJson = System.Text.Json.JsonSerializer.Serialize(new { eligibleCandidatesCount = 0 }),
+                        ExecutedAt = DateTime.UtcNow
+                    });
+                    _dbContext.WorkflowRuns.Add(run);
+                    transfer.WorkflowRunId = run.Id;
+                }
+
+                // Idempotently create exactly one Purchase Order in PendingApproval
+                await CreatePurchaseOrderForUnsourcedTransferAsync(transfer, ct);
+
+                await _dbContext.SaveChangesAsync(ct);
+
+                // Notifications
+                await CreateAndBroadcastNotificationsAsync(
+                    transfer,
+                    "Transfer rejected",
+                    $"Your transfer request {transfer.TransferNumber} was rejected: No facility has surplus stock for this medicine",
+                    "Purchase Request Created",
+                    $"Purchase request created for {firstItem?.MedicineName ?? "medicine"} (no redistribution source)",
+                    ct);
+
+                if (_notificationService != null)
+                {
+                    await _notificationService.BroadcastStatusChangedAsync(MapToResponse(transfer), ct);
+                }
+
+                _logger.LogInformation("Transfer {TransferNumber} rejected: no facility has surplus stock. Purchase request created.", transfer.TransferNumber);
             }
         }
 
-        // Reload transfer to ensure all updated navigation properties/status are reflected
-        var updatedTransfer = await _dbContext.TransferRequests
-            .Include(t => t.Items)
-            .Include(t => t.SourceFacility)
-            .Include(t => t.DestinationFacility)
-            .Include(t => t.StatusHistory)
-            .FirstOrDefaultAsync(t => t.Id == transferId, ct) ?? transfer;
+        // Reload transfer to ensure all updated navigation properties/status from workflow child scope are reflected
+        try
+        {
+            await _dbContext.Entry(transfer).ReloadAsync(ct);
+            await _dbContext.Entry(transfer).Collection(t => t.Items).LoadAsync(ct);
+            foreach (var item in transfer.Items)
+            {
+                await _dbContext.Entry(item).ReloadAsync(ct);
+            }
+            await _dbContext.Entry(transfer).Reference(t => t.SourceFacility).LoadAsync(ct);
+            await _dbContext.Entry(transfer).Reference(t => t.DestinationFacility).LoadAsync(ct);
+            await _dbContext.Entry(transfer).Collection(t => t.StatusHistory).LoadAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not reload transfer {TransferId} from db context", transfer.Id);
+        }
 
-        _logger.LogInformation("Transfer {TransferNumber} transitioned to {Status} status", updatedTransfer.TransferNumber, updatedTransfer.Status);
-        return ApiResponse<TransferResponse>.Ok(MapToResponse(updatedTransfer), "Transfer request submitted successfully.");
+        var updatedTransfer = transfer;
+
+        string responseMessage = "Transfer request submitted successfully.";
+        var updatedFirstItem = updatedTransfer.Items.FirstOrDefault();
+        if (updatedFirstItem != null && updatedFirstItem.AllocatedQuantity > 0 && updatedFirstItem.AllocatedQuantity < updatedFirstItem.RequestedQuantity)
+        {
+            var shortfall = updatedFirstItem.RequestedQuantity - updatedFirstItem.AllocatedQuantity;
+            responseMessage = $"Transfer request submitted. Source facility has available surplus of {updatedFirstItem.AllocatedQuantity} (shortfall of {shortfall} units).";
+        }
+
+        return ApiResponse<TransferResponse>.Ok(MapToResponse(updatedTransfer), responseMessage);
+    }
+
+    private async Task CreatePurchaseOrderForUnsourcedTransferAsync(TransferRequest transfer, CancellationToken ct)
+    {
+        // 1. Idempotency check: don't create if already linked in notes
+        if (!string.IsNullOrWhiteSpace(transfer.Notes) &&
+            (transfer.Notes.Contains("[PO:", StringComparison.OrdinalIgnoreCase) ||
+             transfer.Notes.Contains("PurchaseOrder:", StringComparison.OrdinalIgnoreCase)))
+        {
+            _logger.LogInformation("Purchase order already linked on transfer {TransferNumber}", transfer.TransferNumber);
+            return;
+        }
+
+        var firstItem = transfer.Items.FirstOrDefault();
+        if (firstItem == null || firstItem.MedicineId == Guid.Empty)
+        {
+            _logger.LogWarning("Transfer {TransferNumber} has no valid item to create purchase order", transfer.TransferNumber);
+            return;
+        }
+
+        // 2. Deterministic supplier selection: active supplier with shortest lead time
+        Guid supplierId = Guid.Empty;
+        if (_appDbContext != null)
+        {
+            var supplier = await _appDbContext.Suppliers
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.LeadTimeDays)
+                .ThenBy(s => s.Name)
+                .FirstOrDefaultAsync(ct);
+
+            if (supplier != null)
+            {
+                supplierId = supplier.Id;
+            }
+        }
+
+        if (supplierId == Guid.Empty)
+        {
+            var supplier = await _dbContext.Suppliers
+                .AsNoTracking()
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.LeadTimeDays)
+                .ThenBy(s => s.Name)
+                .FirstOrDefaultAsync(ct);
+
+            if (supplier != null)
+            {
+                supplierId = supplier.Id;
+            }
+        }
+
+        if (supplierId == Guid.Empty)
+        {
+            _logger.LogWarning("No active supplier found to auto-generate purchase order for transfer {TransferNumber}", transfer.TransferNumber);
+            return;
+        }
+
+        // 3. Build request
+        var poRequest = new PurchaseOrderRequest(
+            supplierId,
+            transfer.DestinationFacilityId,
+            new List<PurchaseOrderItemRequest>
+            {
+                new(firstItem.MedicineId, firstItem.RequestedQuantity, 0.00m)
+            }
+        );
+
+        // 4. Create and submit via ProcurementService
+        PurchaseOrderResponse? createdPo = null;
+        var proc = _procurementService;
+        if (proc == null && _serviceProvider != null)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            proc = scope.ServiceProvider.GetService<MediStock.Api.Features.Procurement.Services.ProcurementService>();
+        }
+
+        if (proc != null)
+        {
+            try
+            {
+                createdPo = await proc.CreateAsync(poRequest, ct);
+                createdPo = await proc.SubmitAsync(createdPo.Id, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create/submit purchase order via ProcurementService for transfer {TransferNumber}", transfer.TransferNumber);
+            }
+        }
+        else if (_appDbContext != null)
+        {
+            // Direct DB fallback if ProcurementService was not passed
+            var po = new PurchaseOrder
+            {
+                Id = Guid.NewGuid(),
+                SupplierId = supplierId,
+                FacilityId = transfer.DestinationFacilityId,
+                Status = PurchaseOrderStatus.PendingApproval,
+                RequestedAt = DateTime.UtcNow,
+                Items = new List<PurchaseOrderItem>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicineId = firstItem.MedicineId,
+                        RequestedQuantity = firstItem.RequestedQuantity,
+                        UnitPrice = 0.00m
+                    }
+                }
+            };
+            _appDbContext.PurchaseOrders.Add(po);
+            await _appDbContext.SaveChangesAsync(ct);
+            createdPo = new PurchaseOrderResponse(
+                po.Id, po.SupplierId, po.FacilityId, po.Status.ToString(),
+                po.RequestedAt, null, null, new List<PurchaseOrderItemResponse>
+                {
+                    new(po.Items.First().Id, firstItem.MedicineId, firstItem.RequestedQuantity, 0.00m)
+                },
+                null, null, null);
+        }
+
+        if (createdPo != null)
+        {
+            var linkNote = $"[PO:{createdPo.Id}]";
+            transfer.Notes = string.IsNullOrWhiteSpace(transfer.Notes)
+                ? linkNote
+                : $"{transfer.Notes} | {linkNote}";
+
+            _logger.LogInformation("Successfully created and submitted PurchaseOrder {PurchaseOrderId} for unsourced transfer {TransferNumber}", createdPo.Id, transfer.TransferNumber);
+
+            // 5. If ShortageAlert exists for the transfer, move it to DEMAND_RAISED instead of leaving it OPEN
+            if (_appDbContext != null)
+            {
+                var shortageAlert = await _appDbContext.ShortageAlerts
+                    .FirstOrDefaultAsync(sa => (sa.RelatedTransferId == transfer.Id ||
+                        (sa.FacilityId == transfer.DestinationFacilityId && sa.MedicineId == firstItem.MedicineId && sa.Status == ShortageAlertStatuses.Open)), ct);
+
+                if (shortageAlert != null)
+                {
+                    shortageAlert.Status = ShortageAlertStatuses.DemandRaised;
+                    shortageAlert.RelatedTransferId ??= transfer.Id;
+                    shortageAlert.UpdatedAt = DateTime.UtcNow;
+                    await _appDbContext.SaveChangesAsync(ct);
+                    _logger.LogInformation("Moved ShortageAlert {AlertId} from OPEN to DEMAND_RAISED for transfer {TransferNumber}", shortageAlert.Id, transfer.TransferNumber);
+                }
+            }
+        }
     }
 
     public async Task<ApiResponse<TransferResponse>> ReserveTransferAsync(
@@ -1149,6 +1484,14 @@ public class TransferService : ITransferService
         }
         transfer.UpdatedAt = DateTime.UtcNow;
 
+        foreach (var item in transfer.Items)
+        {
+            if (item.AllocatedQuantity == 0)
+            {
+                item.AllocatedQuantity = item.RequestedQuantity;
+            }
+        }
+
         AddStatusHistory(transfer, previousStatus, TransferStatus.Proposed, userId, $"Agent proposed source facility: {sourceFacility.Name}{(route != null ? $" ({route.DistanceKm} km away)" : "")}.");
 
         await _dbContext.SaveChangesAsync(ct);
@@ -1211,8 +1554,20 @@ public class TransferService : ITransferService
         return $"TR-{datePart}-{randomPart}";
     }
 
+    private static readonly System.Text.RegularExpressions.Regex PoNoteRegex = new(@"\[PO:([0-9a-fA-F-]+)\]", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public static TransferResponse MapToResponse(TransferRequest t)
     {
+        Guid? poId = null;
+        if (!string.IsNullOrEmpty(t.Notes))
+        {
+            var match = PoNoteRegex.Match(t.Notes);
+            if (match.Success && Guid.TryParse(match.Groups[1].Value, out var parsedGuid))
+            {
+                poId = parsedGuid;
+            }
+        }
+
         return new TransferResponse
         {
             Id = t.Id,
@@ -1237,6 +1592,7 @@ public class TransferService : ITransferService
             RejectionReason = t.RejectionReason,
             Notes = t.Notes,
             WorkflowRunId = t.WorkflowRunId,
+            PurchaseOrderId = poId,
             CreatedAt = t.CreatedAt,
             UpdatedAt = t.UpdatedAt,
             Items = t.Items.Select(i => new TransferItemDto

@@ -38,6 +38,12 @@ class StatusChip extends StatelessWidget {
         fg = AppColors.warning;
         label = 'PENDING';
         break;
+      case 'REJECTED':
+      case 'CANCELLED':
+        bg = AppColors.errorLight;
+        fg = AppColors.error;
+        label = 'REJECTED';
+        break;
       default:
         bg = AppColors.surfaceSubtle;
         fg = AppColors.textSecondary;
