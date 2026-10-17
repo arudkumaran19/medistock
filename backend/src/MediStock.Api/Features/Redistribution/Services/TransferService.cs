@@ -353,7 +353,7 @@ public class TransferService : ITransferService
             }
         }
 
-        if (!workflowTriggered && (transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty) && firstItem != null && medId != Guid.Empty)
+        if ((transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty) && firstItem != null && medId != Guid.Empty)
         {
             bool planningError = false;
             string? planningErrorMessage = null;
@@ -501,7 +501,6 @@ public class TransferService : ITransferService
 
                     _dbContext.WorkflowRuns.Add(run);
                     transfer.WorkflowRunId = run.Id;
-                    await _dbContext.SaveChangesAsync(ct);
                 }
                 else
                 {
@@ -509,10 +508,12 @@ public class TransferService : ITransferService
                     if (existingRun != null && existingRun.Status != WorkflowStatus.Approved && existingRun.Status != WorkflowStatus.Rejected)
                     {
                         existingRun.Status = WorkflowStatus.WaitingForApproval;
-                        await _dbContext.SaveChangesAsync(ct);
                     }
                 }
+
+                await _dbContext.SaveChangesAsync(ct);
             }
+
             else
             {
                 // =====================================================================
