@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:signalr_core/signalr_core.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/storage/secure_storage.dart';
 import '../models/transfer_models.dart';
 
 /// SignalR Client service for real-time status push and location tracking in Flutter mobile
@@ -39,8 +40,19 @@ class TransferSignalRService {
     _subscribedTransferId = transferId;
 
     try {
+      final storage = SecureStorageService();
+      final token = await storage.getToken();
+      final hubUrl = (token != null && token.isNotEmpty)
+          ? '$_hubUrl?access_token=$token'
+          : _hubUrl;
+
       _hubConnection = HubConnectionBuilder()
-          .withUrl(_hubUrl)
+          .withUrl(
+            hubUrl,
+            HttpConnectionOptions(
+              accessTokenFactory: () async => token ?? '',
+            ),
+          )
           .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
           .build();
 

@@ -161,4 +161,13 @@ public class TransferSignalRHubTests
             error.Should().NotBeNullOrWhiteSpace();
         }
     }
+
+    [Fact]
+    public void TransferHub_HasAuthorizeAttribute()
+    {
+        typeof(TransferHub)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false)
+            .Should()
+            .NotBeEmpty("TransferHub must require authorization via [Authorize] attribute");
+    }
 }
