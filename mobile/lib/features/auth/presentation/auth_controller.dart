@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_state.dart';
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
+final authRepositoryProvider =
+    Provider<AuthRepository>((ref) => AuthRepository());
 
-final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
+final authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(ref.read(authRepositoryProvider));
 });
 
@@ -20,7 +22,10 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final user = await _repository.getCurrentUser();
       if (user != null) {
-        state = state.copyWith(status: AuthStatus.authenticated, user: user, selectedRole: user.role);
+        state = state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user,
+            selectedRole: user.role);
       } else {
         state = state.copyWith(status: AuthStatus.unauthenticated);
       }
@@ -38,17 +43,21 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
     try {
-      final user = await _repository.login(email: email, password: password, expectedRole: role);
+      final user = await _repository.login(
+          email: email, password: password, expectedRole: role);
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
       return true;
     } catch (e) {
-      state = state.copyWith(status: AuthStatus.error, errorMessage: e.toString().replaceAll('Exception: ', ''));
+      state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: e.toString().replaceAll('Exception: ', ''));
       return false;
     }
   }
 
   Future<void> logout() async {
     await _repository.logout();
-    state = state.copyWith(status: AuthStatus.unauthenticated, user: null, selectedRole: null);
+    state = state.copyWith(
+        status: AuthStatus.unauthenticated, user: null, selectedRole: null);
   }
 }

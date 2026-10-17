@@ -2,9 +2,8 @@ using MediStock.Api.Features.Inventory.Models;
 using MediStock.Api.Features.Procurement.Models;
 using MediStock.Api.Domain.Entities;
 using MediStock.Api.Domain.Enums;
-using Microsoft.EntityFrameworkCore;
-
 using Medicine = MediStock.Api.Features.Inventory.Models.Medicine;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediStock.Api.Infrastructure.Persistence.Seed;
 
@@ -28,13 +27,41 @@ public static class SeedData
 	public static readonly Guid NorthClinicFacilityId = Guid.Parse("88888888-8888-8888-8888-888888888888");
 	public static readonly Guid EastHospitalFacilityId = Guid.Parse("99999999-9999-9999-9999-999999999999");
 	public static readonly Guid WestDispensaryFacilityId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+	public static readonly Guid ColomboHospitalFacilityId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+	public static readonly Guid KandyHospitalFacilityId = Guid.Parse("22222222-3333-4444-5555-666666666666");
 	public static readonly Guid ParacetamolId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 	public static readonly Guid AmoxicillinId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+	public static readonly Guid Amoxicillin500mgId = Guid.Parse("33333333-5555-5555-5555-333333333333");
 	public static readonly Guid IbuprofenId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 	public static readonly Guid CetirizineId = Guid.Parse("55555555-5555-5555-5555-555555555555");
 	public static readonly Guid OmeprazoleId = Guid.Parse("66666666-6666-6666-6666-666666666666");
 	public static readonly Guid AzithromycinId = Guid.Parse("77777777-7777-7777-7777-777777777777");
 	public static readonly Guid VitaminCId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+	// Additional essential clinical medicines
+	public static readonly Guid MetforminId        = Guid.Parse("cccccccc-1111-4000-8000-000000000001");
+	public static readonly Guid AtorvastatinId     = Guid.Parse("cccccccc-2222-4000-8000-000000000002");
+	public static readonly Guid MetronidazoleId    = Guid.Parse("cccccccc-3333-4000-8000-000000000003");
+	public static readonly Guid DexamethasoneId    = Guid.Parse("cccccccc-4444-4000-8000-000000000004");
+	public static readonly Guid SalbutamolId       = Guid.Parse("cccccccc-5555-4000-8000-000000000005");
+	public static readonly Guid MorphineId         = Guid.Parse("cccccccc-6666-4000-8000-000000000006");
+	public static readonly Guid DiclofenacId       = Guid.Parse("cccccccc-7777-4000-8000-000000000007");
+	public static readonly Guid OrsSachetId        = Guid.Parse("cccccccc-8888-4000-8000-000000000008");
+
+	// Additional suppliers
+    public static readonly Guid Supplier5Id = Guid.Parse("d1000005-0000-4000-8000-000000000005");
+    public static readonly Guid Supplier6Id = Guid.Parse("d1000006-0000-4000-8000-000000000006");
+    public static readonly Guid Supplier7Id = Guid.Parse("d1000007-0000-4000-8000-000000000007");
+    public static readonly Guid Supplier8Id = Guid.Parse("d1000008-0000-4000-8000-000000000008");
+
+	// Additional purchase orders (extended formulary)
+    public static readonly Guid Po7Id  = Guid.Parse("d2000007-0000-4000-8000-000000000007");
+    public static readonly Guid Po8Id  = Guid.Parse("d2000008-0000-4000-8000-000000000008");
+    public static readonly Guid Po9Id  = Guid.Parse("d2000009-0000-4000-8000-000000000009");
+    public static readonly Guid Po10Id = Guid.Parse("d2000010-0000-4000-8000-000000000010");
+    public static readonly Guid Po11Id = Guid.Parse("d2000011-0000-4000-8000-000000000011");
+    public static readonly Guid Po12Id = Guid.Parse("d2000012-0000-4000-8000-000000000012");
+
 
 	public static void Apply(ApplicationDbContext db)
 	{
@@ -43,7 +70,9 @@ public static class SeedData
 			new Facility { Id = CentralFacilityId, Code = "CENTRAL", Name = "Central Facility", Address = "Demo address" },
 			new Facility { Id = NorthClinicFacilityId, Code = "NORTH-CLINIC", Name = "Northside Community Clinic", Address = "12 North Avenue" },
 			new Facility { Id = EastHospitalFacilityId, Code = "EAST-HOSPITAL", Name = "Eastview General Hospital", Address = "88 Sunrise Road" },
-			new Facility { Id = WestDispensaryFacilityId, Code = "WEST-DISPENSARY", Name = "Westgate Public Dispensary", Address = "41 Market Street" }
+			new Facility { Id = WestDispensaryFacilityId, Code = "WEST-DISPENSARY", Name = "Westgate Public Dispensary", Address = "41 Market Street" },
+			new Facility { Id = ColomboHospitalFacilityId, Code = "COLOMBO-GEN", Name = "Colombo General Hospital", Address = "Colombo" },
+			new Facility { Id = KandyHospitalFacilityId, Code = "KANDY-BASE", Name = "Kandy Base Hospital", Address = "Kandy" }
 		};
 		var existingFacilityCodes = db.Facilities.Select(x => x.Code).ToHashSet();
 		db.Facilities.AddRange(facilities.Where(x => !existingFacilityCodes.Contains(x.Code)));
@@ -52,11 +81,22 @@ public static class SeedData
 		{
 			new Medicine { Id = ParacetamolId, Code = "PARA-500", Name = "Paracetamol 500 mg", Unit = "tablet", MinimumStockLevel = 100 },
 			new Medicine { Id = AmoxicillinId, Code = "AMOX-250", Name = "Amoxicillin 250 mg", Unit = "capsule", MinimumStockLevel = 50 },
+			new Medicine { Id = Amoxicillin500mgId, Code = "AMOX-500", Name = "Amoxicillin 500mg", Unit = "capsule", MinimumStockLevel = 150 },
 			new Medicine { Id = IbuprofenId, Code = "IBU-200", Name = "Ibuprofen 200 mg", Unit = "tablet", MinimumStockLevel = 100 },
 			new Medicine { Id = CetirizineId, Code = "CET-10", Name = "Cetirizine 10 mg", Unit = "tablet", MinimumStockLevel = 50 },
 			new Medicine { Id = OmeprazoleId, Code = "OME-20", Name = "Omeprazole 20 mg", Unit = "capsule", MinimumStockLevel = 50 },
 			new Medicine { Id = AzithromycinId, Code = "AZI-250", Name = "Azithromycin 250 mg", Unit = "tablet", MinimumStockLevel = 25 },
-			new Medicine { Id = VitaminCId, Code = "VITC-DEMO", Name = "Vitamin C", Unit = "tablet", MinimumStockLevel = 40 }
+			new Medicine { Id = VitaminCId, Code = "VITC-DEMO", Name = "Vitamin C", Unit = "tablet", MinimumStockLevel = 40 },
+
+			// Additional essential clinical medicines
+			new Medicine { Id = MetforminId, Code = "MET-500", Name = "Metformin 500 mg", Unit = "tablet", MinimumStockLevel = 200 },
+			new Medicine { Id = AtorvastatinId, Code = "ATO-20", Name = "Atorvastatin 20 mg", Unit = "tablet", MinimumStockLevel = 100 },
+			new Medicine { Id = MetronidazoleId, Code = "METRO-400", Name = "Metronidazole 400 mg", Unit = "tablet", MinimumStockLevel = 75 },
+			new Medicine { Id = DexamethasoneId, Code = "DEX-4MG", Name = "Dexamethasone 4 mg", Unit = "tablet", MinimumStockLevel = 30 },
+			new Medicine { Id = SalbutamolId, Code = "SALB-INH", Name = "Salbutamol Inhaler 100mcg", Unit = "inhaler", MinimumStockLevel = 20 },
+			new Medicine { Id = MorphineId, Code = "MORPH-10", Name = "Morphine Sulfate 10 mg", Unit = "tablet", MinimumStockLevel = 10 },
+			new Medicine { Id = DiclofenacId, Code = "DIC-50", Name = "Diclofenac 50 mg", Unit = "tablet", MinimumStockLevel = 80 },
+			new Medicine { Id = OrsSachetId, Code = "ORS-SACHET", Name = "ORS Sachet 20.5g", Unit = "sachet", MinimumStockLevel = 150 }
 		};
 		var existingCodes = db.Medicines.Select(x => x.Code).ToHashSet();
 		db.Medicines.AddRange(medicines.Where(x => !existingCodes.Contains(x.Code)));
@@ -70,13 +110,31 @@ public static class SeedData
 		var scenarios = new[]
 		{
 			new DemoInventorySeed("PARA-500", "CENTRAL", "DEMO-PARA-CENTRAL-001", 420, 0, 0, 0, 240, 240),
+			new DemoInventorySeed("PARA-500", "COLOMBO-GEN", "DEMO-PARA-COLOMBO-001", 85, 0, 0, 15, 240, 240),
+			new DemoInventorySeed("PARA-500", "KANDY-BASE", "DEMO-PARA-KANDY-001", 450, 0, 0, 0, 240, 240),
 			new DemoInventorySeed("AMOX-250", "CENTRAL", "DEMO-AMOX-CENTRAL-001", 12, 20, -8, 0, 210, 180),
+			new DemoInventorySeed("AMOX-500", "COLOMBO-GEN", "DEMO-AMOX-COLOMBO-001", 12, 0, 0, 0, 210, 180),
 			new DemoInventorySeed("AZI-250", "NORTH-CLINIC", "DEMO-AZI-NORTH-001", 1, 8, -7, 0, 20, 120),
 			new DemoInventorySeed("IBU-200", "EAST-HOSPITAL", "DEMO-IBU-EAST-001", 150, 0, 0, 0, 75, 180),
 			new DemoInventorySeed("CET-10", "WEST-DISPENSARY", "DEMO-CET-WEST-001", 110, 0, 0, 0, 145, 240),
 			new DemoInventorySeed("OME-20", "CENTRAL", "DEMO-OME-CENTRAL-001", 90, 0, 0, 15, 220, 180),
-			new DemoInventorySeed("VITC-DEMO", "CENTRAL", "DEMO-VITC-CENTRAL-001", 34, 36, -2, 0, 80, 180)
+			new DemoInventorySeed("VITC-DEMO", "CENTRAL", "DEMO-VITC-CENTRAL-001", 34, 36, -2, 0, 80, 180),
+
+			// ── Near-expiry batches (exercise the expiry page & shortage scan) ──
+			// Expires in 7 days – critical
+			new DemoInventorySeed("AMOX-250", "EAST-HOSPITAL", "DEMO-AMOX-EAST-EXPIRING-007", 45, 45, 0, 0, 7, 270),
+			// Expires in 14 days – high alert (Amox 500mg, Kandy shortage-risk scenario)
+			new DemoInventorySeed("AMOX-500", "KANDY-BASE", "DEMO-AMOX500-KANDY-EXPIRING-014", 35, 35, 0, 0, 14, 180),
+			// Expires in 15 days – high alert
+			new DemoInventorySeed("AZI-250", "CENTRAL", "DEMO-AZI-CENTRAL-EXPIRING-015", 30, 30, 0, 0, 15, 210),
+			// Expires in 30 days – warning
+			new DemoInventorySeed("VITC-DEMO", "NORTH-CLINIC", "DEMO-VITC-NORTH-EXPIRING-030", 60, 60, 0, 0, 30, 200),
+			// Expires in 60 days – informational
+			new DemoInventorySeed("CET-10", "KANDY-BASE", "DEMO-CET-KANDY-EXPIRING-060", 80, 80, 0, 0, 60, 180),
+			// Already expired batch (audit trail / history)
+			new DemoInventorySeed("IBU-200", "WEST-DISPENSARY", "DEMO-IBU-WEST-EXPIRED-000", 0, 20, -20, 0, -5, 400)
 		};
+
 
 		var now = DateTime.UtcNow;
 		foreach (var seed in scenarios)

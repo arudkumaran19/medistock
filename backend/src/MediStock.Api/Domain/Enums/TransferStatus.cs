@@ -1,5 +1,9 @@
 namespace MediStock.Api.Domain.Enums;
 
+/// <summary>
+/// Lifecycle of a redistribution transfer.
+/// Supports both naming conventions (Dispatched / InTransit, Received / Delivered) for compatibility.
+/// </summary>
 public enum TransferStatus
 {
     Draft = 0,

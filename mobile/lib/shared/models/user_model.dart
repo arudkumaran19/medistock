@@ -37,8 +37,14 @@ class UserModel {
     return UserModel(
       id: json['id'] ?? json['userId'] ?? '',
       email: json['email'] ?? '',
-      name: json['name'] ?? json['fullName'] ?? json['email']?.split('@').first ?? 'User',
-      role: json['role'] ?? (json['roles'] is List && (json['roles'] as List).isNotEmpty ? json['roles'][0] : 'FacilityUser'),
+      name: json['name'] ??
+          json['fullName'] ??
+          json['email']?.split('@').first ??
+          'User',
+      role: json['role'] ??
+          (json['roles'] is List && (json['roles'] as List).isNotEmpty
+              ? json['roles'][0]
+              : 'FacilityUser'),
       facilityId: facId,
       facilityName: facName,
       facilities: parsedFacilities,

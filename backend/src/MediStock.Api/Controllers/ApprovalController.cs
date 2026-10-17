@@ -8,7 +8,7 @@ namespace MediStock.Api.Controllers;
 
 [ApiController]
 [Route("api/approvals")]
-[Authorize]
+[Authorize(Policy = "ProcurementApprovalAccess")]
 public sealed class ApprovalController : ControllerBase
 {
     private readonly ProcurementService _procurementService;

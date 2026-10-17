@@ -45,7 +45,8 @@ class TransferLocationService {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        debugPrint('[LocationService] Location services are disabled on device.');
+        debugPrint(
+            '[LocationService] Location services are disabled on device.');
         _setStatus(LocationTrackingStatus.serviceDisabled);
         return false;
       }
@@ -61,7 +62,8 @@ class TransferLocationService {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        debugPrint('[LocationService] Location permissions permanently denied.');
+        debugPrint(
+            '[LocationService] Location permissions permanently denied.');
         _setStatus(LocationTrackingStatus.permissionDenied);
         return false;
       }
@@ -86,7 +88,8 @@ class TransferLocationService {
 
     final hasPermission = await checkAndRequestPermission();
     if (!hasPermission) {
-      debugPrint('[LocationService] Cannot start tracking: permission not granted.');
+      debugPrint(
+          '[LocationService] Cannot start tracking: permission not granted.');
       return;
     }
 

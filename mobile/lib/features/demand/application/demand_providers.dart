@@ -5,7 +5,6 @@ import '../../../shared/models/paged_response.dart';
 import '../data/demand_repository.dart';
 import '../domain/demand_models.dart';
 
-
 /// Riverpod wiring for the Demand & Shortage feature.
 /// Sathurstiga S. (IT24103156).
 ///
@@ -32,7 +31,8 @@ class ReferenceOption {
 }
 
 List<ReferenceOption> _toOptions(dynamic payload) {
-  final List<ReferenceOption> options = (payload as List<dynamic>? ?? <dynamic>[])
+  final List<ReferenceOption> options = (payload as List<dynamic>? ??
+          <dynamic>[])
       .whereType<Map<String, dynamic>>()
       .where((Map<String, dynamic> row) => row['isActive'] != false)
       .map((Map<String, dynamic> row) =>
@@ -45,7 +45,8 @@ List<ReferenceOption> _toOptions(dynamic payload) {
 }
 
 List<ReferenceOption> _toFacilityOptions(dynamic payload) {
-  final List<ReferenceOption> options = (payload as List<dynamic>? ?? <dynamic>[])
+  final List<ReferenceOption> options = (payload as List<dynamic>? ??
+          <dynamic>[])
       .whereType<Map<String, dynamic>>()
       .where((Map<String, dynamic> row) {
         if (row['isActive'] == false) return false;
@@ -72,13 +73,15 @@ List<ReferenceOption> _toFacilityOptions(dynamic payload) {
 /// record anything was to type the medicine's id by hand.
 final FutureProvider<List<ReferenceOption>> medicineOptionsProvider =
     FutureProvider<List<ReferenceOption>>(
-  (Ref ref) async => _toOptions(await ref.watch(apiClientProvider).request('/api/medicines')),
+  (Ref ref) async =>
+      _toOptions(await ref.watch(apiClientProvider).request('/api/medicines')),
 );
 
 /// Active facilities, from GET /api/facilities (Inventory, Vaisnavi L.). Read-only.
 final FutureProvider<List<ReferenceOption>> facilityOptionsProvider =
     FutureProvider<List<ReferenceOption>>(
-  (Ref ref) async => _toFacilityOptions(await ref.watch(apiClientProvider).request('/api/facilities')),
+  (Ref ref) async => _toFacilityOptions(
+      await ref.watch(apiClientProvider).request('/api/facilities')),
 );
 
 /// Shared HTTP client for this vertical.
@@ -91,12 +94,14 @@ final Provider<ApiClient> apiClientProvider = Provider<ApiClient>(
   (Ref ref) => ApiClient(),
 );
 
-final Provider<DemandRepository> demandRepositoryProvider = Provider<DemandRepository>(
+final Provider<DemandRepository> demandRepositoryProvider =
+    Provider<DemandRepository>(
   (Ref ref) => DemandRepository.fromApiClient(ref.watch(apiClientProvider)),
 );
 
 /// Shortage alerts for the current facility, optionally filtered by risk level.
-final FutureProviderFamily<PagedResponse<ShortageAlert>, String?> shortageAlertsProvider =
+final FutureProviderFamily<PagedResponse<ShortageAlert>, String?>
+    shortageAlertsProvider =
     FutureProvider.family<PagedResponse<ShortageAlert>, String?>(
   (Ref ref, String? riskLevel) {
     return ref.watch(demandRepositoryProvider).getShortages(
@@ -117,7 +122,8 @@ final FutureProvider<PagedResponse<DemandForecast>> forecastsProvider =
 );
 
 /// Consumption history for the current facility, optionally searched.
-final FutureProviderFamily<PagedResponse<ConsumptionRecord>, String?> consumptionHistoryProvider =
+final FutureProviderFamily<PagedResponse<ConsumptionRecord>, String?>
+    consumptionHistoryProvider =
     FutureProvider.family<PagedResponse<ConsumptionRecord>, String?>(
   (Ref ref, String? search) {
     return ref.watch(demandRepositoryProvider).getConsumption(

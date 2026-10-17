@@ -11,10 +11,13 @@ import 'package:medistock_mobile/features/auth/presentation/auth_controller.dart
 import 'package:medistock_mobile/features/facility_user/requests/new_request_wizard.dart';
 import 'package:medistock_mobile/shared/models/user_model.dart';
 
-class FakeAuthController extends StateNotifier<AuthState> implements AuthController {
+class FakeAuthController extends StateNotifier<AuthState>
+    implements AuthController {
   FakeAuthController(UserModel? user)
       : super(AuthState(
-          status: user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated,
+          status: user != null
+              ? AuthStatus.authenticated
+              : AuthStatus.unauthenticated,
           user: user,
           selectedRole: user?.role,
         ));
@@ -26,14 +29,17 @@ class FakeAuthController extends StateNotifier<AuthState> implements AuthControl
   void selectRole(String role) {}
 
   @override
-  Future<bool> login({required String email, required String password}) async => true;
+  Future<bool> login({required String email, required String password}) async =>
+      true;
 
   @override
   Future<void> logout() async {}
 }
 
 void main() {
-  testWidgets('NewRequestWizard renders step 1 with prefilled data and advances to step 2', skip: Platform.environment['CI'] == 'true', (WidgetTester tester) async {
+  testWidgets(
+      'NewRequestWizard renders step 1 with prefilled data and advances to step 2',
+      skip: Platform.environment['CI'] == 'true', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -59,7 +65,8 @@ void main() {
           headers: {'content-type': 'application/json'},
         );
       }
-      return http.Response('{"success": true}', 200, headers: {'content-type': 'application/json'});
+      return http.Response('{"success": true}', 200,
+          headers: {'content-type': 'application/json'});
     });
 
     final testUser = UserModel(
@@ -71,12 +78,14 @@ void main() {
       facilityName: 'Teaching Hospital Kandy',
     );
 
-    final testApiClient = ApiClient(httpClient: mockClient, authToken: 'test-token');
+    final testApiClient =
+        ApiClient(httpClient: mockClient, authToken: 'test-token');
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authControllerProvider.overrideWith((ref) => FakeAuthController(testUser)),
+          authControllerProvider
+              .overrideWith((ref) => FakeAuthController(testUser)),
         ],
         child: MaterialApp(
           home: NewRequestWizard(
@@ -115,4 +124,3 @@ void main() {
     expect(find.text('Submit Transfer Request'), findsOneWidget);
   });
 }
-

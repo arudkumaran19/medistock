@@ -86,11 +86,17 @@ class MobilePurchaseOrder {
       supplierId: json['supplierId'] as String? ?? '',
       facilityId: json['facilityId'] as String? ?? '',
       status: json['status'] as String? ?? 'Draft',
-      requestedAt: DateTime.tryParse(json['requestedAt'] as String? ?? '') ?? DateTime.now(),
-      approvedAt: json['approvedAt'] != null ? DateTime.tryParse(json['approvedAt'] as String) : null,
+      requestedAt: DateTime.tryParse(json['requestedAt'] as String? ?? '') ??
+          DateTime.now(),
+      approvedAt: json['approvedAt'] != null
+          ? DateTime.tryParse(json['approvedAt'] as String)
+          : null,
       rejectionReason: json['rejectionReason'] as String?,
       revisionReason: json['revisionReason'] as String?,
-      items: rawItems.map((e) => MobilePurchaseOrderItem.fromJson(e as Map<String, dynamic>)).toList(),
+      items: rawItems
+          .map((e) =>
+              MobilePurchaseOrderItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -155,11 +161,14 @@ class MobileDelivery {
       id: json['id'] as String? ?? '',
       purchaseOrderId: json['purchaseOrderId'] as String? ?? '',
       status: json['status'] as String? ?? 'Pending',
-      expectedAt: json['expectedAt'] != null ? DateTime.tryParse(json['expectedAt'] as String) : null,
-      deliveredAt: json['deliveredAt'] != null ? DateTime.tryParse(json['deliveredAt'] as String) : null,
+      expectedAt: json['expectedAt'] != null
+          ? DateTime.tryParse(json['expectedAt'] as String)
+          : null,
+      deliveredAt: json['deliveredAt'] != null
+          ? DateTime.tryParse(json['deliveredAt'] as String)
+          : null,
       trackingNumber: json['trackingNumber'] as String?,
       notes: json['notes'] as String?,
     );
   }
 }
-

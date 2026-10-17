@@ -57,7 +57,8 @@ class AppTheme {
       ),
 
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.4),
+        headlineSmall:
+            TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.4),
         titleLarge: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3),
         titleMedium: TextStyle(fontWeight: FontWeight.w700),
         bodyMedium: TextStyle(height: 1.4),
@@ -162,7 +163,8 @@ class AppTheme {
       bottomSheetTheme: const BottomSheetThemeData(
         showDragHandle: true,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
         ),
       ),
 

@@ -34,7 +34,8 @@ void main() {
     );
   }
 
-  Future<void> choose(WidgetTester tester, String fieldKey, String optionText) async {
+  Future<void> choose(
+      WidgetTester tester, String fieldKey, String optionText) async {
     await tester.tap(find.byKey(Key(fieldKey)));
     await tester.pumpAndSettle();
     // The open menu renders the option again above the field; the last is the menu's.
@@ -105,7 +106,8 @@ void main() {
     expect(repository.lastEntry, isNull);
   });
 
-  testWidgets('submits a valid entry to the repository', (WidgetTester tester) async {
+  testWidgets('submits a valid entry to the repository',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository = FakeDemandRepository();
 
     await tester.pumpWidget(wrap(repository));
@@ -138,7 +140,8 @@ void main() {
     expect(quantityField.controller?.text, isEmpty);
   });
 
-  testWidgets('shows the backend rejection message', (WidgetTester tester) async {
+  testWidgets('shows the backend rejection message',
+      (WidgetTester tester) async {
     final FakeDemandRepository repository = FakeDemandRepository(
       recordError: const ApiFailure(
         code: 'DEMAND_VALIDATION_ERROR',
@@ -154,10 +157,12 @@ void main() {
 
     // The backend stays authoritative: its message is shown as-is.
     expect(find.byKey(const Key('entry-error')), findsOneWidget);
-    expect(find.text('consumptionDate cannot be in the future.'), findsOneWidget);
+    expect(
+        find.text('consumptionDate cannot be in the future.'), findsOneWidget);
   });
 
-  testWidgets('does not allow picking a future date', (WidgetTester tester) async {
+  testWidgets('does not allow picking a future date',
+      (WidgetTester tester) async {
     await tester.pumpWidget(wrap(FakeDemandRepository()));
 
     await tester.tap(find.byKey(const Key('pick-date-button')));
@@ -168,7 +173,8 @@ void main() {
 
     // Either the day is not rendered at all, or it is rendered disabled. Both are
     // acceptable; what matters is that tomorrow cannot be selected.
-    if (tomorrowCell.evaluate().isNotEmpty && tomorrow.month == DateTime.now().month) {
+    if (tomorrowCell.evaluate().isNotEmpty &&
+        tomorrow.month == DateTime.now().month) {
       await tester.tap(tomorrowCell.first);
       await tester.pumpAndSettle();
     }

@@ -32,7 +32,9 @@ class ShortageRepository {
       list = data;
     }
 
-    var alerts = list.map((j) => ShortageAlertModel.fromJson(j as Map<String, dynamic>)).toList();
+    var alerts = list
+        .map((j) => ShortageAlertModel.fromJson(j as Map<String, dynamic>))
+        .toList();
 
     // Client-side facility scoping guard
     if (facilityId != null && facilityId.isNotEmpty) {

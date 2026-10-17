@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../auth/data/auth_service.dart';
 import '../../../core/routing/app_router.dart';
 
-
 // ─────────────────────────────────────────────────────────────────────
 // Quick action tile used inside each role panel
 // ─────────────────────────────────────────────────────────────────────
@@ -45,9 +44,13 @@ class _QuickAction extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    Text(subtitle,
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
                   ],
                 ),
               ),
@@ -64,7 +67,11 @@ class _QuickAction extends StatelessWidget {
 // Stat card
 // ─────────────────────────────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value, required this.icon, this.accentColor});
+  const _StatCard(
+      {required this.label,
+      required this.value,
+      required this.icon,
+      this.accentColor});
   final String label;
   final String value;
   final IconData icon;
@@ -91,9 +98,12 @@ class _StatCard extends StatelessWidget {
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 10),
-            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
           ],
         ),
       ),
@@ -105,7 +115,8 @@ class _StatCard extends StatelessWidget {
 // Main Dashboard Screen — role-routed
 // ─────────────────────────────────────────────────────────────────────
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key, required this.user, required this.authService});
+  const DashboardScreen(
+      {super.key, required this.user, required this.authService});
 
   final AuthUser user;
   final MobileAuthService authService;
@@ -123,7 +134,8 @@ class DashboardScreen extends StatelessWidget {
     } else if (user.isManager) {
       body = _ManagerPanel(user: user, onAction: _handleAction(context));
     } else if (user.isSupplierOfficer) {
-      body = _SupplierOfficerPanel(user: user, onAction: _handleAction(context));
+      body =
+          _SupplierOfficerPanel(user: user, onAction: _handleAction(context));
     } else {
       body = _StaffPanel(user: user, onAction: _handleAction(context));
     }
@@ -132,12 +144,16 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0D4A38),
         foregroundColor: Colors.white,
-        title: const Text('MediStock', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+        title: const Text('MediStock',
+            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
         actions: [
           Chip(
             label: Text(
               user.roleLabel,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+              style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white),
             ),
             backgroundColor: Colors.white.withOpacity(0.15),
             side: BorderSide.none,
@@ -186,14 +202,30 @@ class _ManagerPanel extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: const [
-              _StatCard(label: 'Pending Approvals', value: '—', icon: Icons.check_circle_outline, accentColor: Color(0xFFD97706)),
-              _StatCard(label: 'Active POs', value: '—', icon: Icons.description_outlined),
-              _StatCard(label: 'Policy Violations', value: '—', icon: Icons.warning_amber_outlined, accentColor: Color(0xFFDC2626)),
-              _StatCard(label: 'Low Stock Alerts', value: '—', icon: Icons.trending_down, accentColor: Color(0xFF7C3AED)),
+              _StatCard(
+                  label: 'Pending Approvals',
+                  value: '—',
+                  icon: Icons.check_circle_outline,
+                  accentColor: Color(0xFFD97706)),
+              _StatCard(
+                  label: 'Active POs',
+                  value: '—',
+                  icon: Icons.description_outlined),
+              _StatCard(
+                  label: 'Policy Violations',
+                  value: '—',
+                  icon: Icons.warning_amber_outlined,
+                  accentColor: Color(0xFFDC2626)),
+              _StatCard(
+                  label: 'Low Stock Alerts',
+                  value: '—',
+                  icon: Icons.trending_down,
+                  accentColor: Color(0xFF7C3AED)),
             ],
           ),
           const SizedBox(height: 24),
-          const Text('Quick Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Quick Actions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _QuickAction(
             icon: Icons.approval,
@@ -245,7 +277,8 @@ class _ManagerPanel extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           // Demand & Shortage - Sathurstiga S. (IT24103156).
-          const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Demand & Shortage',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _DemandActions(
             onAction: onAction,
@@ -353,14 +386,29 @@ class _SupplierOfficerPanel extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: const [
-              _StatCard(label: 'Draft Orders', value: '—', icon: Icons.description_outlined, accentColor: Color(0xFFD97706)),
-              _StatCard(label: 'Pending Approval', value: '—', icon: Icons.hourglass_empty, accentColor: Color(0xFF7C3AED)),
-              _StatCard(label: 'Active Suppliers', value: '—', icon: Icons.business_outlined),
-              _StatCard(label: 'Delivered This Month', value: '—', icon: Icons.local_shipping_outlined),
+              _StatCard(
+                  label: 'Draft Orders',
+                  value: '—',
+                  icon: Icons.description_outlined,
+                  accentColor: Color(0xFFD97706)),
+              _StatCard(
+                  label: 'Pending Approval',
+                  value: '—',
+                  icon: Icons.hourglass_empty,
+                  accentColor: Color(0xFF7C3AED)),
+              _StatCard(
+                  label: 'Active Suppliers',
+                  value: '—',
+                  icon: Icons.business_outlined),
+              _StatCard(
+                  label: 'Delivered This Month',
+                  value: '—',
+                  icon: Icons.local_shipping_outlined),
             ],
           ),
           const SizedBox(height: 24),
-          const Text('Quick Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Quick Actions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _QuickAction(
             icon: Icons.add_shopping_cart,
@@ -413,14 +461,29 @@ class _StaffPanel extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: const [
-              _StatCard(label: 'Inventory Items', value: '—', icon: Icons.medication_outlined),
-              _StatCard(label: 'Expiring Soon', value: '—', icon: Icons.event_outlined, accentColor: Color(0xFFD97706)),
-              _StatCard(label: 'Low Stock', value: '—', icon: Icons.trending_down, accentColor: Color(0xFFDC2626)),
-              _StatCard(label: 'Recent Receipts', value: '—', icon: Icons.inbox_outlined),
+              _StatCard(
+                  label: 'Inventory Items',
+                  value: '—',
+                  icon: Icons.medication_outlined),
+              _StatCard(
+                  label: 'Expiring Soon',
+                  value: '—',
+                  icon: Icons.event_outlined,
+                  accentColor: Color(0xFFD97706)),
+              _StatCard(
+                  label: 'Low Stock',
+                  value: '—',
+                  icon: Icons.trending_down,
+                  accentColor: Color(0xFFDC2626)),
+              _StatCard(
+                  label: 'Recent Receipts',
+                  value: '—',
+                  icon: Icons.inbox_outlined),
             ],
           ),
           const SizedBox(height: 24),
-          const Text('Quick Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Quick Actions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _QuickAction(
             icon: Icons.medication_outlined,
@@ -466,7 +529,8 @@ class _StaffPanel extends StatelessWidget {
           const SizedBox(height: 24),
           // Demand & Shortage - Sathurstiga S. (IT24103156). Store keepers are
           // the ones recording what was dispensed; the agent is a manager tool.
-          const Text('Demand & Shortage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Demand & Shortage',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _DemandActions(
             onAction: onAction,
@@ -504,14 +568,27 @@ class _AdminPanel extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: const [
-              _StatCard(label: 'System Status', value: 'Online', icon: Icons.circle, accentColor: Color(0xFF16A34A)),
-              _StatCard(label: 'Active Facilities', value: '—', icon: Icons.local_hospital_outlined),
-              _StatCard(label: 'Pending Approvals', value: '—', icon: Icons.check_circle_outline, accentColor: Color(0xFFD97706)),
-              _StatCard(label: 'Total Users', value: '—', icon: Icons.group_outlined),
+              _StatCard(
+                  label: 'System Status',
+                  value: 'Online',
+                  icon: Icons.circle,
+                  accentColor: Color(0xFF16A34A)),
+              _StatCard(
+                  label: 'Active Facilities',
+                  value: '—',
+                  icon: Icons.local_hospital_outlined),
+              _StatCard(
+                  label: 'Pending Approvals',
+                  value: '—',
+                  icon: Icons.check_circle_outline,
+                  accentColor: Color(0xFFD97706)),
+              _StatCard(
+                  label: 'Total Users', value: '—', icon: Icons.group_outlined),
             ],
           ),
           const SizedBox(height: 24),
-          const Text('Administration Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text('Administration Actions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           _QuickAction(
             icon: Icons.approval,
@@ -583,7 +660,8 @@ Widget _header(String title, String subtitle) {
     children: [
       Text(
         title,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+        style: const TextStyle(
+            fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
       ),
       const SizedBox(height: 4),
       Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey[600])),

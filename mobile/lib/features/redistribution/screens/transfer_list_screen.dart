@@ -161,7 +161,10 @@ class _TransferListScreenState extends State<TransferListScreen> {
           if (_selectedStatusFilter == 'ALL') {
             _transfers = data.where((t) {
               final s = t.status.toLowerCase();
-              return s == 'approved' || s == 'reserved' || s == 'intransit' || s == 'delivered';
+              return s == 'approved' ||
+                  s == 'reserved' ||
+                  s == 'intransit' ||
+                  s == 'delivered';
             }).toList();
           } else {
             _transfers = data;
@@ -231,7 +234,8 @@ class _TransferListScreenState extends State<TransferListScreen> {
                       color: AppColors.statusRejected,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
                     child: Text(
                       '$_unreadNotifCount',
                       textAlign: TextAlign.center,
@@ -262,14 +266,18 @@ class _TransferListScreenState extends State<TransferListScreen> {
                 // Search Bar
                 TextField(
                   onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Search medicine, facility, TR-number...',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+                    hintStyle: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: AppColors.textSecondary, size: 20),
                     filled: true,
                     fillColor: AppColors.background,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: AppColors.border),
@@ -295,9 +303,13 @@ class _TransferListScreenState extends State<TransferListScreen> {
                           label: Text(
                             f == 'ALL' ? 'All Operations' : f,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
                               fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                           selected: isSelected,
@@ -306,7 +318,9 @@ class _TransferListScreenState extends State<TransferListScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
-                              color: isSelected ? AppColors.primary : AppColors.border,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.border,
                             ),
                           ),
                           onSelected: (_) {
@@ -335,17 +349,20 @@ class _TransferListScreenState extends State<TransferListScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.error_outline, size: 48, color: AppColors.statusRejected),
+                              const Icon(Icons.error_outline,
+                                  size: 48, color: AppColors.statusRejected),
                               const SizedBox(height: 12),
                               Text(
                                 _errorMessage!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.textSecondary),
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton(
                                 onPressed: _fetchTransfers,
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary),
                                 child: const Text('Retry'),
                               ),
                             ],
@@ -357,7 +374,8 @@ class _TransferListScreenState extends State<TransferListScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.inbox_rounded, size: 54, color: AppColors.textMuted),
+                                const Icon(Icons.inbox_rounded,
+                                    size: 54, color: AppColors.textMuted),
                                 const SizedBox(height: 12),
                                 Text(
                                   _searchQuery.isNotEmpty
@@ -437,7 +455,8 @@ class _TransferListScreenState extends State<TransferListScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: priorityColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(4),
@@ -453,7 +472,8 @@ class _TransferListScreenState extends State<TransferListScreen> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: statusColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(4),
@@ -504,7 +524,8 @@ class _TransferListScreenState extends State<TransferListScreen> {
                 // Facility Route Row
                 Row(
                   children: [
-                    const Icon(Icons.arrow_forward_rounded, color: AppColors.textMuted, size: 14),
+                    const Icon(Icons.arrow_forward_rounded,
+                        color: AppColors.textMuted, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(

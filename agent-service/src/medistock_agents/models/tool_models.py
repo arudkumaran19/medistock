@@ -1,11 +1,10 @@
-"""Frozen tool data models for MediStock Redistribution Agent."""
+"""Frozen tool data models for MediStock Redistribution & Demand Agents."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from uuid import UUID
 from datetime import date, datetime
-from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic.alias_generators import to_camel
 
@@ -91,21 +90,10 @@ class ToolExecutionRecord(BaseModel):
     success: bool
     error_message: Optional[str] = Field(None, alias="errorMessage")
 
-"""Frozen controlled-tool request and response contract.
 
-SHARED CONTRACT - primary owner: ILHAM MM (IT24103530).
-
-Placeholder created by the Demand & Shortage vertical (Sathurstiga S., IT24103156)
-only so the demand tools can be implemented and tested against the frozen schema.
-Replace with the owner's implementation on integration.
-
-Tools never reach PostgreSQL directly. Every call goes through an ASP.NET Core
-internal tool endpoint, which applies authorization and the authoritative business
-rules before returning a structured result (blueprint section 38)::
-
-    AI -> tool request -> ASP.NET -> authorization -> business service
-       -> database -> structured result -> AI
-"""
+# ---------------------------------------------------------------------------
+# Controlled tool request and response contract
+# ---------------------------------------------------------------------------
 
 class CamelModel(BaseModel):
     model_config = ConfigDict(
@@ -193,8 +181,6 @@ class ProjectedStockoutResult(CamelModel):
     lead_time_days: int
     risk_level: str
     requires_transfer: bool
-    # "REQUEST" when the agent supplied the stock, "INVENTORY" when the backend read
-    # it from the Inventory balance. Optional so older payloads still validate.
     stock_source: str | None = None
 
 
@@ -207,6 +193,4 @@ class ShortageThresholdResult(CamelModel):
     reorder_point: float
     safety_stock: float
     lead_time_days: int
-    # "CONFIGURED" for a stored reorder rule, "DEFAULT" when none is configured and
-    # the backend applied its default thresholds. Optional so older payloads validate.
     source: str | None = None

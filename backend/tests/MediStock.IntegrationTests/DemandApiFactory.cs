@@ -82,17 +82,18 @@ public class DemandApiFactory : WebApplicationFactory<Program>
     /// Issues a signed token carrying the given role, so authorization is exercised
     /// through the real JWT pipeline rather than being stubbed out.
     /// </summary>
-    public HttpClient CreateClientAs(string role)
+    public HttpClient CreateClientAs(string role, Guid? userId = null)
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(role));
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CreateToken(role, userId));
 
         return client;
     }
 
-    public static string CreateToken(string role)
+    public static string CreateToken(string role, Guid? userId = null)
     {
+        var uid = userId ?? Guid.NewGuid();
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)),
             SecurityAlgorithms.HmacSha256);
@@ -102,7 +103,7 @@ public class DemandApiFactory : WebApplicationFactory<Program>
             audience: Audience,
             claims: new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.NameIdentifier, uid.ToString()),
                 new Claim(ClaimTypes.Name, $"test-{role.ToLowerInvariant()}"),
                 new Claim(ClaimTypes.Role, role)
             },

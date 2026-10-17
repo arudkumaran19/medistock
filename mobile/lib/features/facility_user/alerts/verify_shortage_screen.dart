@@ -20,7 +20,8 @@ class VerifyShortageScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<VerifyShortageScreen> createState() => _VerifyShortageScreenState();
+  ConsumerState<VerifyShortageScreen> createState() =>
+      _VerifyShortageScreenState();
 }
 
 class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
@@ -41,15 +42,24 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
 
     final medicineId = widget.shortageAlert['medicineId']?.toString();
     final facilityId = widget.shortageAlert['facilityId']?.toString();
-    final medicineName = widget.shortageAlert['medicineName']?.toString() ?? 'Amoxicillin 250 mg';
-    final leadTime = widget.shortageAlert['leadTimeDays'] is num ? (widget.shortageAlert['leadTimeDays'] as num).toInt() : 10;
-    final daysRemaining = widget.shortageAlert['daysRemaining'] is num ? (widget.shortageAlert['daysRemaining'] as num).toInt() : 2;
-    final avgConsumption = widget.shortageAlert['averageDailyConsumption'] is num ? (widget.shortageAlert['averageDailyConsumption'] as num).toDouble() : 20.0;
+    final medicineName = widget.shortageAlert['medicineName']?.toString() ??
+        'Amoxicillin 250 mg';
+    final leadTime = widget.shortageAlert['leadTimeDays'] is num
+        ? (widget.shortageAlert['leadTimeDays'] as num).toInt()
+        : 10;
+    final daysRemaining = widget.shortageAlert['daysRemaining'] is num
+        ? (widget.shortageAlert['daysRemaining'] as num).toInt()
+        : 2;
+    final avgConsumption = widget.shortageAlert['averageDailyConsumption']
+            is num
+        ? (widget.shortageAlert['averageDailyConsumption'] as num).toDouble()
+        : 20.0;
 
     int calcQty = ((leadTime - daysRemaining) * avgConsumption).round();
     if (calcQty <= 0) calcQty = 100;
 
-    final riskLevel = widget.shortageAlert['riskLevel']?.toString().toUpperCase() ?? 'HIGH';
+    final riskLevel =
+        widget.shortageAlert['riskLevel']?.toString().toUpperCase() ?? 'HIGH';
     final urgency = riskLevel == 'HIGH' ? 'Critical' : 'Urgent';
 
     Navigator.of(context).push(
@@ -60,7 +70,8 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
           prefillDestinationFacilityId: facilityId,
           prefillQuantity: calcQty,
           prefillUrgency: urgency,
-          prefillNotes: 'Auto-raised from shortage alert #alert-${alertId.substring(0, alertId.length > 8 ? 8 : alertId.length)}',
+          prefillNotes:
+              'Auto-raised from shortage alert #alert-${alertId.substring(0, alertId.length > 8 ? 8 : alertId.length)}',
           sourceShortageAlertId: alertId,
         ),
       ),
@@ -91,11 +102,13 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
         return;
       } on DioException catch (dioErr) {
         if (!mounted) return;
-        final backendMsg = dioErr.response?.data?['error']?['message']?.toString() ??
-            dioErr.response?.data?['message']?.toString();
+        final backendMsg =
+            dioErr.response?.data?['error']?['message']?.toString() ??
+                dioErr.response?.data?['message']?.toString();
 
         if (dioErr.response?.statusCode == 403) {
-          final displayMsg = backendMsg ?? 'Permission denied: You can only dismiss alerts for your own assigned facility.';
+          final displayMsg = backendMsg ??
+              'Permission denied: You can only dismiss alerts for your own assigned facility.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               key: const Key('forbidden-error-snackbar'),
@@ -104,7 +117,8 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
             ),
           );
         } else if (dioErr.response?.statusCode == 409) {
-          final displayMsg = backendMsg ?? 'This alert cannot be dismissed because of a status conflict.';
+          final displayMsg = backendMsg ??
+              'This alert cannot be dismissed because of a status conflict.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               key: const Key('conflict-error-snackbar'),
@@ -142,7 +156,8 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
   @override
   Widget build(BuildContext context) {
     final alert = widget.shortageAlert;
-    final medicineName = alert['medicineName']?.toString() ?? 'Amoxicillin + Clavulanic Acid 625mg';
+    final medicineName = alert['medicineName']?.toString() ??
+        'Amoxicillin + Clavulanic Acid 625mg';
     final currentStock = alert['currentStock']?.toString() ?? '12';
     final daysRemaining = alert['daysRemaining']?.toString() ?? '2';
     final leadTimeDays = alert['leadTimeDays']?.toString() ?? '10';
@@ -165,17 +180,25 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: riskLevel == 'HIGH' ? AppColors.errorLight : AppColors.warningLight,
+                  color: riskLevel == 'HIGH'
+                      ? AppColors.errorLight
+                      : AppColors.warningLight,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: riskLevel == 'HIGH' ? AppColors.error : AppColors.warning,
+                    color: riskLevel == 'HIGH'
+                        ? AppColors.error
+                        : AppColors.warning,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      riskLevel == 'HIGH' ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
-                      color: riskLevel == 'HIGH' ? AppColors.error : AppColors.warning,
+                      riskLevel == 'HIGH'
+                          ? Icons.warning_amber_rounded
+                          : Icons.info_outline_rounded,
+                      color: riskLevel == 'HIGH'
+                          ? AppColors.error
+                          : AppColors.warning,
                       size: 32,
                     ),
                     const SizedBox(width: 12),
@@ -186,7 +209,9 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
                           Text(
                             '$riskLevel RISK SHORTAGE DETECTED',
                             style: AppTextStyles.badge.copyWith(
-                              color: riskLevel == 'HIGH' ? AppColors.error : AppColors.warning,
+                              color: riskLevel == 'HIGH'
+                                  ? AppColors.error
+                                  : AppColors.warning,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -218,13 +243,19 @@ class _VerifyShortageScreenState extends ConsumerState<VerifyShortageScreen> {
                   children: [
                     _DetailRow(label: 'Medicine', value: medicineName),
                     const Divider(height: 20),
-                    _DetailRow(label: 'Current Stock', value: '$currentStock units'),
+                    _DetailRow(
+                        label: 'Current Stock', value: '$currentStock units'),
                     const Divider(height: 20),
-                    _DetailRow(label: 'Days Remaining', value: '$daysRemaining days'),
+                    _DetailRow(
+                        label: 'Days Remaining', value: '$daysRemaining days'),
                     const Divider(height: 20),
-                    _DetailRow(label: 'Supplier Lead Time', value: '$leadTimeDays days'),
+                    _DetailRow(
+                        label: 'Supplier Lead Time',
+                        value: '$leadTimeDays days'),
                     const Divider(height: 20),
-                    _DetailRow(label: 'Avg. Daily Consumption', value: '$avgDaily units/day'),
+                    _DetailRow(
+                        label: 'Avg. Daily Consumption',
+                        value: '$avgDaily units/day'),
                   ],
                 ),
               ),
@@ -287,7 +318,9 @@ class _DetailRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
+        Text(label,
+            style:
+                AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
         Text(value, style: AppTextStyles.titleSmall),
       ],
     );

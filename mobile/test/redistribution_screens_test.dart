@@ -178,8 +178,14 @@ void main() {
       provider: 'OpenRouteService',
       isFallback: false,
       waypoints: [
-        RouteWaypoint(latitude: 6.9271, longitude: 79.8612, label: 'Colombo Hub Departure'),
-        RouteWaypoint(latitude: 7.2906, longitude: 80.6337, label: 'Kandy Inbound Gateway'),
+        RouteWaypoint(
+            latitude: 6.9271,
+            longitude: 79.8612,
+            label: 'Colombo Hub Departure'),
+        RouteWaypoint(
+            latitude: 7.2906,
+            longitude: 80.6337,
+            label: 'Kandy Inbound Gateway'),
       ],
     );
 
@@ -190,7 +196,8 @@ void main() {
   });
 
   group('Flutter Mobile Redistribution Feature Tests', () {
-    testWidgets('TransferListScreen renders operational transfers with badges and filters',
+    testWidgets(
+        'TransferListScreen renders operational transfers with badges and filters',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -210,7 +217,8 @@ void main() {
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
     });
 
-    testWidgets('TransferDetailsScreen allows Field Officer to navigate to Confirm Delivery',
+    testWidgets(
+        'TransferDetailsScreen allows Field Officer to navigate to Confirm Delivery',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
@@ -241,7 +249,8 @@ void main() {
       expect(find.text('Confirm Delivery & Verification'), findsOneWidget);
     });
 
-    testWidgets('TransferDetailsScreen renders item specs, pipeline, and facilities',
+    testWidgets(
+        'TransferDetailsScreen renders item specs, pipeline, and facilities',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -262,7 +271,8 @@ void main() {
       expect(find.text('Track Road Transit & Waypoints'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen displays road distance, duration, and waypoints',
+    testWidgets(
+        'TransferTrackingScreen displays road distance, duration, and waypoints',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -283,7 +293,8 @@ void main() {
       expect(find.text('Kandy Inbound Gateway'), findsOneWidget);
     });
 
-    testWidgets('ReceiveTransferScreen confirms receipt count and barcode verification',
+    testWidgets(
+        'ReceiveTransferScreen confirms receipt count and barcode verification',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -301,14 +312,16 @@ void main() {
       expect(find.text('Physical Batch / Lot Number'), findsOneWidget);
 
       // Verify the submit button is enabled
-      final submitButtonFinder = find.text('Confirm & Finalize Delivery Receipt');
+      final submitButtonFinder =
+          find.text('Confirm & Finalize Delivery Receipt');
       expect(submitButtonFinder, findsOneWidget);
 
       await tester.tap(submitButtonFinder);
       await tester.pumpAndSettle();
     });
 
-    testWidgets('TransferDetailsScreen periodic 5s polling reflects status updates without pull-to-refresh',
+    testWidgets(
+        'TransferDetailsScreen periodic 5s polling reflects status updates without pull-to-refresh',
         (tester) async {
       final initialTransfer = Transfer(
         id: 'poll-test-1',
@@ -363,7 +376,8 @@ void main() {
       expect(find.text('APPROVED'), findsOneWidget);
     });
 
-    testWidgets('TransferTrackingScreen periodic 5s polling reflects status updates without pull-to-refresh',
+    testWidgets(
+        'TransferTrackingScreen periodic 5s polling reflects status updates without pull-to-refresh',
         (tester) async {
       final initialTransfer = Transfer(
         id: 'poll-track-1',
@@ -419,4 +433,3 @@ void main() {
     });
   });
 }
-

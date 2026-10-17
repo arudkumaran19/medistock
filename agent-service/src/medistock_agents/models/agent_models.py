@@ -64,6 +64,21 @@ class ActionType(str, Enum):
 	ADJUST = "adjust"
 	RESERVE = "reserve"
 
+	@classmethod
+	def _missing_(cls, value: object):
+		"""Resolve a value whose case does not match a member exactly.
+
+		The ASP.NET proxy forwards the browser's request body verbatim, and clients
+		send either case, so a value the enum would otherwise reject (``ANALYZE``)
+		must resolve to its canonical member rather than surfacing a raw 422.
+		"""
+		if isinstance(value, str):
+			normalised = value.strip().casefold()
+			for member in cls:
+				if member.value == normalised:
+					return member
+		return None
+
 
 class InventoryAction(BaseModel):
 	action_type: ActionType
@@ -91,6 +106,16 @@ class ProcurementActionType(str, Enum):
 	APPROVE = "approve"
 	REJECT = "reject"
 	REVISE = "revise"
+
+	@classmethod
+	def _missing_(cls, value: object):
+		"""Case-insensitive member resolution, same rationale as ActionType."""
+		if isinstance(value, str):
+			normalised = value.strip().casefold()
+			for member in cls:
+				if member.value == normalised:
+					return member
+		return None
 
 
 class ProcurementAction(BaseModel):

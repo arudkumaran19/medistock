@@ -236,7 +236,69 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // 1. Core Role-Based Policies
+    options.AddPolicy(MediStock.Api.Security.AuthorizationPolicies.RequireAdministrator, policy =>
+        policy.RequireAssertion(ctx => ctx.User.IsInRole(Constants.Roles.Admin) || ctx.User.IsInRole("Administrator")));
+
+    options.AddPolicy(MediStock.Api.Security.AuthorizationPolicies.RequireFacilityManager, policy =>
+        policy.RequireAssertion(ctx => ctx.User.IsInRole(Constants.Roles.FacilityManager) || ctx.User.IsInRole("FacilityManager")));
+
+    options.AddPolicy(MediStock.Api.Security.AuthorizationPolicies.RequirePharmacist, policy =>
+        policy.RequireAssertion(ctx => ctx.User.IsInRole(Constants.Roles.StoreOfficer) || ctx.User.IsInRole("StoreOfficer") || ctx.User.IsInRole("OperationalStaff")));
+
+    options.AddPolicy(MediStock.Api.Security.AuthorizationPolicies.RequireProcurementManager, policy =>
+        policy.RequireAssertion(ctx => ctx.User.IsInRole(Constants.Roles.SupplierOfficer) || ctx.User.IsInRole("SupplierOfficer")));
+
+    // 2. Add Medicine & Expiry Management: Strictly Administrator and Store Officer. Facility Manager and Supplier Officer cannot.
+    options.AddPolicy("AddMedicineAndExpiryAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.StoreOfficer) ||
+                   ctx.User.IsInRole("StoreOfficer") ||
+                   ctx.User.IsInRole("OperationalStaff") ||
+                   ctx.User.IsInRole("StoreOperator");
+        }));
+
+    // 3. Facility Inventory Access: Administrator, Facility Manager, Store Officer. Supplier Officer cannot.
+    options.AddPolicy("FacilityInventoryAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.FacilityManager) ||
+                   ctx.User.IsInRole("FacilityManager") ||
+                   ctx.User.IsInRole(Constants.Roles.StoreOfficer) ||
+                   ctx.User.IsInRole("OperationalStaff") ||
+                   ctx.User.IsInRole("StoreOfficer") ||
+                   ctx.User.IsInRole("StoreOperator");
+        }));
+
+    // 4. Procurement & Transfer Approvals: Administrator and Facility Manager within assigned authority. Store & Supplier Officers cannot approve.
+    options.AddPolicy("ProcurementApprovalAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator") ||
+                   ctx.User.IsInRole(Constants.Roles.FacilityManager) ||
+                   ctx.User.IsInRole("FacilityManager");
+        }));
+
+    // 5. User & System Administration: Strictly restricted to Administrator
+    options.AddPolicy("UserAdministrationAccess", policy =>
+        policy.RequireAssertion(ctx =>
+        {
+            if (ctx.User.Identity?.IsAuthenticated != true) return false;
+            return ctx.User.IsInRole(Constants.Roles.Admin) ||
+                   ctx.User.IsInRole("Administrator");
+        }));
+});
 
 // SignalR
 builder.Services.AddSignalR(options =>
@@ -258,6 +320,15 @@ builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
 builder.Services.AddScoped<ShortageEvaluationService>();
 builder.Services.AddScoped<DemandValidator>();
+builder.Services.AddScoped<MediStock.Api.Features.Notifications.Services.INotificationService, MediStock.Api.Features.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<MediStock.Api.Common.Audit.IAuditService, MediStock.Api.Common.Audit.AuditService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<MediStock.Api.Security.CurrentUserService>();
+builder.Services.AddScoped<MediStock.Api.Security.FacilityAuthorizationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Validation.Services.PolicyValidationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.SupplierService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.ProcurementService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.DeliveryService>();
 
 // AI & External HttpClients
 builder.Services.Configure<AgentServiceOptions>(builder.Configuration.GetSection(AgentServiceOptions.SectionName));

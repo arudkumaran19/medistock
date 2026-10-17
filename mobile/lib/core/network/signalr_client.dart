@@ -13,19 +13,31 @@ class SignalRClient {
   HubConnection? _hubConnection;
   final SecureStorageService _storage = SecureStorageService();
 
-  final _statusChangeController = StreamController<Map<String, dynamic>>.broadcast();
-  final _locationUpdateController = StreamController<Map<String, dynamic>>.broadcast();
-  final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
-  final _taskAssignedController = StreamController<Map<String, dynamic>>.broadcast();
-  final _shortageAlertController = StreamController<Map<String, dynamic>>.broadcast();
-  final _shortageAlertDismissedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _statusChangeController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _locationUpdateController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _taskAssignedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _shortageAlertController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _shortageAlertDismissedController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
-  Stream<Map<String, dynamic>> get onTransferStatusChanged => _statusChangeController.stream;
-  Stream<Map<String, dynamic>> get onTransferLocationUpdated => _locationUpdateController.stream;
-  Stream<Map<String, dynamic>> get onNotificationCreated => _notificationController.stream;
-  Stream<Map<String, dynamic>> get onTaskAssigned => _taskAssignedController.stream;
-  Stream<Map<String, dynamic>> get onShortageAlertCreated => _shortageAlertController.stream;
-  Stream<Map<String, dynamic>> get onShortageAlertDismissed => _shortageAlertDismissedController.stream;
+  Stream<Map<String, dynamic>> get onTransferStatusChanged =>
+      _statusChangeController.stream;
+  Stream<Map<String, dynamic>> get onTransferLocationUpdated =>
+      _locationUpdateController.stream;
+  Stream<Map<String, dynamic>> get onNotificationCreated =>
+      _notificationController.stream;
+  Stream<Map<String, dynamic>> get onTaskAssigned =>
+      _taskAssignedController.stream;
+  Stream<Map<String, dynamic>> get onShortageAlertCreated =>
+      _shortageAlertController.stream;
+  Stream<Map<String, dynamic>> get onShortageAlertDismissed =>
+      _shortageAlertDismissedController.stream;
 
   bool get isConnected => _hubConnection?.state == HubConnectionState.connected;
 
@@ -40,18 +52,17 @@ class SignalRClient {
 
     _hubConnection = HubConnectionBuilder()
         .withUrl(
-          hubUrl,
-          HttpConnectionOptions(
-            accessTokenFactory: () async => token ?? '',
-            logging: (level, message) {
-              if (kDebugMode) {
-                debugPrint('📡 [SignalR] $message');
-              }
-            },
-          ),
-        )
-        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-        .build();
+      hubUrl,
+      HttpConnectionOptions(
+        accessTokenFactory: () async => token ?? '',
+        logging: (level, message) {
+          if (kDebugMode) {
+            debugPrint('📡 [SignalR] $message');
+          }
+        },
+      ),
+    )
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000]).build();
 
     _hubConnection?.on('TransferStatusChanged', _handleStatusChanged);
     _hubConnection?.on('TransferLocationUpdated', _handleLocationUpdated);
@@ -69,9 +80,9 @@ class SignalRClient {
       final role = await _storage.getUserRole();
       if (role != null &&
           (role.toUpperCase().contains('FACILITY') ||
-           role.toUpperCase().contains('USER') ||
-           role.toUpperCase().contains('STORE') ||
-           role.toUpperCase().contains('MANAGER'))) {
+              role.toUpperCase().contains('USER') ||
+              role.toUpperCase().contains('STORE') ||
+              role.toUpperCase().contains('MANAGER'))) {
         await joinAllFacilityUsers();
         if (kDebugMode) {
           debugPrint('📡 [SignalR] Joined all_facility_users');
@@ -116,7 +127,8 @@ class SignalRClient {
 
   void _handleShortageAlertDismissed(List<Object?>? args) {
     if (args != null && args.isNotEmpty && args[0] is Map) {
-      _shortageAlertDismissedController.add(Map<String, dynamic>.from(args[0] as Map));
+      _shortageAlertDismissedController
+          .add(Map<String, dynamic>.from(args[0] as Map));
     }
   }
 
@@ -180,9 +192,11 @@ class SignalRClient {
     }
   }
 
-  Future<void> sendLocationUpdate(String transferId, double lat, double lng) async {
+  Future<void> sendLocationUpdate(
+      String transferId, double lat, double lng) async {
     if (isConnected) {
-      await _hubConnection?.invoke('SendLocationUpdate', args: [transferId, lat, lng]);
+      await _hubConnection
+          ?.invoke('SendLocationUpdate', args: [transferId, lat, lng]);
     }
   }
 
@@ -207,4 +221,3 @@ class SignalRClient {
 final signalRClientProvider = Provider<SignalRClient>((ref) {
   return SignalRClient();
 });
-

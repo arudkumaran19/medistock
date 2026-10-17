@@ -25,12 +25,16 @@ class FacilityModel {
     return FacilityModel(
       id: json['id']?.toString() ?? '',
       code: json['code']?.toString() ?? json['facilityCode']?.toString() ?? '',
-      name: json['name']?.toString() ?? json['facilityName']?.toString() ?? 'Medical Facility',
+      name: json['name']?.toString() ??
+          json['facilityName']?.toString() ??
+          'Medical Facility',
       address: json['address']?.toString() ?? 'Not available',
       city: json['city']?.toString(),
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      type: json['type']?.toString() ?? json['facilityType']?.toString() ?? 'Hospital',
+      type: json['type']?.toString() ??
+          json['facilityType']?.toString() ??
+          'Hospital',
     );
   }
 }

@@ -272,7 +272,7 @@ public class DemandValidator
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
             var status = query.Status.Trim();
-            if (!ShortageAlertStatuses.IsSupported(status) && !string.Equals(status, "active", StringComparison.OrdinalIgnoreCase))
+            if (!ShortageAlertStatuses.All.Contains(status, StringComparer.OrdinalIgnoreCase) && !string.Equals(status, "active", StringComparison.OrdinalIgnoreCase))
             {
                 return DemandValidationResult.Invalid(
                     UnsupportedStatusCode,

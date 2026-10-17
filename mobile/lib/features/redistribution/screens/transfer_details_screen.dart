@@ -70,14 +70,16 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
 
   void _initSignalR() {
     _signalRService = widget.signalRService ?? TransferSignalRService();
-    _signalRSubscription = _signalRService!.onTransferStatusChanged.listen((updated) {
+    _signalRSubscription =
+        _signalRService!.onTransferStatusChanged.listen((updated) {
       if (mounted && updated.id == widget.transferId) {
         setState(() {
           _transfer = updated;
         });
       }
     });
-    _signalRStateSubscription = _signalRService!.onConnectionStateChanged.listen((connected) {
+    _signalRStateSubscription =
+        _signalRService!.onConnectionStateChanged.listen((connected) {
       if (mounted) {
         setState(() {
           _isSignalRConnected = connected;
@@ -221,7 +223,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                       ),
                       child: Center(
                         child: isDone
-                            ? const Icon(Icons.check, size: 16, color: Colors.white)
+                            ? const Icon(Icons.check,
+                                size: 16, color: Colors.white)
                             : Text(
                                 '${index + 1}',
                                 style: const TextStyle(
@@ -240,7 +243,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                             ? AppColors.textPrimary
                             : AppColors.textMuted,
                         fontSize: 10,
-                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isCurrent ? FontWeight.bold : FontWeight.normal,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 1,
@@ -262,7 +266,9 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          _transfer != null ? 'Transfer ${_transfer!.transferNumber}' : 'Transfer Details',
+          _transfer != null
+              ? 'Transfer ${_transfer!.transferNumber}'
+              : 'Transfer Details',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: AppColors.surface,
@@ -286,17 +292,20 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.statusRejected),
+                        const Icon(Icons.error_outline,
+                            size: 48, color: AppColors.statusRejected),
                         const SizedBox(height: 12),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style:
+                              const TextStyle(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadTransfer,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary),
                           child: const Text('Retry'),
                         ),
                       ],
@@ -322,18 +331,30 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
                                         _buildStatusBadge(_transfer!.status),
                                         const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: _isSignalRConnected ? AppColors.primary.withOpacity(0.15) : Colors.amber.withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(color: _isSignalRConnected ? AppColors.primary.withOpacity(0.4) : Colors.amber.withOpacity(0.4)),
+                                            color: _isSignalRConnected
+                                                ? AppColors.primary
+                                                    .withOpacity(0.15)
+                                                : Colors.amber
+                                                    .withOpacity(0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
+                                                color: _isSignalRConnected
+                                                    ? AppColors.primary
+                                                        .withOpacity(0.4)
+                                                    : Colors.amber
+                                                        .withOpacity(0.4)),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -342,15 +363,21 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                                 width: 6,
                                                 height: 6,
                                                 decoration: BoxDecoration(
-                                                  color: _isSignalRConnected ? AppColors.primary : Colors.amber,
+                                                  color: _isSignalRConnected
+                                                      ? AppColors.primary
+                                                      : Colors.amber,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
-                                                _isSignalRConnected ? 'LIVE' : 'POLLING',
+                                                _isSignalRConnected
+                                                    ? 'LIVE'
+                                                    : 'POLLING',
                                                 style: TextStyle(
-                                                  color: _isSignalRConnected ? AppColors.primary : Colors.amber,
+                                                  color: _isSignalRConnected
+                                                      ? AppColors.primary
+                                                      : Colors.amber,
                                                   fontSize: 9,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -405,7 +432,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.medication_rounded, color: AppColors.primary, size: 20),
+                                    Icon(Icons.medication_rounded,
+                                        color: AppColors.primary, size: 20),
                                     SizedBox(width: 8),
                                     Text(
                                       'Medicines & Line Items',
@@ -423,16 +451,20 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                     margin: const EdgeInsets.only(bottom: 8),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: AppColors.background.withOpacity(0.5),
+                                      color:
+                                          AppColors.background.withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.border),
+                                      border:
+                                          Border.all(color: AppColors.border),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 item.medicineName,
@@ -446,7 +478,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                               Text(
                                                 'Batch: ${item.batchNumber ?? "Pending Allocation"}',
                                                 style: const TextStyle(
-                                                  color: AppColors.textSecondary,
+                                                  color:
+                                                      AppColors.textSecondary,
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -454,7 +487,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                           ),
                                         ),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
                                           children: [
                                             Text(
                                               '${item.allocatedQuantity > 0 ? item.allocatedQuantity : item.requestedQuantity} ${item.unitOfMeasure}',
@@ -465,7 +499,9 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                               ),
                                             ),
                                             Text(
-                                              item.allocatedQuantity > 0 ? 'Allocated' : 'Requested',
+                                              item.allocatedQuantity > 0
+                                                  ? 'Allocated'
+                                                  : 'Requested',
                                               style: const TextStyle(
                                                 color: AppColors.textMuted,
                                                 fontSize: 11,
@@ -496,7 +532,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.local_hospital_rounded, color: AppColors.secondary, size: 20),
+                                    Icon(Icons.local_hospital_rounded,
+                                        color: AppColors.secondary, size: 20),
                                     SizedBox(width: 8),
                                     Text(
                                       'Hospital Facilities & Route',
@@ -512,19 +549,24 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                 _buildFacilityRow(
                                   icon: Icons.storefront_rounded,
                                   title: 'Supplying Facility (Sender)',
-                                  name: _transfer!.sourceFacilityName ?? 'Pending candidate assignment',
+                                  name: _transfer!.sourceFacilityName ??
+                                      'Pending candidate assignment',
                                 ),
-                                const Divider(color: AppColors.border, height: 20),
+                                const Divider(
+                                    color: AppColors.border, height: 20),
                                 _buildFacilityRow(
                                   icon: Icons.location_on_rounded,
                                   title: 'Destination Facility (Recipient)',
                                   name: _transfer!.destinationFacilityName,
                                 ),
                                 if (_transfer!.estimatedDistanceKm > 0) ...[
-                                  const Divider(color: AppColors.border, height: 20),
+                                  const Divider(
+                                      color: AppColors.border, height: 20),
                                   Row(
                                     children: [
-                                      const Icon(Icons.route_rounded, color: AppColors.textSecondary, size: 18),
+                                      const Icon(Icons.route_rounded,
+                                          color: AppColors.textSecondary,
+                                          size: 18),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Road Distance: ${_transfer!.estimatedDistanceKm.toStringAsFixed(1)} km (~${_transfer!.estimatedDurationMinutes.toStringAsFixed(0)} mins)',
@@ -543,28 +585,36 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                           const SizedBox(height: 24),
 
                           if (_transfer!.status.toLowerCase() == 'reserved' ||
-                              _transfer!.status.toLowerCase() == 'approved') ...[
+                              _transfer!.status.toLowerCase() ==
+                                  'approved') ...[
                             ElevatedButton.icon(
                               onPressed: () async {
                                 // TODO: enforce roles after auth merge (pickup: field officer)
-                                await _apiService.dispatchTransfer(_transfer!.id, notes: 'Consignment confirmed pickup by field officer.');
+                                await _apiService.dispatchTransfer(
+                                    _transfer!.id,
+                                    notes:
+                                        'Consignment confirmed pickup by field officer.');
                                 _loadTransfer();
                               },
-                              icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                              icon: const Icon(Icons.local_shipping_rounded,
+                                  size: 18),
                               label: const Text('Confirm Pickup'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                               ),
                             ),
                             const SizedBox(height: 10),
                           ],
 
-                          if (_transfer!.status.toLowerCase() == 'intransit') ...[
+                          if (_transfer!.status.toLowerCase() ==
+                              'intransit') ...[
                             ElevatedButton.icon(
                               onPressed: () async {
                                 // TODO: enforce roles after auth merge (delivery: field officer)
-                                final received = await Navigator.of(context).push(
+                                final received =
+                                    await Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => ReceiveTransferScreen(
                                       transfer: _transfer!,
@@ -574,11 +624,13 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                 );
                                 if (received == true) _loadTransfer();
                               },
-                              icon: const Icon(Icons.inventory_rounded, size: 18),
+                              icon:
+                                  const Icon(Icons.inventory_rounded, size: 18),
                               label: const Text('Confirm Delivery'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -598,12 +650,16 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.navigation_rounded, size: 18),
-                              label: const Text('Track Road Transit & Waypoints'),
+                              icon: const Icon(Icons.navigation_rounded,
+                                  size: 18),
+                              label:
+                                  const Text('Track Road Transit & Waypoints'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.secondary,
-                                side: const BorderSide(color: AppColors.secondary),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                side: const BorderSide(
+                                    color: AppColors.secondary),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                               ),
                             ),
                         ],
@@ -632,7 +688,8 @@ class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                style:
+                    const TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
               const SizedBox(height: 2),
               Text(

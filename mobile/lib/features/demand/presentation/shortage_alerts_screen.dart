@@ -17,7 +17,8 @@ class ShortageAlertsScreen extends ConsumerStatefulWidget {
   static const String routeName = '/demand/shortages';
 
   @override
-  ConsumerState<ShortageAlertsScreen> createState() => _ShortageAlertsScreenState();
+  ConsumerState<ShortageAlertsScreen> createState() =>
+      _ShortageAlertsScreenState();
 }
 
 class _ShortageAlertsScreenState extends ConsumerState<ShortageAlertsScreen> {
@@ -30,7 +31,8 @@ class _ShortageAlertsScreenState extends ConsumerState<ShortageAlertsScreen> {
     final DemandActionState action = ref.watch(demandActionsProvider);
 
     // Surface a failed action without replacing the list that is already on screen.
-    ref.listen<DemandActionState>(demandActionsProvider, (_, DemandActionState next) {
+    ref.listen<DemandActionState>(demandActionsProvider,
+        (_, DemandActionState next) {
       if (next.errorMessage != null) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(next.errorMessage!)));
@@ -59,10 +61,12 @@ class _ShortageAlertsScreenState extends ConsumerState<ShortageAlertsScreen> {
           ),
           Expanded(
             child: alerts.when(
-              loading: () => const LoadingView(label: 'Loading shortage alerts…'),
+              loading: () =>
+                  const LoadingView(label: 'Loading shortage alerts…'),
               error: (Object error, StackTrace _) => ErrorView(
                 message: error.toString(),
-                onRetry: () => ref.invalidate(shortageAlertsProvider(_riskFilter)),
+                onRetry: () =>
+                    ref.invalidate(shortageAlertsProvider(_riskFilter)),
               ),
               data: (PagedResponse<ShortageAlert> pageOfAlerts) {
                 if (pageOfAlerts.isEmpty) {
@@ -73,9 +77,11 @@ class _ShortageAlertsScreenState extends ConsumerState<ShortageAlertsScreen> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(shortageAlertsProvider(_riskFilter)),
+                  onRefresh: () async =>
+                      ref.invalidate(shortageAlertsProvider(_riskFilter)),
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                     itemCount: pageOfAlerts.items.length,
                     itemBuilder: (BuildContext context, int index) {
                       return _ShortageAlertCard(
@@ -142,7 +148,9 @@ class _ShortageAlertCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            MetricRow(label: 'Stock on hand', value: alert.currentStock.toStringAsFixed(0)),
+            MetricRow(
+                label: 'Stock on hand',
+                value: alert.currentStock.toStringAsFixed(0)),
             MetricRow(
               label: 'Average per day',
               value: alert.averageDailyConsumption.toStringAsFixed(0),
@@ -152,7 +160,8 @@ class _ShortageAlertCard extends StatelessWidget {
             if (alert.projectedStockoutDate != null)
               MetricRow(
                 label: 'Projected stockout',
-                value: DateFormat('yyyy-MM-dd').format(alert.projectedStockoutDate!),
+                value: DateFormat('yyyy-MM-dd')
+                    .format(alert.projectedStockoutDate!),
               ),
             if (alert.requiresTransfer) ...<Widget>[
               const SizedBox(height: AppSpacing.sm),

@@ -114,7 +114,8 @@ class FakeDemandRepository implements DemandRepository {
   }
 
   @override
-  Future<ConsumptionRecord> updateConsumption(String id, ConsumptionEntry entry) async {
+  Future<ConsumptionRecord> updateConsumption(
+      String id, ConsumptionEntry entry) async {
     lastEntry = entry;
     updatedConsumptionId = id;
 
@@ -203,7 +204,8 @@ ShortageAlert buildAlert({
     currentStock: 120,
     averageDailyConsumption: averageDailyConsumption,
     daysRemaining: daysRemaining,
-    projectedStockoutDate: daysRemaining == null ? null : DateTime.utc(2026, 9, 27),
+    projectedStockoutDate:
+        daysRemaining == null ? null : DateTime.utc(2026, 9, 27),
     leadTimeDays: 10,
     riskLevel: riskLevel,
     requiresTransfer: requiresTransfer,
@@ -230,7 +232,8 @@ DemandForecast buildForecast({String method = 'MOVING_AVERAGE'}) {
   );
 }
 
-ConsumptionRecord buildRecord({double quantityUsed = 20, String source = 'SEED'}) {
+ConsumptionRecord buildRecord(
+    {double quantityUsed = 20, String source = 'SEED'}) {
   return ConsumptionRecord(
     id: 'r1',
     facilityId: 'f1',

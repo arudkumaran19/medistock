@@ -48,7 +48,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
 
     _quantityController = TextEditingController(text: initialQty.toString());
     _batchController = TextEditingController(
-      text: widget.transfer.primaryBatchNumber ?? 'BAT-${DateTime.now().year}-ALLOC',
+      text: widget.transfer.primaryBatchNumber ??
+          'BAT-${DateTime.now().year}-ALLOC',
     );
   }
 
@@ -79,7 +80,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
 
     if (receivedQty != expectedQty && _selectedDiscrepancyType == null) {
       setState(() {
-        _errorMessage = 'Discrepancy detected: Please select a reason for the quantity difference.';
+        _errorMessage =
+            'Discrepancy detected: Please select a reason for the quantity difference.';
       });
       return;
     }
@@ -111,7 +113,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: AppColors.primary,
-            content: Text('Delivery receipt successfully verified and authoritative stock logged.'),
+            content: Text(
+                'Delivery receipt successfully verified and authoritative stock logged.'),
           ),
         );
         Navigator.of(context).pop(true);
@@ -179,7 +182,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.statusInTransit.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
@@ -225,16 +229,19 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.statusRejected.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.statusRejected.withOpacity(0.3)),
+                    border: Border.all(
+                        color: AppColors.statusRejected.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: AppColors.statusRejected, size: 20),
+                      const Icon(Icons.error_outline,
+                          color: AppColors.statusRejected, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.statusRejected, fontSize: 13),
+                          style: const TextStyle(
+                              color: AppColors.statusRejected, fontSize: 13),
                         ),
                       ),
                     ],
@@ -254,7 +261,10 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
               TextFormField(
                 controller: _quantityController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   filled: true,
@@ -273,14 +283,17 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: AppColors.primary),
                   ),
-                  prefixIcon: const Icon(Icons.check_circle_outline_rounded, color: AppColors.primary),
+                  prefixIcon: const Icon(Icons.check_circle_outline_rounded,
+                      color: AppColors.primary),
                   suffixText: 'units',
                   suffixStyle: const TextStyle(color: AppColors.textSecondary),
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Enter received quantity';
+                  if (val == null || val.trim().isEmpty)
+                    return 'Enter received quantity';
                   final n = int.tryParse(val.trim());
-                  if (n == null || n < 0) return 'Must be a non-negative integer';
+                  if (n == null || n < 0)
+                    return 'Must be a non-negative integer';
                   return null;
                 },
               ),
@@ -299,7 +312,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _batchController,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style:
+                    const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: AppColors.surface,
@@ -317,10 +331,12 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: AppColors.primary),
                   ),
-                  prefixIcon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.secondary),
+                  prefixIcon: const Icon(Icons.qr_code_scanner_rounded,
+                      color: AppColors.secondary),
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Enter or scan verified batch number';
+                  if (val == null || val.trim().isEmpty)
+                    return 'Enter or scan verified batch number';
                   return null;
                 },
               ),
@@ -334,14 +350,16 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.statusRequested.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.statusRequested.withOpacity(0.3)),
+                    border: Border.all(
+                        color: AppColors.statusRequested.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: AppColors.statusRequested, size: 20),
+                          Icon(Icons.warning_amber_rounded,
+                              color: AppColors.statusRequested, size: 20),
                           SizedBox(width: 8),
                           Text(
                             'Discrepancy Declaration Required',
@@ -356,7 +374,8 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                       const SizedBox(height: 12),
                       const Text(
                         'Select primary discrepancy factor:',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -372,36 +391,44 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                             isExpanded: true,
                             hint: const Text(
                               'Select discrepancy cause...',
-                              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                              style: TextStyle(
+                                  color: AppColors.textMuted, fontSize: 13),
                             ),
                             dropdownColor: AppColors.surface,
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                            style: const TextStyle(
+                                color: AppColors.textPrimary, fontSize: 13),
                             items: _discrepancyOptions.map((opt) {
                               return DropdownMenuItem<String>(
                                 value: opt,
                                 child: Text(opt),
                               );
                             }).toList(),
-                            onChanged: (val) => setState(() => _selectedDiscrepancyType = val),
+                            onChanged: (val) =>
+                                setState(() => _selectedDiscrepancyType = val),
                           ),
                         ),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _discrepancyController,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                        style: const TextStyle(
+                            color: AppColors.textPrimary, fontSize: 13),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: AppColors.surface,
-                          hintText: 'Additional discrepancy details (e.g. 5 vials shattered)...',
-                          hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          hintText:
+                              'Additional discrepancy details (e.g. 5 vials shattered)...',
+                          hintStyle: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 12),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.border),
+                            borderSide:
+                                const BorderSide(color: AppColors.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.border),
+                            borderSide:
+                                const BorderSide(color: AppColors.border),
                           ),
                         ),
                       ),
@@ -424,11 +451,13 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
               TextFormField(
                 controller: _notesController,
                 maxLines: 2,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                style:
+                    const TextStyle(color: AppColors.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: AppColors.surface,
-                  hintText: 'e.g. Storage temperature checked OK, accepted into inventory.',
+                  hintText:
+                      'e.g. Storage temperature checked OK, accepted into inventory.',
                   hintStyle: const TextStyle(color: AppColors.textMuted),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -463,13 +492,15 @@ class _ReceiveTransferScreenState extends State<ReceiveTransferScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.inventory_rounded, size: 20, color: Colors.white),
+                          Icon(Icons.inventory_rounded,
+                              size: 20, color: Colors.white),
                           SizedBox(width: 8),
                           Text(
                             'Confirm & Finalize Delivery Receipt',

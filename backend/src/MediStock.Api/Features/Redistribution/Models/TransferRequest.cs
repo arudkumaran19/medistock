@@ -19,6 +19,11 @@ public class TransferRequest
     public TransferStatus Status { get; set; } = TransferStatus.Draft;
     public TransferPriority Priority { get; set; } = TransferPriority.Medium;
 
+    // Direct single-medicine fields (used by ApprovalService & single-item transfers)
+    public Guid MedicineId { get; set; }
+    public int Quantity { get; set; }
+    public string? BatchNumber { get; set; }
+
     public decimal? EstimatedDistanceKm { get; set; }
     public decimal? EstimatedDurationMinutes { get; set; }
     public string? RoutingProvider { get; set; }
@@ -44,6 +49,12 @@ public class TransferRequest
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Compatibility aliases for feature branch / ApprovalService
+    public DateTime CreatedAtUtc { get => CreatedAt; set => CreatedAt = value; }
+    public DateTime UpdatedAtUtc { get => UpdatedAt; set => UpdatedAt = value; }
+    public DateTime? DispatchedAtUtc { get => DispatchedAt; set => DispatchedAt = value; }
+    public DateTime? DeliveredAtUtc { get => ReceivedAt; set => ReceivedAt = value; }
 
     public ICollection<TransferItem> Items { get; set; } = new List<TransferItem>();
     public ICollection<TransferStatusHistory> StatusHistory { get; set; } = new List<TransferStatusHistory>();

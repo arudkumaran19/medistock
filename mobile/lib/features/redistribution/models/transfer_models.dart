@@ -162,7 +162,9 @@ class Transfer {
   }
 
   String get quantityDisplay {
-    final qty = totalAllocatedQuantity > 0 ? totalAllocatedQuantity : totalRequestedQuantity;
+    final qty = totalAllocatedQuantity > 0
+        ? totalAllocatedQuantity
+        : totalRequestedQuantity;
     return '$qty $primaryUnitOfMeasure';
   }
 
@@ -203,7 +205,8 @@ class Transfer {
     }
 
     final distance = json['estimatedDistanceKm'] ?? json['distanceKm'] ?? 0.0;
-    final duration = json['estimatedDurationMinutes'] ?? json['durationMinutes'] ?? 0.0;
+    final duration =
+        json['estimatedDurationMinutes'] ?? json['durationMinutes'] ?? 0.0;
 
     return Transfer(
       id: json['id']?.toString() ?? '',
@@ -333,11 +336,13 @@ class RouteDetails {
     }
 
     final distance = json['distanceKm'] ?? json['estimatedDistanceKm'] ?? 0.0;
-    final duration = json['durationMinutes'] ?? json['estimatedDurationMinutes'] ?? 0.0;
+    final duration =
+        json['durationMinutes'] ?? json['estimatedDurationMinutes'] ?? 0.0;
 
     return RouteDetails(
       sourceFacilityId: json['sourceFacilityId']?.toString() ?? '',
-      sourceFacilityName: json['sourceFacilityName']?.toString() ?? 'Source Facility',
+      sourceFacilityName:
+          json['sourceFacilityName']?.toString() ?? 'Source Facility',
       sourceLatitude: (json['sourceLatitude'] as num?)?.toDouble(),
       sourceLongitude: (json['sourceLongitude'] as num?)?.toDouble(),
       destinationFacilityId: json['destinationFacilityId']?.toString() ?? '',
@@ -412,4 +417,3 @@ class TransferNotificationItem {
     );
   }
 }
-

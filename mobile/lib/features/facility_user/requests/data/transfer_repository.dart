@@ -28,16 +28,17 @@ class CreateTransferRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'destinationFacilityId': destinationFacilityId,
-    if (sourceFacilityId != null) 'sourceFacilityId': sourceFacilityId,
-    if (medicineId != null) 'medicineId': medicineId,
-    if (medicineName != null) 'medicineName': medicineName,
-    if (requestedQuantity != null) 'requestedQuantity': requestedQuantity,
-    if (priority != null) 'priority': priority,
-    if (notes != null) 'notes': notes,
-    if (sourceShortageAlertId != null) 'sourceShortageAlertId': sourceShortageAlertId,
-    if (items != null) 'items': items,
-  };
+        'destinationFacilityId': destinationFacilityId,
+        if (sourceFacilityId != null) 'sourceFacilityId': sourceFacilityId,
+        if (medicineId != null) 'medicineId': medicineId,
+        if (medicineName != null) 'medicineName': medicineName,
+        if (requestedQuantity != null) 'requestedQuantity': requestedQuantity,
+        if (priority != null) 'priority': priority,
+        if (notes != null) 'notes': notes,
+        if (sourceShortageAlertId != null)
+          'sourceShortageAlertId': sourceShortageAlertId,
+        if (items != null) 'items': items,
+      };
 }
 
 String toBackendStatus(String uiStatus) {
@@ -61,7 +62,9 @@ class TransferRepository {
   }) async {
     final backendStatus = status != null ? toBackendStatus(status) : null;
     final resp = await _dio.get('/api/transfers', queryParameters: {
-      if (backendStatus != null && backendStatus != 'All' && backendStatus != 'ALL')
+      if (backendStatus != null &&
+          backendStatus != 'All' &&
+          backendStatus != 'ALL')
         'status': backendStatus,
       'page': page,
       'pageSize': pageSize,
@@ -81,13 +84,17 @@ class TransferRepository {
       list = data;
     }
 
-    return list.map((j) => TransferModel.fromJson(j as Map<String, dynamic>)).toList();
+    return list
+        .map((j) => TransferModel.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   Future<TransferModel> createRequest(CreateTransferRequest req) async {
     final resp = await _dio.post('/api/transfers', data: req.toJson());
     final data = resp.data;
-    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data'))
+        ? data['data']
+        : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);
   }
 
@@ -96,7 +103,9 @@ class TransferRepository {
       if (notes != null) 'notes': notes,
     });
     final data = resp.data;
-    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data'))
+        ? data['data']
+        : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);
   }
 
@@ -105,14 +114,18 @@ class TransferRepository {
       if (notes != null) 'notes': notes,
     });
     final data = resp.data;
-    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data'))
+        ? data['data']
+        : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);
   }
 
   Future<TransferModel> getById(String id) async {
     final resp = await _dio.get('/api/transfers/$id');
     final data = resp.data;
-    final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+    final payload = (data is Map<String, dynamic> && data.containsKey('data'))
+        ? data['data']
+        : data;
     return TransferModel.fromJson(payload as Map<String, dynamic>);
   }
 
@@ -120,7 +133,9 @@ class TransferRepository {
     try {
       final resp = await _dio.get('/api/transfers/$id/route');
       final data = resp.data;
-      final payload = (data is Map<String, dynamic> && data.containsKey('data')) ? data['data'] : data;
+      final payload = (data is Map<String, dynamic> && data.containsKey('data'))
+          ? data['data']
+          : data;
       if (payload is Map<String, dynamic>) {
         return RouteDetails.fromJson(payload);
       }
@@ -135,14 +150,17 @@ final transferRepositoryProvider = Provider<TransferRepository>((ref) {
   return TransferRepository(DioClient().dio);
 });
 
-final myRequestsProvider = FutureProvider.autoDispose.family<List<TransferModel>, String?>((ref, status) async {
+final myRequestsProvider = FutureProvider.autoDispose
+    .family<List<TransferModel>, String?>((ref, status) async {
   return ref.watch(transferRepositoryProvider).getMyRequests(status: status);
 });
 
-final transferByIdProvider = FutureProvider.autoDispose.family<TransferModel, String>((ref, id) async {
+final transferByIdProvider =
+    FutureProvider.autoDispose.family<TransferModel, String>((ref, id) async {
   return ref.watch(transferRepositoryProvider).getById(id);
 });
 
-final transferRouteProvider = FutureProvider.autoDispose.family<RouteDetails?, String>((ref, id) async {
+final transferRouteProvider =
+    FutureProvider.autoDispose.family<RouteDetails?, String>((ref, id) async {
   return ref.watch(transferRepositoryProvider).getRoute(id);
 });

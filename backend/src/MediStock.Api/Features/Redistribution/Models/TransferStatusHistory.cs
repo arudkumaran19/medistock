@@ -14,7 +14,11 @@ public class TransferStatusHistory
     public TransferStatus ToStatus { get; set; }
 
     public Guid ChangedByUserId { get; set; }
+    public string? ChangedByEmail { get; set; }
     public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+
+    // Compatibility alias for feature branch / ApprovalService
+    public DateTime ChangedAtUtc { get => ChangedAt; set => ChangedAt = value; }
 
     public string? Reason { get; set; }
     public string? MetadataJson { get; set; } // GPS, tracking info, checkpoint data

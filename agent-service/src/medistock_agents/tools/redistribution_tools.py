@@ -640,3 +640,113 @@ def execute_tool_with_logging(
     )
 
     return result, record
+
+
+# ---------------------------------------------------------------------------
+# RedistributionToolClient – Feature-branch compatibility adapter
+# Lets redistribution_routes.py (feature/arudkumaran-procurement) use the
+# backend's /internal/tools/redistribution endpoint instead of direct DB.
+# ---------------------------------------------------------------------------
+try:
+    import httpx as _httpx
+    from medistock_agents.models.tool_models import ToolResult as _ToolResult
+    from medistock_agents.safety.tool_guard import ToolGuard as _ToolGuard
+
+    _MAX_RETRIES = 2
+    _DEFAULT_TIMEOUT = 10.0
+    _REDISTRIBUTION_ENDPOINT = "/internal/tools/redistribution"
+    _SERVICE_TOKEN_HEADER = "X-Internal-Token"
+
+    class RedistributionToolClient:
+        """Calls the backend redistribution tools via the /internal/tools/redistribution endpoint."""
+
+        agent_name = "redistribution_planning"
+
+        def __init__(
+            self,
+            base_url: str,
+            service_token: str | None = None,
+            client=None,
+            timeout: float = _DEFAULT_TIMEOUT,
+        ) -> None:
+            self._base_url = base_url.rstrip("/")
+            self._service_token = service_token
+            self._client = client
+            self._timeout = timeout
+            self._guard = _ToolGuard(self.agent_name)
+
+        def get_transfer_request(self, transfer_id: str) -> "_ToolResult":
+            return self._call("getTransferRequest", {"transferId": transfer_id})
+
+        def get_candidate_facilities(self, transfer_id: str) -> "_ToolResult":
+            return self._call("getCandidateFacilities", {"transferId": transfer_id})
+
+        def get_facility_location(self, facility_id: str) -> "_ToolResult":
+            return self._call("getFacilityLocation", {"facilityId": facility_id})
+
+        def get_facility_inventory(self, facility_id: str, medicine_id: str) -> "_ToolResult":
+            return self._call("getFacilityInventory", {"facilityId": facility_id, "medicineId": medicine_id})
+
+        def calculate_distance(self, source_facility_id: str, destination_facility_id: str) -> "_ToolResult":
+            return self._call(
+                "calculateDistance",
+                {"sourceFacilityId": source_facility_id, "destinationFacilityId": destination_facility_id},
+            )
+
+        def calculate_transfer_quantity(self, requested: int, available_surplus: int) -> "_ToolResult":
+            """Local arithmetic: how much a source can send."""
+            self._guard.enforce("calculateTransferQuantity")
+            quantity = max(0, min(int(requested), int(available_surplus)))
+            return _ToolResult(
+                tool="calculateTransferQuantity",
+                status="SUCCESS",
+                data={
+                    "requested": int(requested),
+                    "availableSurplus": int(available_surplus),
+                    "transferQuantity": quantity,
+                    "coversRequest": quantity >= int(requested),
+                },
+            )
+
+        def _call(self, tool: str, arguments: dict) -> "_ToolResult":
+            self._guard.enforce(tool)
+            headers = {"Content-Type": "application/json"}
+            if self._service_token:
+                headers[_SERVICE_TOKEN_HEADER] = self._service_token
+            payload = {"operation": tool, "arguments": arguments}
+            last_error: str | None = None
+            for attempt in range(_MAX_RETRIES + 1):
+                try:
+                    response = self._post(payload, headers)
+                    if response.status_code >= 500:
+                        last_error = f"Backend returned {response.status_code}."
+                        continue
+                    if response.status_code >= 400:
+                        return _ToolResult(
+                            tool=tool, status="FAILURE",
+                            error_code="TOOL_REQUEST_REJECTED",
+                            error_message=f"Backend returned {response.status_code}.",
+                        )
+                    body = response.json()
+                    data = body.get("data", body) if isinstance(body, dict) else body
+                    if isinstance(data, list):
+                        data = {"items": data}
+                    return _ToolResult(tool=tool, status="SUCCESS", data=data)
+                except Exception as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+            return _ToolResult(
+                tool=tool, status="FAILURE",
+                error_code="TOOL_UNAVAILABLE",
+                error_message=last_error or "The tool endpoint was unreachable.",
+            )
+
+        def _post(self, payload: dict, headers: dict):
+            url = f"{self._base_url}{_REDISTRIBUTION_ENDPOINT}"
+            if self._client is not None:
+                return self._client.post(url, json=payload, headers=headers, timeout=self._timeout)
+            with _httpx.Client(timeout=self._timeout) as client:
+                return client.post(url, json=payload, headers=headers)
+
+except ImportError:
+    # httpx or ToolGuard not available; RedistributionToolClient will not be usable
+    pass

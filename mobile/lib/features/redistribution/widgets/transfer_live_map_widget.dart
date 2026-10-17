@@ -12,15 +12,73 @@ class EmptyTileProvider extends TileProvider {
   EmptyTileProvider();
 
   static const List<int> _kTransparentImage = <int>[
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-    0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
-    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
-    0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
-    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
-    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
-    0x42, 0x60, 0x82,
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1F,
+    0x15,
+    0xC4,
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0A,
+    0x49,
+    0x44,
+    0x41,
+    0x54,
+    0x78,
+    0x9C,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0x0D,
+    0x0A,
+    0x2D,
+    0xB4,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4E,
+    0x44,
+    0xAE,
+    0x42,
+    0x60,
+    0x82,
   ];
 
   @override
@@ -31,7 +89,8 @@ class EmptyTileProvider extends TileProvider {
 
 class TransferLiveMapWidget extends StatefulWidget {
   static TileProvider? defaultTileProvider;
-  static void Function(TileImage tile, Object error, StackTrace? stackTrace)? defaultErrorTileCallback;
+  static void Function(TileImage tile, Object error, StackTrace? stackTrace)?
+      defaultErrorTileCallback;
 
   final LatLng sourceCoords;
   final String sourceFacilityName;
@@ -43,7 +102,8 @@ class TransferLiveMapWidget extends StatefulWidget {
   final double? durationMinutes;
   final String status;
   final TileProvider? tileProvider;
-  final void Function(TileImage tile, Object error, StackTrace? stackTrace)? errorTileCallback;
+  final void Function(TileImage tile, Object error, StackTrace? stackTrace)?
+      errorTileCallback;
 
   const TransferLiveMapWidget({
     super.key,
@@ -93,7 +153,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
     if (_hasValidCoords) {
       return LatLng(
         (widget.sourceCoords.latitude + widget.destinationCoords.latitude) / 2,
-        (widget.sourceCoords.longitude + widget.destinationCoords.longitude) / 2,
+        (widget.sourceCoords.longitude + widget.destinationCoords.longitude) /
+            2,
       );
     }
     return const LatLng(
@@ -160,7 +221,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
     );
   }
 
-  void Function(TileImage, Object, StackTrace?) get _effectiveErrorTileCallback {
+  void Function(TileImage, Object, StackTrace?)
+      get _effectiveErrorTileCallback {
     return widget.errorTileCallback ??
         TransferLiveMapWidget.defaultErrorTileCallback ??
         (tile, error, stackTrace) {
@@ -178,7 +240,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.surface, // Plain background fallback if tiles unreachable
+        color:
+            AppColors.surface, // Plain background fallback if tiles unreachable
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
         boxShadow: [
@@ -320,7 +383,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
                                 boxShadow: [
                                   BoxShadow(
                                     color: AppColors.secondary.withOpacity(0.6),
@@ -370,7 +434,9 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: (isTransit ? AppColors.secondary : AppColors.primary)
+                          color: (isTransit
+                                  ? AppColors.secondary
+                                  : AppColors.primary)
                               .withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -378,7 +444,9 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                           isTransit
                               ? Icons.local_shipping_rounded
                               : Icons.navigation_rounded,
-                          color: isTransit ? AppColors.secondary : AppColors.primary,
+                          color: isTransit
+                              ? AppColors.secondary
+                              : AppColors.primary,
                           size: 18,
                         ),
                       ),
@@ -391,7 +459,9 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                                 ? 'Your medicines are on the way'
                                 : 'Route Transit Plan',
                             style: TextStyle(
-                              color: isTransit ? AppColors.secondary : AppColors.primary,
+                              color: isTransit
+                                  ? AppColors.secondary
+                                  : AppColors.primary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -412,7 +482,8 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                   ),
                   if (widget.durationMinutes != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceHighlight,
                         borderRadius: BorderRadius.circular(8),
@@ -440,9 +511,11 @@ class _TransferLiveMapWidgetState extends State<TransferLiveMapWidget> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.location_off_rounded, size: 40, color: AppColors.textMuted),
+                    const Icon(Icons.location_off_rounded,
+                        size: 40, color: AppColors.textMuted),
                     const SizedBox(height: 12),
-                    Text('Location unavailable', style: AppTextStyles.titleMedium),
+                    Text('Location unavailable',
+                        style: AppTextStyles.titleMedium),
                     const SizedBox(height: 4),
                     Text(
                       'Facility coordinates or transit route data are not available.',

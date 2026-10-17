@@ -28,14 +28,17 @@ class RouteGuards {
         user?['roles']?[0]?.toString().toUpperCase() ??
         '';
 
-    final isOperationalStaff = rawUserRole == 'OPERATIONALSTAFF' || rawUserRole == 'STAFF';
+    final isOperationalStaff =
+        rawUserRole == 'OPERATIONALSTAFF' || rawUserRole == 'STAFF';
 
     String effectiveRole;
     if (selectedRole != null && selectedRole.isNotEmpty) {
       effectiveRole = selectedRole.toUpperCase();
     } else if (isOperationalStaff) {
       final userFacilityId = user?['facilityId']?.toString();
-      effectiveRole = (userFacilityId != null && userFacilityId.isNotEmpty) ? 'FACILITYUSER' : 'FIELD_OFFICER';
+      effectiveRole = (userFacilityId != null && userFacilityId.isNotEmpty)
+          ? 'FACILITYUSER'
+          : 'FIELD_OFFICER';
     } else {
       effectiveRole = rawUserRole.isNotEmpty ? rawUserRole : 'FACILITYUSER';
     }

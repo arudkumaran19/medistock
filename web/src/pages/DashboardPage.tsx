@@ -1,27 +1,24 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "../features/auth/AuthContext";
-import { PageHeader, KPICard, QuickAction } from "../components/ui";
+import { PageHeader } from "../components/ui";
 import { procurementApi, type PurchaseOrder, type SupplierItem } from "../services/procurementApi";
 import { inventoryApi } from "../services/inventoryApi";
+import { getShortages } from "../services/demandApi";
 import type { Inventory, Batch, Medicine, Facility } from "../types/inventory";
+import type { ShortageAlert } from "../types/demand";
 import {
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Legend,
+  Cell,
 } from "recharts";
 import {
-  FileCheck2,
-  FileText,
   AlertTriangle,
-  TrendingDown,
   Building2,
   Package,
   Calendar,
@@ -36,6 +33,9 @@ import {
   RotateCw,
   AlertCircle,
   ArrowRight,
+  ShieldAlert,
+  Layers,
+  ArrowUpRight,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +50,7 @@ interface DashboardData {
   batches: Batch[];
   medicines: Medicine[];
   facilities: Facility[];
+  shortages: ShortageAlert[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -63,6 +64,7 @@ function useDashboardData(): DashboardData {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [shortages, setShortages] = useState<ShortageAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +80,7 @@ function useDashboardData(): DashboardData {
         batchesRes,
         medicinesRes,
         facilitiesRes,
+        shortagesRes,
       ] = await Promise.all([
         procurementApi.getPurchaseOrders().catch(() => []),
         procurementApi.getPendingApprovals().catch(() => []),
@@ -86,6 +89,7 @@ function useDashboardData(): DashboardData {
         inventoryApi.batches().catch(() => []),
         inventoryApi.medicines(true).catch(() => []),
         inventoryApi.facilities().catch(() => []),
+        getShortages({ pageSize: 50 }).then((r) => r.items).catch(() => []),
       ]);
 
       setOrders(ordersRes);
@@ -95,6 +99,7 @@ function useDashboardData(): DashboardData {
       setBatches(batchesRes);
       setMedicines(medicinesRes);
       setFacilities(facilitiesRes);
+      setShortages(shortagesRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard metrics");
     } finally {
@@ -114,6 +119,7 @@ function useDashboardData(): DashboardData {
     batches,
     medicines,
     facilities,
+    shortages,
     isLoading,
     error,
     refetch: fetchData,
@@ -121,202 +127,136 @@ function useDashboardData(): DashboardData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Analytics Visualizations Row
+// Reusable Bento Tile Card Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AnalyticsRowProps {
-  orders: PurchaseOrder[];
-  batches: Batch[];
-  inventory: Inventory[];
-  isLoading: boolean;
+interface BentoTileProps {
+  children: React.ReactNode;
+  colSpan?: number; // 1 to 12
+  accentColor?: string;
+  style?: React.CSSProperties;
+  className?: string;
 }
 
-function AnalyticsRow({ orders, batches, inventory, isLoading }: AnalyticsRowProps) {
+function BentoTile({ children, colSpan = 4, accentColor, style, className = "" }: BentoTileProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={`bento-tile ${className}`}
+      style={{
+        gridColumn: `span ${colSpan}`,
+        background: "rgba(255, 255, 255, 0.95)",
+        backdropFilter: "blur(12px)",
+        borderRadius: 14,
+        border: "1px solid var(--border-default, #e2e8f0)",
+        padding: "20px 22px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02)",
+        position: "relative",
+        overflow: "hidden",
+        borderTop: accentColor ? `3px solid ${accentColor}` : undefined,
+        ...style,
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loading Skeleton for Bento Tiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+function BentoSkeleton({ colSpan = 4, height = 240 }: { colSpan?: number; height?: number }) {
+  return (
+    <div
+      style={{
+        gridColumn: `span ${colSpan}`,
+        height,
+        background: "#ffffff",
+        borderRadius: 14,
+        border: "1px solid #e2e8f0",
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ height: 14, width: "35%", background: "#f1f5f9", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
+      <div style={{ height: 32, width: "25%", background: "#e2e8f0", borderRadius: 6, animation: "pulse 1.5s infinite" }} />
+      <div style={{ flex: 1, background: "#f8fafc", borderRadius: 8, animation: "pulse 1.5s infinite" }} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facility Manager Bento Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FacilityManagerDashboard({ email }: { email: string }) {
+  const { orders, pendingApprovals, inventory, batches, shortages, isLoading, error, refetch } = useDashboardData();
   const now = useMemo(() => Date.now(), []);
+
+  // Filter shortages: OPEN or ACKNOWLEDGED
+  const activeShortages = useMemo(
+    () => shortages.filter((s) => ["OPEN", "ACKNOWLEDGED"].includes(s.status.toUpperCase())),
+    [shortages]
+  );
+
+  const lowStockCount = useMemo(
+    () => inventory.filter((i) => i.isBelowMinimum).length,
+    [inventory]
+  );
+
+  const expiringBatches30d = useMemo(() => {
+    return batches.filter((b) => {
+      const ms = new Date(b.expiryDateUtc).getTime() - now;
+      return ms > 0 && ms <= 30 * 86400000;
+    });
+  }, [batches, now]);
 
   const poStatusData = useMemo(() => {
     const counts = {
       Approved: orders.filter((o) => o.status === "Approved").length,
       "Pending Review": orders.filter((o) => o.status === "PendingApproval").length,
       Received: orders.filter((o) => o.status === "Received").length,
-      "Revision Req.": orders.filter((o) => o.status === "RevisionRequired").length,
-      Rejected: orders.filter((o) => o.status === "Rejected").length,
       Draft: orders.filter((o) => o.status === "Draft").length,
     };
-
-    const colors: Record<string, string> = {
-      Approved: "#0f766e",
-      "Pending Review": "#d97706",
-      Received: "#2563eb",
-      "Revision Req.": "#f59e0b",
-      Rejected: "#dc2626",
-      Draft: "#94a3b8",
-    };
-
-    return Object.entries(counts)
-      .map(([name, value]) => ({ name, value, color: colors[name] }))
-      .filter((d) => d.value > 0);
+    return [
+      { name: "Approved", count: counts.Approved, fill: "#0f766e" },
+      { name: "Pending", count: counts["Pending Review"], fill: "#d97706" },
+      { name: "Received", count: counts.Received, fill: "#2563eb" },
+      { name: "Draft", count: counts.Draft, fill: "#94a3b8" },
+    ];
   }, [orders]);
 
-  const expiryRiskData = useMemo(() => {
-    let withinWindow = 0;
-    let expiringSoon = 0;
-    let expired = 0;
-
-    for (const b of batches) {
-      const ms = new Date(b.expiryDateUtc).getTime() - now;
-      if (ms <= 0) expired++;
-      else if (ms <= 30 * 86400000) expiringSoon++;
-      else withinWindow++;
-    }
-
-    const lowStockCount = inventory.filter((i) => i.isBelowMinimum).length;
-
-    return [
-      { category: "Within Range", count: withinWindow, fill: "#10b981" },
-      { category: "Expiring (30d)", count: expiringSoon, fill: "#f59e0b" },
-      { category: "Expired", count: expired, fill: "#ef4444" },
-      { category: "Low Stock Alert", count: lowStockCount, fill: "#8b5cf6" },
-    ];
-  }, [batches, inventory, now]);
-
-  if (isLoading) {
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 24 }}>
-        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 32, textAlign: "center", color: "#64748b" }}>
-          <div className="spinner mb-2" style={{ margin: "0 auto" }} />
-          <p style={{ fontSize: "0.8125rem", margin: 0 }}>Compiling procurement status charts…</p>
-        </div>
-        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 32, textAlign: "center", color: "#64748b" }}>
-          <div className="spinner mb-2" style={{ margin: "0 auto" }} />
-          <p style={{ fontSize: "0.8125rem", margin: 0 }}>Compiling inventory risk profile…</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 24 }}>
-      {/* Chart 1: Procurement Lifecycle Distribution */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: 12,
-          padding: "18px 20px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 700, color: "#0f172a" }}>
-            Procurement Lifecycle Distribution
-          </h3>
-          <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
-            Operational balance across {orders.length} total purchase requisitions
-          </p>
-        </div>
-
-        {poStatusData.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "0.8125rem" }}>
-            No purchase order records available.
-          </div>
-        ) : (
-          <div style={{ height: 210 }}>
-            <ResponsiveContainer width="100%" height={210} minWidth={100}>
-              <PieChart>
-                <Pie
-                  data={poStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={46}
-                  outerRadius={74}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {poStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: unknown) => [`${value} Orders`, "Volume"]}
-                  contentStyle={{ borderRadius: 8, fontSize: "12px", border: "1px solid #e2e8f0" }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={32}
-                  formatter={(val) => <span style={{ fontSize: "11px", color: "#475569" }}>{val}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {/* Chart 2: Expiry & Inventory Risk Profile */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          borderRadius: 12,
-          padding: "18px 20px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        <div style={{ marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 700, color: "#0f172a" }}>
-            Inventory Expiration & Buffer Risks
-          </h3>
-          <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
-            Active batch tracking across {batches.length} lots and catalog medicines
-          </p>
-        </div>
-
-        <div style={{ height: 210 }}>
-          <ResponsiveContainer width="100%" height={210} minWidth={100}>
-            <BarChart data={expiryRiskData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis dataKey="category" tick={{ fontSize: 11, fill: "#64748b" }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
-              <Tooltip
-                formatter={(value: unknown) => [`${value} Items / Batches`, "Count"]}
-                contentStyle={{ borderRadius: 8, fontSize: "12px", border: "1px solid #e2e8f0" }}
-              />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {expiryRiskData.map((entry, index) => (
-                  <Cell key={`bar-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Role-Specific Dashboards
-// ─────────────────────────────────────────────────────────────────────────────
-
-function FacilityManagerDashboard({ email }: { email: string }) {
-  const { orders, pendingApprovals, inventory, batches, isLoading, error, refetch } = useDashboardData();
-
-  const activeOrdersCount = orders.filter(
-    (o) => !["Delivered", "Received", "Cancelled", "Rejected"].includes(o.status)
-  ).length;
-
-  const policyExceptionsCount = orders.filter(
-    (o) => o.status === "RevisionRequired" || o.status === "Rejected"
-  ).length;
-
-  const stockAlertsCount = inventory.filter((i) => i.isBelowMinimum).length;
-
-  return (
-    <div className="page-container">
+    <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>
       <PageHeader
-        eyebrow="Facility Operations"
-        title="Facility Dashboard"
-          subtitle={`Signed in as ${email} · Facility Manager`}
-          actions={
+        eyebrow="Clinical Operations & Safety"
+        title="Facility Governance & Shortage Radar"
+        subtitle={`Signed in as ${email} · Role: Facility Manager`}
+        actions={
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: "rgba(15, 118, 110, 0.08)",
+                color: "#0f766e",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              <Activity size={13} /> Live Stream
+            </span>
             <button
               type="button"
               className="btn btn-secondary"
@@ -326,716 +266,918 @@ function FacilityManagerDashboard({ email }: { email: string }) {
             >
               <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
             </button>
-          }
-        />
-
-        {error && (
-          <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8 }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
           </div>
-        )}
+        }
+      />
 
-        {/* Operational Overview KPIs */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <KPICard
-            label="Pending Approvals"
-            value={isLoading ? "…" : pendingApprovals.length}
-            context="Orders awaiting review"
-            icon={<FileCheck2 size={20} />}
-            accent="#d97706"
-            variant={pendingApprovals.length > 0 ? "warning" : "default"}
-          />
-          <KPICard
-            label="Active Purchase Orders"
-            value={isLoading ? "…" : activeOrdersCount}
-            context="Orders in progress"
-            icon={<FileText size={20} />}
-            accent="#0f766e"
-          />
-          <KPICard
-            label="Policy Exceptions"
-            value={isLoading ? "…" : policyExceptionsCount}
-            context="Flagged for revision/reject"
-            icon={<AlertTriangle size={20} />}
-            accent="#dc2626"
-            variant={policyExceptionsCount > 0 ? "danger" : "default"}
-          />
-          <KPICard
-            label="Stock Balance Alerts"
-            value={isLoading ? "…" : stockAlertsCount}
-            context="Below minimum threshold"
-            icon={<TrendingDown size={20} />}
-            accent="#7c3aed"
-            variant={stockAlertsCount > 0 ? "warning" : "default"}
-          />
+      {error && (
+        <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8 }}>
+          <AlertCircle size={16} />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Real Analytics Section */}
-        <AnalyticsRow orders={orders} batches={batches} inventory={inventory} isLoading={isLoading} />
-
-        {/* Priority Action Queue: Pending Authorizations */}
-        {pendingApprovals.length > 0 && (
-          <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #fed7aa", borderRadius: 12, padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Clock size={18} style={{ color: "#d97706" }} />
-                <div>
-                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "#9a3412" }}>
-                    Urgent: Orders Awaiting Managerial Sign-Off ({pendingApprovals.length})
-                  </h3>
-                  <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#b45309" }}>
-                    High-value or bulk procurement requisitions held by compliance policy gates
-                  </p>
-                </div>
-              </div>
-              <Link
-                to="/procurement/approvals"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#9a3412",
-                  background: "#ffedd5",
-                  border: "1px solid #fed7aa",
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  textDecoration: "none",
-                }}
-              >
-                Open Approval Console <ArrowRight size={13} />
-              </Link>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {pendingApprovals.slice(0, 3).map((po) => {
-                const totalCost = (po.items || []).reduce(
-                  (sum, it) => sum + it.requestedQuantity * it.unitPrice,
-                  0
-                );
-                return (
-                  <div
-                    key={po.id}
+      {/* ── BENTO GRID LAYOUT ─────────────────────────────────────────────── */}
+      <div
+        className="bento-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(12, 1fr)",
+          gap: 16,
+          marginBottom: 28,
+        }}
+      >
+        {isLoading ? (
+          <>
+            <BentoSkeleton colSpan={8} height={280} />
+            <BentoSkeleton colSpan={4} height={280} />
+            <BentoSkeleton colSpan={4} height={220} />
+            <BentoSkeleton colSpan={4} height={220} />
+            <BentoSkeleton colSpan={4} height={220} />
+          </>
+        ) : (
+          <>
+            {/* Tile 1: Primary Shortage & Safety Stock Radar (col-span-8) */}
+            <BentoTile colSpan={8} accentColor="#dc2626">
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                      <ShieldAlert size={13} /> Priority Clinical Risk
+                    </span>
+                    <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 0" }}>
+                      Active Shortage & Stockout Radar
+                    </h2>
+                  </div>
+                  <Link
+                    to="/demand/shortages"
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
+                      display: "inline-flex",
                       alignItems: "center",
-                      padding: "10px 14px",
-                      background: "#fffaf5",
-                      border: "1px solid #fed7aa",
-                      borderRadius: 8,
-                      fontSize: "0.8125rem",
+                      gap: 4,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#dc2626",
+                      textDecoration: "none",
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      background: "rgba(220, 38, 38, 0.08)",
                     }}
                   >
-                    <div>
-                      <strong style={{ color: "#0f172a" }}>PO-{po.id.slice(0, 8)}</strong>
-                      <span style={{ color: "#64748b", marginLeft: 10 }}>
-                        {po.items?.length ?? 0} item(s) • Submitted {new Date(po.requestedAt).toLocaleDateString()}
-                      </span>
+                    View All ({activeShortages.length}) <ArrowUpRight size={13} />
+                  </Link>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+                  <div style={{ padding: "12px 14px", background: "#fef2f2", borderRadius: 10, border: "1px solid #fee2e2" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#991b1b" }}>Critical Shortages</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#dc2626", marginTop: 2 }}>
+                      {activeShortages.filter((s) => s.riskLevel.toUpperCase() === "HIGH").length}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <strong style={{ color: "#0f766e" }}>
-                        ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </strong>
-                      <Link
-                        to="/procurement/approvals"
+                    <span style={{ fontSize: 11, color: "#b91c1c" }}>Cover &lt; supplier lead time</span>
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "#fffbeb", borderRadius: 10, border: "1px solid #fef3c7" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#92400e" }}>Reserve Minimum Breaches</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#d97706", marginTop: 2 }}>
+                      {lowStockCount}
+                    </div>
+                    <span style={{ fontSize: 11, color: "#b45309" }}>Items below safe buffer</span>
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "#f0fdfa", borderRadius: 10, border: "1px solid #ccfbf1" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#0f766e" }}>Monitored Items</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#0f766e", marginTop: 2 }}>
+                      {inventory.length}
+                    </div>
+                    <span style={{ fontSize: 11, color: "#115e59" }}>Facility stock balances</span>
+                  </div>
+                </div>
+
+                {/* Top 3 Live Alerts */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {activeShortages.slice(0, 3).map((alert) => (
+                    <div
+                      key={alert.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "8px 12px",
+                        background: "#fafafa",
+                        borderRadius: 8,
+                        border: "1px solid #f1f5f9",
+                        fontSize: "0.8125rem",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: alert.riskLevel.toUpperCase() === "HIGH" ? "#dc2626" : "#d97706",
+                          }}
+                        />
+                        <strong style={{ color: "#0f172a" }}>Facility Stock Alert #{alert.id.slice(0, 8)}</strong>
+                        <span style={{ color: "#64748b" }}>
+                          Stock: {alert.currentStock} units · Rate: {alert.averageDailyConsumption}/day
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontWeight: 700, color: alert.riskLevel.toUpperCase() === "HIGH" ? "#dc2626" : "#d97706" }}>
+                          {alert.daysRemaining !== null ? `${alert.daysRemaining} days left` : "0 days"}
+                        </span>
+                        <Link
+                          to={`/demand/shortages`}
+                          style={{ color: "#0f766e", fontSize: 11, fontWeight: 600, textDecoration: "none" }}
+                        >
+                          Resolve →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                  {activeShortages.length === 0 && (
+                    <div style={{ padding: "16px", textAlign: "center", color: "#64748b", fontSize: "0.8125rem" }}>
+                      No active shortages detected. All medicine balances satisfy minimum safe buffers.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "#64748b" }}>
+                  Deterministic reorder rules checked against real-time consumption velocity
+                </span>
+                <Link to="/demand/shortages" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px", height: 30 }}>
+                  Open Shortage Console
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 2: Actionable Approvals Queue (col-span-4) */}
+            <BentoTile colSpan={4} accentColor="#d97706">
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                      <Clock size={13} /> Action Queue
+                    </span>
+                    <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 0" }}>
+                      Pending Approvals
+                    </h2>
+                  </div>
+                  <span
+                    style={{
+                      background: pendingApprovals.length > 0 ? "#fef3c7" : "#f1f5f9",
+                      color: pendingApprovals.length > 0 ? "#b45309" : "#64748b",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {pendingApprovals.length} pending
+                  </span>
+                </div>
+
+                <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px", lineHeight: 1.4 }}>
+                  High-value purchase orders and replenishment transfers awaiting managerial sign-off.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 170, overflowY: "auto" }}>
+                  {pendingApprovals.slice(0, 3).map((po) => {
+                    const totalCost = (po.items || []).reduce((sum, it) => sum + it.requestedQuantity * it.unitPrice, 0);
+                    return (
+                      <div
+                        key={po.id}
                         style={{
-                          display: "inline-flex",
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          background: "#fffaf5",
+                          border: "1px solid #fed7aa",
+                          fontSize: "0.8125rem",
+                          display: "flex",
+                          justifyContent: "space-between",
                           alignItems: "center",
-                          gap: 4,
-                          color: "#d97706",
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textDecoration: "none",
                         }}
                       >
-                        Review Decision <ArrowRight size={12} />
-                      </Link>
+                        <div>
+                          <strong style={{ color: "#0f172a" }}>PO-{po.id.slice(0, 8)}</strong>
+                          <div style={{ fontSize: 11, color: "#78716c" }}>
+                            {po.items?.length ?? 0} item(s) · {new Date(po.requestedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 700, color: "#0f766e" }}>
+                            ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                          <Link to="/procurement/approvals" style={{ fontSize: 11, color: "#d97706", fontWeight: 600 }}>
+                            Review →
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {pendingApprovals.length === 0 && (
+                    <div style={{ padding: "24px 12px", textAlign: "center", color: "#64748b", fontSize: 12 }}>
+                      <CheckCircle2 size={24} color="#16a34a" style={{ margin: "0 auto 6px" }} />
+                      No pending approval gates. All orders up to date.
                     </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #f1f5f9" }}>
+                <Link
+                  to="/procurement/approvals"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    background: "#ffedd5",
+                    color: "#9a3412",
+                    fontWeight: 600,
+                    fontSize: "0.8125rem",
+                    textDecoration: "none",
+                    border: "1px solid #fed7aa",
+                  }}
+                >
+                  Manage Approval Console <ArrowRight size={13} />
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 3: Inventory Runway & Stock Balance (col-span-4) */}
+            <BentoTile colSpan={4} accentColor="#0f766e">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#0f766e", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Pill size={13} /> Inventory Balance
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 12px" }}>
+                  Hospital Formulary Runway
+                </h3>
+
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 32, fontWeight: 800, color: "#0f172a" }}>
+                    {inventory.reduce((sum, item) => sum + item.quantityOnHand, 0).toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>total units on hand</span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                    <span>Active Formulary Medicines:</span>
+                    <strong style={{ color: "#0f172a" }}>{inventory.length}</strong>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                    <span>Reserved for Orders:</span>
+                    <strong style={{ color: "#d97706" }}>
+                      {inventory.reduce((sum, item) => sum + (item.quantityReserved || 0), 0).toLocaleString()} units
+                    </strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                    <span>Active Lots Tracked:</span>
+                    <strong style={{ color: "#0f766e" }}>{batches.length} batches</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <Link to="/inventory" style={{ display: "flex", alignItems: "center", gap: 4, color: "#0f766e", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                  Inspect Full Inventory Ledger <ArrowRight size={12} />
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 4: Procurement Pipeline Distribution (col-span-4) */}
+            <BentoTile colSpan={4} accentColor="#2563eb">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Package size={13} /> Order Pipeline
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 8px" }}>
+                  Purchase Order Status Distribution
+                </h3>
+
+                <div style={{ height: 110, width: "100%", marginTop: 6 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={poStatusData} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                      <RechartsTooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {poStatusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <Link to="/procurement/orders" style={{ display: "flex", alignItems: "center", gap: 4, color: "#2563eb", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                  View All Orders ({orders.length}) <ArrowRight size={12} />
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 5: Batch Expiration Watch (col-span-4) */}
+            <BentoTile colSpan={4} accentColor="#f59e0b">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Calendar size={13} /> Expiry Integrity
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 8px" }}>
+                  Shelf-Life & Expiration Watch
+                </h3>
+
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, color: expiringBatches30d.length > 0 ? "#d97706" : "#0f766e" }}>
+                    {expiringBatches30d.length}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>batches expiring &lt; 30 days</span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+                  {expiringBatches30d.slice(0, 2).map((b) => (
+                    <div key={b.id} style={{ display: "flex", justifyContent: "space-between", color: "#475569", background: "#fffbeb", padding: "4px 8px", borderRadius: 6 }}>
+                      <span>Batch {b.batchNumber}</span>
+                      <strong style={{ color: "#d97706" }}>
+                        {Math.max(0, Math.ceil((new Date(b.expiryDateUtc).getTime() - now) / 86400000))}d remaining
+                      </strong>
+                    </div>
+                  ))}
+                  {expiringBatches30d.length === 0 && (
+                    <div style={{ color: "#16a34a", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} /> No batches expiring within the next 30 days.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <Link to="/inventory/expiry" style={{ display: "flex", alignItems: "center", gap: 4, color: "#d97706", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                  Open Expiry Date Monitor <ArrowRight size={12} />
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 6: AI Coordinator & Operational Fast Lane (col-span-12) */}
+            <BentoTile colSpan={12} style={{ background: "linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(240, 253, 250, 0.95))" }}>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#4f46e5", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Sparkles size={13} /> Workflow Fast Lane
+                </span>
+                <h3 style={{ fontSize: "1.0625rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 2px" }}>
+                  Autonomous Coordinator & Routine Actions
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                  Execute automated supply chain agents, request stock transfers, or audit compliance logs.
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
+                <Link
+                  to="/coordinator"
+                  style={{
+                    padding: "14px",
+                    background: "#ffffff",
+                    borderRadius: 10,
+                    border: "1px solid #e0e7ff",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div style={{ padding: 8, borderRadius: 8, background: "#eef2ff", color: "#4f46e5" }}>
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>AI Coordinator</strong>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Multi-agent shortage analysis & drafting</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/redistribution/transfers"
+                  style={{
+                    padding: "14px",
+                    background: "#ffffff",
+                    borderRadius: 10,
+                    border: "1px solid #ccfbf1",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div style={{ padding: 8, borderRadius: 8, background: "#f0fdfa", color: "#0f766e" }}>
+                    <Layers size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>Inter-Hospital Transfers</strong>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Redistribute excess surplus stock</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/demand/forecast"
+                  style={{
+                    padding: "14px",
+                    background: "#ffffff",
+                    borderRadius: 10,
+                    border: "1px solid #e2e8f0",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div style={{ padding: 8, borderRadius: 8, background: "#f1f5f9", color: "#0f172a" }}>
+                    <Activity size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>Demand Forecasting</strong>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Trend & consumption run-rates</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/inventory/receive"
+                  style={{
+                    padding: "14px",
+                    background: "#ffffff",
+                    borderRadius: 10,
+                    border: "1px solid #e2e8f0",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div style={{ padding: 8, borderRadius: 8, background: "#f0fdf4", color: "#16a34a" }}>
+                    <Inbox size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>Receive Shipments</strong>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Process incoming warehouse batches</span>
+                  </div>
+                </Link>
+              </div>
+            </BentoTile>
+          </>
         )}
-
-        {/* Quick Actions Panel */}
-        <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "20px" }}>
-          <div style={{ marginBottom: 14 }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>Operational Quick Actions</h2>
-            <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: "2px 0 0" }}>Immediate actions for facility management and governance</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            <QuickAction
-              to="/procurement/approvals"
-              label="Review Pending Approvals"
-              description="Evaluate and sign off or reject submitted purchase orders"
-              icon={<FileCheck2 size={18} />}
-              accent="#d97706"
-            />
-            <QuickAction
-              to="/procurement/workflow"
-              label="Procurement Workflow Monitor"
-              description="Live multi-stage tracking of all facility orders"
-              icon={<Activity size={18} />}
-              accent="#0f766e"
-            />
-            <QuickAction
-              to="/procurement/orders"
-              label="Purchase Orders Console"
-              description="Browse, filter, and inspect purchase order records"
-              icon={<FileText size={18} />}
-              accent="#2563eb"
-            />
-            <QuickAction
-              to="/procurement/priorities"
-              label="Replenishment Priorities"
-              description="AI-driven procurement recommendation analysis"
-              icon={<Sparkles size={18} />}
-              accent="#4f46e5"
-            />
-          </div>
-        </div>
-
-        {/* Operational Notice */}
-        <div
-          style={{
-            background: "var(--color-primary-50)",
-            border: "1px solid var(--color-primary-200)",
-            borderRadius: "var(--radius-lg)",
-            padding: "14px 18px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "12px",
-            color: "var(--color-primary-900)",
-            fontSize: "var(--text-sm)",
-          }}
-        >
-          <ShieldCheck size={18} style={{ color: "var(--color-primary-700)", flexShrink: 0, marginTop: "2px" }} />
-          <div>
-            <strong>Operations Tip:</strong> Use the <strong>Approval Console</strong> to authorize or revise high-value purchase orders. Automated policy evaluations execute inline upon submission.
-        </div>
       </div>
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Administrator Bento Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AdministratorDashboard({ email }: { email: string }) {
+  const { orders, facilities, suppliers, medicines, pendingApprovals, shortages, isLoading, error, refetch } = useDashboardData();
+
+  return (
+    <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>
+      <PageHeader
+        eyebrow="System Administration"
+        title="Executive Administrator Console"
+        subtitle={`Signed in as ${email} · Role: Administrator`}
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void refetch()}
+            disabled={isLoading}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
+          >
+            <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
+          </button>
+        }
+      />
+
+      {error && (
+        <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8 }}>
+          <AlertCircle size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* ── BENTO GRID LAYOUT ─────────────────────────────────────────────── */}
+      <div
+        className="bento-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(12, 1fr)",
+          gap: 16,
+          marginBottom: 28,
+        }}
+      >
+        {isLoading ? (
+          <>
+            <BentoSkeleton colSpan={8} height={260} />
+            <BentoSkeleton colSpan={4} height={260} />
+            <BentoSkeleton colSpan={4} height={200} />
+            <BentoSkeleton colSpan={4} height={200} />
+            <BentoSkeleton colSpan={4} height={200} />
+          </>
+        ) : (
+          <>
+            {/* Tile 1: System-wide Hospital Network Overview (col-span-8) */}
+            <BentoTile colSpan={8} accentColor="#0f172a">
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                      <Building2 size={13} /> Enterprise Network
+                    </span>
+                    <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 0" }}>
+                      Healthcare Facility Infrastructure & Capacity
+                    </h2>
+                  </div>
+                  <Link
+                    to="/admin/users"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      textDecoration: "none",
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      background: "#f1f5f9",
+                    }}
+                  >
+                    User Management <ArrowUpRight size={13} />
+                  </Link>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+                  <div style={{ padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#64748b" }}>Hospital Sites</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginTop: 2 }}>{facilities.length}</div>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>Connected facilities</span>
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "#eff6ff", borderRadius: 10, border: "1px solid #dbeafe" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#1d4ed8" }}>Purchase Orders</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#2563eb", marginTop: 2 }}>{orders.length}</div>
+                    <span style={{ fontSize: 11, color: "#3b82f6" }}>All-time orders</span>
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "#f5f3ff", borderRadius: 10, border: "1px solid #ede9fe" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#6d28d9" }}>Active Suppliers</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#7c3aed", marginTop: 2 }}>
+                      {suppliers.filter((s) => s.isActive).length}
+                    </div>
+                    <span style={{ fontSize: 11, color: "#8b5cf6" }}>Accredited partners</span>
+                  </div>
+
+                  <div style={{ padding: "12px 14px", background: "#f0fdfa", borderRadius: 10, border: "1px solid #ccfbf1" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#0f766e" }}>Catalog Medicines</span>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: "#0f766e", marginTop: 2 }}>{medicines.length}</div>
+                    <span style={{ fontSize: 11, color: "#14b8a6" }}>Tracked formulary</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <ShieldCheck size={16} color="#0f766e" />
+                    <span><strong>System Audit Log Integrity:</strong> Active recording with immutable trace hashes</span>
+                  </div>
+                  <Link to="/admin/audit-logs" style={{ color: "#0f766e", fontWeight: 600, textDecoration: "none" }}>
+                    Open Audit Console →
+                  </Link>
+                </div>
+              </div>
+            </BentoTile>
+
+            {/* Tile 2: Administrative Governance (col-span-4) */}
+            <BentoTile colSpan={4} accentColor="#7c3aed">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Users size={13} /> Governance & Access
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 10px" }}>
+                  Administrative Management
+                </h3>
+                <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px" }}>
+                  System-level governance over authentication, RBAC authorization, and user directory.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <Link
+                    to="/admin/users"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "#f5f3ff",
+                      border: "1px solid #ede9fe",
+                      textDecoration: "none",
+                      color: "#6d28d9",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Users size={14} /> User Management
+                    </span>
+                    <ArrowRight size={13} />
+                  </Link>
+
+                  <Link
+                    to="/admin/audit-logs"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      textDecoration: "none",
+                      color: "#0f172a",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <ShieldCheck size={14} /> Enterprise Audit Console
+                    </span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>Administrator policy clearance verified</span>
+              </div>
+            </BentoTile>
+
+            {/* Tile 3: Procurement & Approvals Pipeline (col-span-6) */}
+            <BentoTile colSpan={6} accentColor="#2563eb">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Package size={13} /> Procurement Pipeline
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 10px" }}>
+                  Requisition & Delivery Overview
+                </h3>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+                  <div style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Pending Review</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#d97706" }}>{pendingApprovals.length}</div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Approved</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#0f766e" }}>
+                      {orders.filter((o) => o.status === "Approved").length}
+                    </div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#64748b" }}>Received</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#2563eb" }}>
+                      {orders.filter((o) => o.status === "Received").length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8 }}>
+                <Link to="/procurement/orders" style={{ fontSize: 12, fontWeight: 600, color: "#2563eb", textDecoration: "none" }}>
+                  View All Procurement Orders →
+                </Link>
+              </div>
+            </BentoTile>
+
+            {/* Tile 4: System Shortages & Alerts (col-span-6) */}
+            <BentoTile colSpan={6} accentColor="#dc2626">
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5 }}>
+                  <AlertTriangle size={13} /> Shortage Management
+                </span>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 10px" }}>
+                  Network-Wide Shortage Tracking
+                </h3>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+                  <div style={{ padding: "8px 10px", background: "#fef2f2", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#991b1b" }}>Open Alerts</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#dc2626" }}>
+                      {(shortages || []).filter((s) => s.status === "OPEN").length}
+                    </div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: "#fffbeb", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#92400e" }}>Acknowledged</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#d97706" }}>
+                      {(shortages || []).filter((s) => s.status === "ACKNOWLEDGED").length}
+                    </div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: "#f0fdf4", borderRadius: 8 }}>
+                    <span style={{ fontSize: 11, color: "#166534" }}>Resolved</span>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#16a34a" }}>
+                      {(shortages || []).filter((s) => s.status === "RESOLVED").length}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8 }}>
+                <Link to="/demand/shortages" style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", textDecoration: "none" }}>
+                  Open Shortage Console →
+                </Link>
+              </div>
+            </BentoTile>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Procurement Officer Bento Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
 
 function ProcurementOfficerDashboard({ email }: { email: string }) {
-  const { orders, suppliers, inventory, batches, isLoading, error, refetch } = useDashboardData();
-
-  const activeSuppliersCount = suppliers.filter((s) => s.isActive).length;
-  const draftOrdersCount = orders.filter((o) => o.status === "Draft").length;
-  const pendingCount = orders.filter((o) => o.status === "PendingApproval").length;
-  const deliveredCount = orders.filter((o) => ["Delivered", "Received"].includes(o.status)).length;
+  const { orders, suppliers, isLoading, error, refetch } = useDashboardData();
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>
       <PageHeader
-        eyebrow="Supplier & Procurement"
-        title="Procurement Dashboard"
-          subtitle={`Signed in as ${email} · Supplier Officer`}
-          actions={
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void refetch()}
-              disabled={isLoading}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
-            >
-              <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
-            </button>
-          }
-        />
+        eyebrow="Supply Chain & Procurement"
+        title="Procurement Officer Command Console"
+        subtitle={`Signed in as ${email} · Role: Supplier Officer`}
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void refetch()}
+            disabled={isLoading}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
+          >
+            <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
+          </button>
+        }
+      />
 
-        {error && (
-          <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8 }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <KPICard
-            label="Active Suppliers"
-            value={isLoading ? "…" : activeSuppliersCount}
-            context="Approved vendors"
-            icon={<Building2 size={20} />}
-            accent="#0f766e"
-            variant="success"
-          />
-          <KPICard
-            label="Draft Orders"
-            value={isLoading ? "…" : draftOrdersCount}
-            context="POs awaiting submit"
-            icon={<FileText size={20} />}
-            accent="#d97706"
-          />
-          <KPICard
-            label="Pending Approval"
-            value={isLoading ? "…" : pendingCount}
-            context="Submitted to manager"
-            icon={<Clock size={20} />}
-            accent="#7c3aed"
-            variant={pendingCount > 0 ? "warning" : "default"}
-          />
-          <KPICard
-            label="Delivered / Received"
-            value={isLoading ? "…" : deliveredCount}
-            context="Completed fulfillment"
-            icon={<CheckCircle2 size={20} />}
-            accent="#16a34a"
-            variant="success"
-          />
+      {error && (
+        <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8 }}>
+          <AlertCircle size={16} />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Real Analytics Section */}
-        <AnalyticsRow orders={orders} batches={batches} inventory={inventory} isLoading={isLoading} />
+      <div
+        className="bento-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(12, 1fr)",
+          gap: 16,
+          marginBottom: 28,
+        }}
+      >
+        <BentoTile colSpan={6} accentColor="#2563eb">
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", textTransform: "uppercase" }}>Procurement Orders</span>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 10px" }}>Total Purchase Orders</h3>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#0f172a" }}>{orders.length}</div>
+          </div>
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8 }}>
+            <Link to="/procurement/orders" style={{ fontSize: 12, fontWeight: 600, color: "#2563eb", textDecoration: "none" }}>
+              View Orders Directory →
+            </Link>
+          </div>
+        </BentoTile>
 
-        {/* Action Queue: Requisitions Requiring Attention */}
-        {orders.filter((o) => ["Draft", "RevisionRequired"].includes(o.status)).length > 0 && (
-          <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #fed7aa", borderRadius: 12, padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Clock size={18} style={{ color: "#d97706" }} />
-                <div>
-                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "#9a3412" }}>
-                    Action Needed: Orders in Draft or Returned for Revision ({orders.filter((o) => ["Draft", "RevisionRequired"].includes(o.status)).length})
-                  </h3>
-                  <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#b45309" }}>
-                    Requisitions that require finalizing, policy validation pre-check, or amendment
-                  </p>
-                </div>
-              </div>
-              <Link
-                to="/procurement/orders"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#9a3412",
-                  background: "#ffedd5",
-                  border: "1px solid #fed7aa",
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  textDecoration: "none",
-                }}
-              >
-                Open Orders Console <ArrowRight size={13} />
-              </Link>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {orders.filter((o) => ["Draft", "RevisionRequired"].includes(o.status)).slice(0, 3).map((po) => {
-                const totalCost = (po.items || []).reduce(
-                  (sum, it) => sum + it.requestedQuantity * it.unitPrice,
-                  0
-                );
-                return (
-                  <div
-                    key={po.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "10px 14px",
-                      background: "#fffaf5",
-                      border: "1px solid #fed7aa",
-                      borderRadius: 8,
-                      fontSize: "0.8125rem",
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: "#0f172a" }}>PO-{po.id.slice(0, 8)}</strong>
-                      <span
-                        style={{
-                          marginLeft: 10,
-                          fontSize: "0.7rem",
-                          fontWeight: 700,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: po.status === "RevisionRequired" ? "#fee2e2" : "#f1f5f9",
-                          color: po.status === "RevisionRequired" ? "#b91c1c" : "#475569",
-                        }}
-                      >
-                        {po.status}
-                      </span>
-                      <span style={{ color: "#64748b", marginLeft: 8 }}>
-                        {po.items?.length ?? 0} item(s) • Created {new Date(po.requestedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <strong style={{ color: "#0f766e" }}>
-                        ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </strong>
-                      <Link
-                        to="/procurement/orders"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          color: "#0f766e",
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Edit Order <ArrowRight size={12} />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <BentoTile colSpan={6} accentColor="#7c3aed">
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase" }}>Suppliers</span>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#0f172a", margin: "4px 0 10px" }}>Active Supplier Directory</h3>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#0f172a" }}>{suppliers.filter((s) => s.isActive).length}</div>
           </div>
-        )}
-
-        <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "20px" }}>
-          <div style={{ marginBottom: 14 }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>Procurement Actions</h2>
-            <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: "2px 0 0" }}>Manage suppliers, purchase orders, and replenishment plans</p>
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8 }}>
+            <Link to="/procurement/suppliers" style={{ fontSize: 12, fontWeight: 600, color: "#7c3aed", textDecoration: "none" }}>
+              Manage Suppliers →
+            </Link>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            <QuickAction
-              to="/procurement/suppliers"
-              label="Supplier Directory"
-              description="Browse, verify compliance, and manage supplier agreements"
-              icon={<Building2 size={18} />}
-              accent="#0f766e"
-            />
-            <QuickAction
-              to="/procurement/orders"
-              label="Purchase Orders"
-              description="Draft, submit, and inspect lifecycle orders"
-              icon={<FileText size={18} />}
-              accent="#2563eb"
-            />
-            <QuickAction
-              to="/procurement/priorities"
-              label="AI Replenishment Assistant"
-              description="Smart replenishment recommendations from the LangGraph agent"
-              icon={<Sparkles size={18} />}
-              accent="#4f46e5"
-            />
-            <QuickAction
-              to="/procurement/workflow"
-              label="Workflow Lifecycle Monitor"
-              description="Track orders through approval, dispatch, and delivery"
-              icon={<Activity size={18} />}
-              accent="#0891b2"
-            />
-          </div>
-        </div>
+        </BentoTile>
       </div>
+    </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Operational Staff Bento Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
 
 function OperationalStaffDashboard({ email }: { email: string }) {
   const { orders, inventory, batches, medicines, isLoading, error, refetch } = useDashboardData();
+  const now = useMemo(() => Date.now(), []);
 
   const expiringSoonCount = useMemo(() => {
-    const now = Date.now();
     return batches.filter((b) => {
       const ms = new Date(b.expiryDateUtc).getTime() - now;
       return ms > 0 && ms <= 30 * 86400000;
     }).length;
-  }, [batches]);
+  }, [batches, now]);
 
   const lowStockCount = inventory.filter((i) => i.isBelowMinimum).length;
   const receivedCount = orders.filter((o) => o.status === "Received").length;
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 28px" }}>
       <PageHeader
         eyebrow="Pharmacy & Storage"
         title="Staff Inventory Dashboard"
-          subtitle={`Signed in as ${email} · Operational Staff`}
-          actions={
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void refetch()}
-              disabled={isLoading}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
-            >
-              <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
-            </button>
-          }
-        />
+        subtitle={`Signed in as ${email} · Role: Operational Staff`}
+        actions={
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void refetch()}
+            disabled={isLoading}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
+          >
+            <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
+          </button>
+        }
+      />
 
-        {error && (
-          <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8 }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <KPICard
-            label="Catalog Medicines"
-            value={isLoading ? "…" : medicines.filter((m) => m.isActive).length}
-            context="Active formulary items"
-            icon={<Pill size={20} />}
-            accent="#0f766e"
-          />
-          <KPICard
-            label="Expiring Soon"
-            value={isLoading ? "…" : expiringSoonCount}
-            context="Next 30 days"
-            icon={<Calendar size={20} />}
-            accent="#d97706"
-            variant={expiringSoonCount > 0 ? "warning" : "default"}
-          />
-          <KPICard
-            label="Low Stock Alert"
-            value={isLoading ? "…" : lowStockCount}
-            context="Below buffer threshold"
-            icon={<TrendingDown size={20} />}
-            accent="#dc2626"
-            variant={lowStockCount > 0 ? "danger" : "default"}
-          />
-          <KPICard
-            label="Stock Receipts"
-            value={isLoading ? "…" : receivedCount}
-            context="Received into warehouse"
-            icon={<Inbox size={20} />}
-            accent="#16a34a"
-            variant="success"
-          />
+      {error && (
+        <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 8 }}>
+          <AlertCircle size={16} />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Real Analytics Section */}
-        <AnalyticsRow orders={orders} batches={batches} inventory={inventory} isLoading={isLoading} />
+      <div
+        className="bento-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(12, 1fr)",
+          gap: 16,
+          marginBottom: 28,
+        }}
+      >
+        <BentoTile colSpan={3} accentColor="#0f766e">
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#0f766e" }}>Catalog Medicines</span>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>
+            {medicines.filter((m) => m.isActive).length}
+          </div>
+          <Link to="/inventory" style={{ fontSize: 11, color: "#0f766e", marginTop: 8, textDecoration: "none" }}>
+            View Catalog →
+          </Link>
+        </BentoTile>
 
-        {/* Priority Action Queue: Low Stock Alerts */}
-        {lowStockCount > 0 && (
-          <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #fecaca", borderRadius: 12, padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <TrendingDown size={18} style={{ color: "#dc2626" }} />
-                <div>
-                  <h3 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0, color: "#991b1b" }}>
-                    Stock Depletion Alert ({lowStockCount} items below safety threshold)
-                  </h3>
-                  <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#b91c1c" }}>
-                    Items running below reserve minimums; prepare intake for arriving shipments
-                  </p>
-                </div>
-              </div>
-              <Link
-                to="/inventory/receive"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#ffffff",
-                  background: "#dc2626",
-                  border: "1px solid #b91c1c",
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  textDecoration: "none",
-                }}
-              >
-                Receive Stock Shipment <ArrowRight size={13} />
-              </Link>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {inventory.filter((i) => i.isBelowMinimum).slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px 14px",
-                    background: "#fef2f2",
-                    border: "1px solid #fee2e2",
-                    borderRadius: 8,
-                    fontSize: "0.8125rem",
-                  }}
-                >
-                  <div>
-                    <strong style={{ color: "#0f172a" }}>{item.medicineName}</strong>
-                    <span style={{ color: "#64748b", marginLeft: 10 }}>
-                      Facility: {item.facilityName}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <span style={{ color: "#dc2626", fontWeight: 700 }}>
-                      Available: {item.unitDisplay ?? `${item.quantityOnHand} units`} (Min: {item.minimumStockLevel})
-                    </span>
-                    <Link
-                      to={`/inventory/${item.medicineId}`}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        color: "#0f766e",
-                        fontWeight: 600,
-                        fontSize: "0.75rem",
-                        textDecoration: "none",
-                      }}
-                    >
-                      Audit Ledger <ArrowRight size={12} />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <BentoTile colSpan={3} accentColor="#d97706">
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706" }}>Expiring Soon</span>
+          <div style={{ fontSize: 28, fontWeight: 800, color: expiringSoonCount > 0 ? "#d97706" : "#0f172a", marginTop: 4 }}>
+            {expiringSoonCount}
           </div>
-        )}
+          <Link to="/inventory/expiry" style={{ fontSize: 11, color: "#d97706", marginTop: 8, textDecoration: "none" }}>
+            Monitor Expiries →
+          </Link>
+        </BentoTile>
 
-        <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "20px" }}>
-          <div style={{ marginBottom: 14 }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>Inventory Routine Actions</h2>
-            <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: "2px 0 0" }}>Daily stock receiving, catalog checks, and shelf audits</p>
+        <BentoTile colSpan={3} accentColor="#dc2626">
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626" }}>Low Stock Alerts</span>
+          <div style={{ fontSize: 28, fontWeight: 800, color: lowStockCount > 0 ? "#dc2626" : "#0f172a", marginTop: 4 }}>
+            {lowStockCount}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            <QuickAction
-              to="/inventory"
-              label="Medicine Inventory"
-              description="Real-time stock balance, facilities, and batch records"
-              icon={<Pill size={18} />}
-              accent="#0f766e"
-            />
-            <QuickAction
-              to="/inventory/receive"
-              label="Receive Stock Shipment"
-              description="Process and record incoming manufacturer batches"
-              icon={<Inbox size={18} />}
-              accent="#16a34a"
-            />
-            <QuickAction
-              to="/inventory/expiry"
-              label="Expiry Date Monitor"
-              description="Monitor critical lots and mitigate expiration wastage"
-              icon={<Calendar size={18} />}
-              accent="#d97706"
-            />
-            <QuickAction
-              to="/procurement/orders"
-              label="Purchase Orders Directory"
-              description="Check status of expected inbound warehouse deliveries"
-              icon={<Package size={18} />}
-              accent="#2563eb"
-            />
-          </div>
-        </div>
+          <Link to="/inventory" style={{ fontSize: 11, color: "#dc2626", marginTop: 8, textDecoration: "none" }}>
+            Audit Ledger →
+          </Link>
+        </BentoTile>
+
+        <BentoTile colSpan={3} accentColor="#16a34a">
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a" }}>Stock Receipts</span>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#16a34a", marginTop: 4 }}>{receivedCount}</div>
+          <Link to="/inventory/receive" style={{ fontSize: 11, color: "#16a34a", marginTop: 8, textDecoration: "none" }}>
+            Receive Intake →
+          </Link>
+        </BentoTile>
       </div>
-  );
-}
-
-function AdministratorDashboard({ email }: { email: string }) {
-  const { orders, facilities, suppliers, inventory, batches, medicines, isLoading, error, refetch } = useDashboardData();
-
-  return (
-    <div className="page-container">
-      <PageHeader
-        eyebrow="System Administration"
-        title="Executive Administrator Console"
-          subtitle={`Signed in as ${email} · Administrator`}
-          actions={
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void refetch()}
-              disabled={isLoading}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", height: 36, padding: "0 14px", borderRadius: 8 }}
-            >
-              <RotateCw size={14} className={isLoading ? "animate-spin" : ""} /> Refresh Data
-            </button>
-          }
-        />
-
-        {error && (
-          <div className="alert alert-danger mb-4" role="alert" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8 }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <KPICard
-            label="Hospital Facilities"
-            value={isLoading ? "…" : facilities.length}
-            context="Connected sites"
-            icon={<Building2 size={20} />}
-            accent="#0f766e"
-          />
-          <KPICard
-            label="Total Purchase Orders"
-            value={isLoading ? "…" : orders.length}
-            context="System-wide orders"
-            icon={<FileText size={20} />}
-            accent="#2563eb"
-          />
-          <KPICard
-            label="Active Suppliers"
-            value={isLoading ? "…" : suppliers.filter((s) => s.isActive).length}
-            context="Approved vendor partners"
-            icon={<Users size={20} />}
-            accent="#7c3aed"
-          />
-          <KPICard
-            label="Catalog Medicines"
-            value={isLoading ? "…" : medicines.length}
-            context="Tracked medications"
-            icon={<Pill size={20} />}
-            accent="#16a34a"
-            variant="success"
-          />
-        </div>
-
-        {/* Real Analytics Section */}
-        <AnalyticsRow orders={orders} batches={batches} inventory={inventory} isLoading={isLoading} />
-
-        <div className="card mb-6" style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "20px" }}>
-          <div style={{ marginBottom: 14 }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>Administrative Management</h2>
-            <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: "2px 0 0" }}>System-level management across procurement, users, and audit records</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-            <QuickAction
-              to="/procurement/orders"
-              label="Purchase Orders Directory"
-              description="System-wide procurement records and order status"
-              icon={<FileText size={18} />}
-              accent="#2563eb"
-            />
-            <QuickAction
-              to="/procurement/approvals"
-              label="Managerial Approvals"
-              description="Audit and review high-value orders and compliance exceptions"
-              icon={<FileCheck2 size={18} />}
-              accent="#d97706"
-            />
-            <QuickAction
-              to="/procurement/suppliers"
-              label="Supplier Directory"
-              description="Audit accredited pharmaceutical suppliers"
-              icon={<Building2 size={18} />}
-              accent="#0f766e"
-            />
-            <QuickAction
-              to="/inventory"
-              label="Stock Balances"
-              description="Monitor hospital network inventory and batch compliance"
-              icon={<Pill size={18} />}
-              accent="#16a34a"
-            />
-            <QuickAction
-              to="/admin/users"
-              label="User Management"
-              description="Manage administrator access, roles, and active account status"
-              icon={<Users size={18} />}
-              accent="#7c3aed"
-            />
-          </div>
-        </div>
-      </div>
+    </div>
   );
 }
 
@@ -1078,3 +1220,5 @@ export function DashboardPage() {
 
   return <OperationalStaffDashboard email={email} />;
 }
+
+export default DashboardPage;

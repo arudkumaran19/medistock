@@ -22,7 +22,8 @@ class ActiveDeliveryScreen extends ConsumerStatefulWidget {
   const ActiveDeliveryScreen({super.key, required this.transferId});
 
   @override
-  ConsumerState<ActiveDeliveryScreen> createState() => _ActiveDeliveryScreenState();
+  ConsumerState<ActiveDeliveryScreen> createState() =>
+      _ActiveDeliveryScreenState();
 }
 
 class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
@@ -45,7 +46,8 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
   }
 
   // Phase D OTP
-  final TextEditingController _otpController = TextEditingController(text: '4829');
+  final TextEditingController _otpController =
+      TextEditingController(text: '4829');
 
   @override
   void dispose() {
@@ -57,14 +59,17 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
   Future<void> _handleAcceptTask() async {
     setState(() => _isAccepting = true);
     try {
-      await ref.read(officerTaskRepositoryProvider).acceptTask(widget.transferId);
+      await ref
+          .read(officerTaskRepositoryProvider)
+          .acceptTask(widget.transferId);
       ref.invalidate(transferByIdProvider(widget.transferId));
       ref.invalidate(assignedTasksProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Task accepted! Inventory reserved at supplying facility.'),
+            content: Text(
+                'Task accepted! Inventory reserved at supplying facility.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -73,7 +78,8 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to accept task: ${e.toString().replaceAll("Exception: ", "")}'),
+            content: Text(
+                'Failed to accept task: ${e.toString().replaceAll("Exception: ", "")}'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -107,38 +113,51 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
         final statusLower = transfer.status.toLowerCase();
         final isApproved = statusLower == 'approved';
         final isReserved = statusLower == 'reserved';
-        final isInTransit = statusLower == 'intransit' || statusLower == 'dispatched';
-        final isDelivered = statusLower == 'delivered' || statusLower == 'received';
+        final isInTransit =
+            statusLower == 'intransit' || statusLower == 'dispatched';
+        final isDelivered =
+            statusLower == 'delivered' || statusLower == 'received';
 
         final routeAsync = ref.watch(transferRouteProvider(widget.transferId));
         final route = routeAsync.valueOrNull;
 
         final sLat = route?.sourceLatitude;
         final sLng = route?.sourceLongitude;
-        final LatLng? sourcePos = (sLat != null && sLng != null && sLat != 0 && sLng != 0)
-            ? LatLng(sLat, sLng)
-            : (route != null && route.waypoints.isNotEmpty && route.waypoints.first.latitude != 0)
-                ? LatLng(route.waypoints.first.latitude, route.waypoints.first.longitude)
-                : null;
+        final LatLng? sourcePos =
+            (sLat != null && sLng != null && sLat != 0 && sLng != 0)
+                ? LatLng(sLat, sLng)
+                : (route != null &&
+                        route.waypoints.isNotEmpty &&
+                        route.waypoints.first.latitude != 0)
+                    ? LatLng(route.waypoints.first.latitude,
+                        route.waypoints.first.longitude)
+                    : null;
 
         final dLat = route?.destinationLatitude;
         final dLng = route?.destinationLongitude;
-        final LatLng? destPos = (dLat != null && dLng != null && dLat != 0 && dLng != 0)
-            ? LatLng(dLat, dLng)
-            : (route != null && route.waypoints.isNotEmpty && route.waypoints.last.latitude != 0)
-                ? LatLng(route.waypoints.last.latitude, route.waypoints.last.longitude)
-                : null;
+        final LatLng? destPos =
+            (dLat != null && dLng != null && dLat != 0 && dLng != 0)
+                ? LatLng(dLat, dLng)
+                : (route != null &&
+                        route.waypoints.isNotEmpty &&
+                        route.waypoints.last.latitude != 0)
+                    ? LatLng(route.waypoints.last.latitude,
+                        route.waypoints.last.longitude)
+                    : null;
 
-        final LatLng? vehiclePos = (transfer.currentLatitude != 0 && transfer.currentLongitude != 0)
-            ? LatLng(transfer.currentLatitude, transfer.currentLongitude)
-            : null;
+        final LatLng? vehiclePos =
+            (transfer.currentLatitude != 0 && transfer.currentLongitude != 0)
+                ? LatLng(transfer.currentLatitude, transfer.currentLongitude)
+                : null;
 
         final hasValidMap = sourcePos != null && destPos != null;
 
         // Auto-sync phase with backend status if advanced
-        if (isInTransit && _currentPhase.index < DeliveryPhase.inTransit.index) {
+        if (isInTransit &&
+            _currentPhase.index < DeliveryPhase.inTransit.index) {
           _currentPhase = DeliveryPhase.inTransit;
-        } else if (isDelivered && _currentPhase != DeliveryPhase.atDestination) {
+        } else if (isDelivered &&
+            _currentPhase != DeliveryPhase.atDestination) {
           _currentPhase = DeliveryPhase.atDestination;
         }
 
@@ -148,10 +167,13 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
             title: Text('${transfer.transferNumber} • ${_getPhaseTitle()}'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                icon: const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.error),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Dispatched issue report to District Supply Command!')),
+                    const SnackBar(
+                        content: Text(
+                            'Dispatched issue report to District Supply Command!')),
                   );
                 },
               ),
@@ -162,14 +184,29 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
               children: [
                 // Phase Stepper Bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: AppColors.surface,
                   child: Row(
                     children: [
-                      _PhaseChip(label: '1. Pickup', isActive: _currentPhase == DeliveryPhase.headingToPickup, isDone: _currentPhase.index > 0),
-                      _PhaseChip(label: '2. Inspection', isActive: _currentPhase == DeliveryPhase.atPickup, isDone: _currentPhase.index > 1),
-                      _PhaseChip(label: '3. In Transit', isActive: _currentPhase == DeliveryPhase.inTransit, isDone: _currentPhase.index > 2),
-                      _PhaseChip(label: '4. Deliver', isActive: _currentPhase == DeliveryPhase.atDestination, isDone: isDelivered),
+                      _PhaseChip(
+                          label: '1. Pickup',
+                          isActive:
+                              _currentPhase == DeliveryPhase.headingToPickup,
+                          isDone: _currentPhase.index > 0),
+                      _PhaseChip(
+                          label: '2. Inspection',
+                          isActive: _currentPhase == DeliveryPhase.atPickup,
+                          isDone: _currentPhase.index > 1),
+                      _PhaseChip(
+                          label: '3. In Transit',
+                          isActive: _currentPhase == DeliveryPhase.inTransit,
+                          isDone: _currentPhase.index > 2),
+                      _PhaseChip(
+                          label: '4. Deliver',
+                          isActive:
+                              _currentPhase == DeliveryPhase.atDestination,
+                          isDone: isDelivered),
                     ],
                   ),
                 ),
@@ -182,13 +219,15 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                         if (hasValidMap)
                           TransferLiveMapWidget(
                             sourceCoords: sourcePos,
-                            sourceFacilityName: transfer.sourceFacilityName.isNotEmpty
-                                ? transfer.sourceFacilityName
-                                : 'Source Facility',
+                            sourceFacilityName:
+                                transfer.sourceFacilityName.isNotEmpty
+                                    ? transfer.sourceFacilityName
+                                    : 'Source Facility',
                             destinationCoords: destPos,
-                            destinationFacilityName: transfer.destinationFacilityName.isNotEmpty
-                                ? transfer.destinationFacilityName
-                                : 'Destination Facility',
+                            destinationFacilityName:
+                                transfer.destinationFacilityName.isNotEmpty
+                                    ? transfer.destinationFacilityName
+                                    : 'Destination Facility',
                             vehicleCoords: vehiclePos,
                             waypoints: route?.waypoints ?? const [],
                             distanceKm: route?.distanceKm,
@@ -209,9 +248,11 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.location_off_rounded, size: 36, color: AppColors.textMuted),
+                                const Icon(Icons.location_off_rounded,
+                                    size: 36, color: AppColors.textMuted),
                                 const SizedBox(height: 10),
-                                Text('Location unavailable', style: AppTextStyles.titleMedium),
+                                Text('Location unavailable',
+                                    style: AppTextStyles.titleMedium),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Facility coordinates or transit route data are not available.',
@@ -235,12 +276,17 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                                   decoration: BoxDecoration(
                                     color: AppColors.secondaryLight,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: AppColors.secondary),
+                                    border:
+                                        Border.all(color: AppColors.secondary),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text('ASSIGNED MISSION PENDING ACCEPTANCE', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                                      Text(
+                                          'ASSIGNED MISSION PENDING ACCEPTANCE',
+                                          style: AppTextStyles.badge.copyWith(
+                                              color: AppColors.secondary)),
                                       const SizedBox(height: 6),
                                       Text(
                                         'Manager has approved this redistribution transfer. Accept the assignment to reserve inventory and begin logistics execution.',
@@ -248,23 +294,32 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                                       ),
                                       const SizedBox(height: 14),
                                       ElevatedButton(
-                                        onPressed: _isAccepting ? null : _handleAcceptTask,
+                                        onPressed: _isAccepting
+                                            ? null
+                                            : _handleAcceptTask,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: AppColors.secondary,
-                                          minimumSize: const Size(double.infinity, 44),
+                                          minimumSize:
+                                              const Size(double.infinity, 44),
                                         ),
                                         child: _isAccepting
                                             ? const SizedBox(
                                                 height: 20,
                                                 width: 20,
-                                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2),
                                               )
                                             : const Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 children: [
-                                                  Icon(Icons.check_circle_rounded),
+                                                  Icon(Icons
+                                                      .check_circle_rounded),
                                                   SizedBox(width: 8),
-                                                  Text('Accept Task (Reserve Transfer)'),
+                                                  Text(
+                                                      'Accept Task (Reserve Transfer)'),
                                                 ],
                                               ),
                                       ),
@@ -272,7 +327,8 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                                   ),
                                 ),
 
-                              _buildPhaseContent(transfer, isApproved, isReserved, isInTransit, isDelivered),
+                              _buildPhaseContent(transfer, isApproved,
+                                  isReserved, isInTransit, isDelivered),
                             ],
                           ),
                         ),
@@ -301,9 +357,14 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
     }
   }
 
-  Widget _buildPhaseContent(TransferModel transfer, bool isApproved, bool isReserved, bool isInTransit, bool isDelivered) {
-    final sourceName = transfer.sourceFacilityName.isNotEmpty ? transfer.sourceFacilityName : 'Regional Supply Depot';
-    final destName = transfer.destinationFacilityName.isNotEmpty ? transfer.destinationFacilityName : 'Receiving Facility';
+  Widget _buildPhaseContent(TransferModel transfer, bool isApproved,
+      bool isReserved, bool isInTransit, bool isDelivered) {
+    final sourceName = transfer.sourceFacilityName.isNotEmpty
+        ? transfer.sourceFacilityName
+        : 'Regional Supply Depot';
+    final destName = transfer.destinationFacilityName.isNotEmpty
+        ? transfer.destinationFacilityName
+        : 'Receiving Facility';
 
     switch (_currentPhase) {
       case DeliveryPhase.headingToPickup:
@@ -312,18 +373,28 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border)),
               child: Row(
                 children: [
-                  const CircleAvatar(radius: 20, backgroundColor: AppColors.successLight, child: Icon(Icons.store_rounded, color: AppColors.success)),
+                  const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColors.successLight,
+                      child:
+                          Icon(Icons.store_rounded, color: AppColors.success)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PICKUP LOCATION (SOURCE)', style: AppTextStyles.badge.copyWith(color: AppColors.success)),
+                        Text('PICKUP LOCATION (SOURCE)',
+                            style: AppTextStyles.badge
+                                .copyWith(color: AppColors.success)),
                         Text(sourceName, style: AppTextStyles.titleSmall),
-                        Text('Stock verified and reserved for transfer', style: AppTextStyles.bodySmall),
+                        Text('Stock verified and reserved for transfer',
+                            style: AppTextStyles.bodySmall),
                       ],
                     ),
                   ),
@@ -332,7 +403,8 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => setState(() => _currentPhase = DeliveryPhase.atPickup),
+              onPressed: () =>
+                  setState(() => _currentPhase = DeliveryPhase.atPickup),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
                 minimumSize: const Size(double.infinity, 46),
@@ -346,17 +418,20 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Payload Inspection Checklist', style: AppTextStyles.titleLarge),
+            Text('Payload Inspection Checklist',
+                style: AppTextStyles.titleLarge),
             const SizedBox(height: 6),
-            Text('Verify cold vault packaging and quantity before departure.', style: AppTextStyles.bodyMedium),
+            Text('Verify cold vault packaging and quantity before departure.',
+                style: AppTextStyles.bodyMedium),
             const SizedBox(height: 12),
-
             if (transfer.items.isNotEmpty)
               ...transfer.items.map((item) {
                 final key = item.id.isNotEmpty ? item.id : item.itemName;
                 final isChecked = _checkedItems.contains(key);
                 return CheckboxListTile(
-                  title: Text('${item.itemName} (${item.requestedQuantity} ${item.unitOfMeasure})', style: AppTextStyles.titleSmall),
+                  title: Text(
+                      '${item.itemName} (${item.requestedQuantity} ${item.unitOfMeasure})',
+                      style: AppTextStyles.titleSmall),
                   subtitle: const Text('Intact seal verified'),
                   value: isChecked,
                   activeColor: AppColors.secondary,
@@ -373,12 +448,14 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
               })
             else
               CheckboxListTile(
-                title: const Text('Cargo payload inspection verified', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text('Cargo payload inspection verified',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 value: _checkedItems.contains('default'),
                 activeColor: AppColors.secondary,
-                onChanged: (val) => setState(() => val == true ? _checkedItems.add('default') : _checkedItems.remove('default')),
+                onChanged: (val) => setState(() => val == true
+                    ? _checkedItems.add('default')
+                    : _checkedItems.remove('default')),
               ),
-
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _takePhoto,
@@ -400,13 +477,16 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                 setState(() => _currentPhase = DeliveryPhase.inTransit);
                 try {
                   await ref.read(officerTaskRepositoryProvider).confirmPickup(
-                    widget.transferId,
-                    PickupProof(notes: 'Payload inspection verified, cold vault seals intact'),
-                  );
+                        widget.transferId,
+                        PickupProof(
+                            notes:
+                                'Payload inspection verified, cold vault seals intact'),
+                      );
                   ref.invalidate(transferByIdProvider(widget.transferId));
                   ref.invalidate(assignedTasksProvider);
                 } catch (_) {}
-                LocationPublisher().startPublishing(activeTransferId: widget.transferId);
+                LocationPublisher()
+                    .startPublishing(activeTransferId: widget.transferId);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
@@ -423,7 +503,9 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(
+                  color: AppColors.secondaryLight,
+                  borderRadius: BorderRadius.circular(16)),
               child: Row(
                 children: [
                   const Icon(Icons.sensors_rounded, color: AppColors.secondary),
@@ -432,8 +514,11 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('GPS TELEMETRY STREAM ACTIVE', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
-                        Text('Publishing live location to SignalR every 5s', style: AppTextStyles.bodySmall),
+                        Text('GPS TELEMETRY STREAM ACTIVE',
+                            style: AppTextStyles.badge
+                                .copyWith(color: AppColors.secondary)),
+                        Text('Publishing live location to SignalR every 5s',
+                            style: AppTextStyles.bodySmall),
                       ],
                     ),
                   ),
@@ -443,21 +528,28 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('DESTINATION HUB', style: AppTextStyles.badge.copyWith(color: AppColors.primary)),
+                  Text('DESTINATION HUB',
+                      style: AppTextStyles.badge
+                          .copyWith(color: AppColors.primary)),
                   const SizedBox(height: 4),
                   Text(destName, style: AppTextStyles.titleSmall),
                   const SizedBox(height: 4),
-                  Text('En route with active cold-chain monitoring', style: AppTextStyles.bodySmall),
+                  Text('En route with active cold-chain monitoring',
+                      style: AppTextStyles.bodySmall),
                 ],
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => setState(() => _currentPhase = DeliveryPhase.atDestination),
+              onPressed: () =>
+                  setState(() => _currentPhase = DeliveryPhase.atDestination),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
                 minimumSize: const Size(double.infinity, 46),
@@ -473,7 +565,9 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
           children: [
             Text('Recipient OTP Verification', style: AppTextStyles.titleLarge),
             const SizedBox(height: 6),
-            Text('Enter 4-digit code provided by receiving pharmacist at $destName.', style: AppTextStyles.bodyMedium),
+            Text(
+                'Enter 4-digit code provided by receiving pharmacist at $destName.',
+                style: AppTextStyles.bodyMedium),
             const SizedBox(height: 16),
             TextField(
               controller: _otpController,
@@ -490,12 +584,12 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                 LocationPublisher().stopPublishing();
                 try {
                   await ref.read(officerTaskRepositoryProvider).confirmDelivery(
-                    widget.transferId,
-                    DeliveryProof(
-                      recipientName: 'Staff Pharmacist',
-                      notes: 'Verified with OTP ${_otpController.text}',
-                    ),
-                  );
+                        widget.transferId,
+                        DeliveryProof(
+                          recipientName: 'Staff Pharmacist',
+                          notes: 'Verified with OTP ${_otpController.text}',
+                        ),
+                      );
                   ref.invalidate(transferByIdProvider(widget.transferId));
                   ref.invalidate(assignedTasksProvider);
                 } catch (_) {}
@@ -504,9 +598,11 @@ class _ActiveDeliveryScreenState extends ConsumerState<ActiveDeliveryScreen> {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    icon: const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.success),
+                    icon: const Icon(Icons.check_circle_rounded,
+                        size: 56, color: AppColors.success),
                     title: const Text('Mission Accomplished!'),
-                    content: const Text('Delivery confirmed, OTP verified, and inventory updated.'),
+                    content: const Text(
+                        'Delivery confirmed, OTP verified, and inventory updated.'),
                     actions: [
                       ElevatedButton(
                         onPressed: () {
@@ -536,7 +632,8 @@ class _PhaseChip extends StatelessWidget {
   final bool isActive;
   final bool isDone;
 
-  const _PhaseChip({required this.label, required this.isActive, required this.isDone});
+  const _PhaseChip(
+      {required this.label, required this.isActive, required this.isDone});
 
   @override
   Widget build(BuildContext context) {
@@ -554,11 +651,13 @@ class _PhaseChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6),
         margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
         child: Center(
           child: Text(
             label,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
+            style:
+                TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
             overflow: TextOverflow.ellipsis,
           ),
         ),

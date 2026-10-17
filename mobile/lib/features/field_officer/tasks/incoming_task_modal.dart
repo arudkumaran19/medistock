@@ -45,24 +45,35 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
   @override
   Widget build(BuildContext context) {
     final data = widget.taskData;
-    final transferNumber = data?['transferNumber']?.toString() ?? data?['transferId']?.toString() ?? 'Transfer';
-    
+    final transferNumber = data?['transferNumber']?.toString() ??
+        data?['transferId']?.toString() ??
+        'Transfer';
+
     // Extract Pickup Info
     final pickupMap = data?['pickupLocation'] as Map<String, dynamic>?;
-    final pickupName = pickupMap?['name']?.toString() ?? data?['sourceFacilityName']?.toString() ?? 'Source Facility';
+    final pickupName = pickupMap?['name']?.toString() ??
+        data?['sourceFacilityName']?.toString() ??
+        'Source Facility';
     final pickupDistance = pickupMap?['distanceKm']?.toString() ?? '—';
 
     // Extract Delivery Info
     final deliveryMap = data?['deliveryLocation'] as Map<String, dynamic>?;
-    final deliveryName = deliveryMap?['name']?.toString() ?? data?['destinationFacilityName']?.toString() ?? 'Destination Facility';
-    
+    final deliveryName = deliveryMap?['name']?.toString() ??
+        data?['destinationFacilityName']?.toString() ??
+        'Destination Facility';
+
     // Extract Distance & Medicine Info
     final distanceMap = data?['distance'] as Map<String, dynamic>?;
-    final totalDistanceKm = distanceMap?['km']?.toString() ?? data?['estimatedDistanceKm']?.toString() ?? '—';
-    
+    final totalDistanceKm = distanceMap?['km']?.toString() ??
+        data?['estimatedDistanceKm']?.toString() ??
+        '—';
+
     final itemsList = data?['medicineItems'] as List<dynamic>?;
-    final firstItem = itemsList?.isNotEmpty == true ? itemsList!.first as Map<String, dynamic>? : null;
-    final medicineTitle = firstItem?['medicineName']?.toString() ?? 'Essential Medicines';
+    final firstItem = itemsList?.isNotEmpty == true
+        ? itemsList!.first as Map<String, dynamic>?
+        : null;
+    final medicineTitle =
+        firstItem?['medicineName']?.toString() ?? 'Essential Medicines';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -78,13 +89,19 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.secondaryLight, borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: AppColors.secondaryLight,
+                    borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   children: [
-                    const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.secondary),
+                    const Icon(Icons.flash_on_rounded,
+                        size: 14, color: AppColors.secondary),
                     const SizedBox(width: 4),
-                    Text('DISPATCH ALERT $transferNumber', style: AppTextStyles.badge.copyWith(color: AppColors.secondary)),
+                    Text('DISPATCH ALERT $transferNumber',
+                        style: AppTextStyles.badge
+                            .copyWith(color: AppColors.secondary)),
                   ],
                 ),
               ),
@@ -101,7 +118,9 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                       strokeWidth: 3,
                     ),
                   ),
-                  Text('$_secondsRemaining', style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold)),
+                  Text('$_secondsRemaining',
+                      style: AppTextStyles.titleSmall
+                          .copyWith(fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -109,8 +128,10 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
 
           const SizedBox(height: 16),
 
-          Text(medicineTitle, style: AppTextStyles.displayMedium.copyWith(fontSize: 20)),
-          Text('High Priority Requisition • Urgent Delivery Mission', style: AppTextStyles.bodyMedium),
+          Text(medicineTitle,
+              style: AppTextStyles.displayMedium.copyWith(fontSize: 20)),
+          Text('High Priority Requisition • Urgent Delivery Mission',
+              style: AppTextStyles.bodyMedium),
 
           const SizedBox(height: 20),
 
@@ -125,18 +146,23 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.store_rounded, color: AppColors.success, size: 20),
+                    const Icon(Icons.store_rounded,
+                        color: AppColors.success, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('PICKUP FACILITY', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                          Text('PICKUP FACILITY',
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(fontSize: 10)),
                           Text(pickupName, style: AppTextStyles.titleSmall),
                         ],
                       ),
                     ),
-                    Text('$pickupDistance km', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                    Text('$pickupDistance km',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const Padding(
@@ -145,18 +171,23 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.local_hospital_rounded, color: AppColors.error, size: 20),
+                    const Icon(Icons.local_hospital_rounded,
+                        color: AppColors.error, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('DESTINATION HUB', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                          Text('DESTINATION HUB',
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(fontSize: 10)),
                           Text(deliveryName, style: AppTextStyles.titleSmall),
                         ],
                       ),
                     ),
-                    Text('$totalDistanceKm km total', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                    Text('$totalDistanceKm km total',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],
@@ -182,7 +213,8 @@ class _IncomingTaskModalState extends State<IncomingTaskModal> {
                 flex: 2,
                 child: ElevatedButton(
                   onPressed: widget.onAccept,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

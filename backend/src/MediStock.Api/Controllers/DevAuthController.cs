@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using MediStock.Api.Common;
+using MediStock.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -40,16 +41,16 @@ public class DevAuthController : ControllerBase
         Constants.Roles.Admin
     ];
 
-    private readonly IConfiguration _configuration;
+    private readonly JwtConfiguration _jwtConfig;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<DevAuthController> _logger;
 
     public DevAuthController(
-        IConfiguration configuration,
+        JwtConfiguration jwtConfig,
         IWebHostEnvironment environment,
         ILogger<DevAuthController> logger)
     {
-        _configuration = configuration;
+        _jwtConfig = jwtConfig;
         _environment = environment;
         _logger = logger;
     }
@@ -86,7 +87,7 @@ public class DevAuthController : ControllerBase
             });
         }
 
-        var signingKey = _configuration["Jwt:Key"];
+        var signingKey = _jwtConfig.SigningKey;
 
         if (string.IsNullOrWhiteSpace(signingKey))
         {
@@ -97,17 +98,14 @@ public class DevAuthController : ControllerBase
                     Error = new ErrorDetail
                     {
                         Code = "DEV_JWT_NOT_CONFIGURED",
-                        Message = "Jwt:Key is not configured.",
+                        Message = "Jwt:SigningKey is not configured. Set JWT_SIGNING_KEY environment variable or Jwt:SigningKey in appsettings.",
                         TraceId = HttpContext.TraceIdentifier,
                     },
                 });
         }
 
-        var issuer = _configuration["Jwt:Issuer"];
-        issuer = string.IsNullOrWhiteSpace(issuer) ? "MediStock" : issuer;
-
-        var audience = _configuration["Jwt:Audience"];
-        audience = string.IsNullOrWhiteSpace(audience) ? "MediStock" : audience;
+        var issuer = string.IsNullOrWhiteSpace(_jwtConfig.Issuer) ? "MediStock" : _jwtConfig.Issuer;
+        var audience = string.IsNullOrWhiteSpace(_jwtConfig.Audience) ? "MediStock" : _jwtConfig.Audience;
 
         var expires = DateTime.UtcNow.AddHours(8);
 

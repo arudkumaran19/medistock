@@ -23,7 +23,8 @@ class RequestListScreen extends ConsumerStatefulWidget {
   ConsumerState<RequestListScreen> createState() => _RequestListScreenState();
 }
 
-class _RequestListScreenState extends ConsumerState<RequestListScreen> with SingleTickerProviderStateMixin {
+class _RequestListScreenState extends ConsumerState<RequestListScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   static const List<Map<String, String?>> _tabs = [
@@ -63,7 +64,9 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       ),
       body: TabBarView(
         controller: _tabController,
-        children: _tabs.map((tab) => _buildRequestList(status: tab['status'])).toList(),
+        children: _tabs
+            .map((tab) => _buildRequestList(status: tab['status']))
+            .toList(),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -74,7 +77,8 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
         },
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('New Requisition', style: TextStyle(color: Colors.white)),
+        label: const Text('New Requisition',
+            style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -92,7 +96,8 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
       data: (items) {
         if (items.isEmpty) {
           return RefreshIndicator(
-            onRefresh: () async => ref.refresh(myRequestsProvider(backendStatus)),
+            onRefresh: () async =>
+                ref.refresh(myRequestsProvider(backendStatus)),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: const [
@@ -112,13 +117,17 @@ class _RequestListScreenState extends ConsumerState<RequestListScreen> with Sing
             itemBuilder: (context, index) {
               final item = items[index];
               final medicineTitle = item.items.isNotEmpty
-                  ? item.items.map((i) => '${i.itemName} (${i.requestedQuantity})').join(', ')
+                  ? item.items
+                      .map((i) => '${i.itemName} (${i.requestedQuantity})')
+                      .join(', ')
                   : 'Requisition #${item.transferNumber}';
-              final totalUnits = item.items.fold<int>(0, (sum, i) => sum + i.requestedQuantity);
+              final totalUnits = item.items
+                  .fold<int>(0, (sum, i) => sum + i.requestedQuantity);
               final details = totalUnits > 0
                   ? '$totalUnits ${item.primaryUnitOfMeasure} • Priority: ${item.priority}'
                   : 'Priority: ${item.priority}';
-              final route = '${item.sourceFacilityName} ➔ ${item.destinationFacilityName}';
+              final route =
+                  '${item.sourceFacilityName} ➔ ${item.destinationFacilityName}';
 
               return _RequestTile(
                 id: '#${item.transferNumber}',
@@ -171,7 +180,9 @@ class _RequestTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(id, style: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryDark)),
+                Text(id,
+                    style: AppTextStyles.titleSmall
+                        .copyWith(color: AppColors.primaryDark)),
                 StatusChip(status: status),
               ],
             ),
@@ -182,9 +193,13 @@ class _RequestTile extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.navigation_outlined, size: 14, color: AppColors.primary),
+                const Icon(Icons.navigation_outlined,
+                    size: 14, color: AppColors.primary),
                 const SizedBox(width: 6),
-                Expanded(child: Text(route, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary))),
+                Expanded(
+                    child: Text(route,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textPrimary))),
               ],
             ),
           ],

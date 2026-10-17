@@ -93,17 +93,21 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
     final rawUrgency = widget.prefillUrgency?.trim();
     if (rawUrgency == 'Critical' || rawUrgency == 'Emergency') {
       _urgencyTier = 'Emergency';
-    } else if (rawUrgency == 'Normal' || rawUrgency == 'Routine' || rawUrgency == 'Low') {
+    } else if (rawUrgency == 'Normal' ||
+        rawUrgency == 'Routine' ||
+        rawUrgency == 'Low') {
       _urgencyTier = 'Routine';
     } else {
       _urgencyTier = 'Urgent';
     }
     _quantityController = TextEditingController(text: '$_quantity');
     _notesController = TextEditingController(
-      text: widget.prefillNotes ?? 'Replenishment request submitted for facility inventory.',
+      text: widget.prefillNotes ??
+          'Replenishment request submitted for facility inventory.',
     );
 
-    if (widget.prefillMedicineId != null && widget.prefillMedicineId!.isNotEmpty) {
+    if (widget.prefillMedicineId != null &&
+        widget.prefillMedicineId!.isNotEmpty) {
       final initialMedicine = MedicineOption(
         id: widget.prefillMedicineId!,
         name: widget.prefillMedicineName ?? 'Selected Medicine',
@@ -127,7 +131,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
     });
 
     try {
-      final res = await _apiClient.get('/api/medicines', requireAuth: false).timeout(const Duration(seconds: 2));
+      final res = await _apiClient
+          .get('/api/medicines', requireAuth: false)
+          .timeout(const Duration(seconds: 2));
       List rawList = [];
       if (res is Map && res['data'] is List) {
         rawList = res['data'] as List;
@@ -148,24 +154,35 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       }
     } catch (e) {
       if (_availableMedicines.isEmpty) {
-        _errorMessage = 'Failed to load medicines: ${e.toString().replaceAll("Exception: ", "")}';
+        _errorMessage =
+            'Failed to load medicines: ${e.toString().replaceAll("Exception: ", "")}';
         _availableMedicines = [];
       }
     }
 
     // Match prefill medicine
     MedicineOption? matched;
-    if (widget.prefillMedicineId != null && widget.prefillMedicineId!.isNotEmpty) {
-      matched = _availableMedicines.where((m) => m.id.toLowerCase() == widget.prefillMedicineId!.toLowerCase()).firstOrNull;
-    } else if (widget.prefillMedicineName != null && widget.prefillMedicineName!.isNotEmpty) {
+    if (widget.prefillMedicineId != null &&
+        widget.prefillMedicineId!.isNotEmpty) {
+      matched = _availableMedicines
+          .where((m) =>
+              m.id.toLowerCase() == widget.prefillMedicineId!.toLowerCase())
+          .firstOrNull;
+    } else if (widget.prefillMedicineName != null &&
+        widget.prefillMedicineName!.isNotEmpty) {
       final query = widget.prefillMedicineName!.toLowerCase();
-      matched = _availableMedicines.where((m) => m.name.toLowerCase().contains(query) || query.contains(m.name.toLowerCase())).firstOrNull;
+      matched = _availableMedicines
+          .where((m) =>
+              m.name.toLowerCase().contains(query) ||
+              query.contains(m.name.toLowerCase()))
+          .firstOrNull;
     }
 
     if (matched != null) {
       _selectedMedicine = matched;
     } else if (_selectedMedicine != null) {
-      if (!_availableMedicines.any((m) => m.id.toLowerCase() == _selectedMedicine!.id.toLowerCase())) {
+      if (!_availableMedicines.any(
+          (m) => m.id.toLowerCase() == _selectedMedicine!.id.toLowerCase())) {
         _availableMedicines.insert(0, _selectedMedicine!);
       }
     } else {
@@ -189,7 +206,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
   void _goToStep(int step) {
     if (step == 2 && (_selectedMedicine == null || _quantity <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a valid medicine and positive quantity.')),
+        const SnackBar(
+            content:
+                Text('Please select a valid medicine and positive quantity.')),
       );
       return;
     }
@@ -201,7 +220,8 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
     if (_selectedMedicine == null) return;
     if (_quantity <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Requested quantity must be greater than zero.')),
+        const SnackBar(
+            content: Text('Requested quantity must be greater than zero.')),
       );
       return;
     }
@@ -213,16 +233,20 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
     try {
       final user = ref.read(authControllerProvider).user;
-      final destinationFacilityId = widget.prefillDestinationFacilityId ?? user?.facilityId;
+      final destinationFacilityId =
+          widget.prefillDestinationFacilityId ?? user?.facilityId;
 
-      if (destinationFacilityId == null || destinationFacilityId.trim().isEmpty) {
+      if (destinationFacilityId == null ||
+          destinationFacilityId.trim().isEmpty) {
         setState(() {
           _isSubmitting = false;
-          _errorMessage = 'Cannot submit: No destination facility found. Please ensure your user profile is assigned to a facility or launch the request from an active shortage alert.';
+          _errorMessage =
+              'Cannot submit: No destination facility found. Please ensure your user profile is assigned to a facility or launch the request from an active shortage alert.';
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Cannot submit: No facility assigned to user or alert.'),
+            content:
+                Text('Cannot submit: No facility assigned to user or alert.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -254,11 +278,14 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
       final transferId = created.id;
 
       // 2. Formally Submit Transfer Request (advances to Requested and triggers candidate search to Proposed)
-      final submitted = await repo.submitRequest(transferId, _notesController.text.trim());
+      final submitted =
+          await repo.submitRequest(transferId, _notesController.text.trim());
 
       setState(() {
         _createdTransferId = transferId;
-        _createdTransferNumber = submitted.transferNumber.isNotEmpty ? submitted.transferNumber : created.transferNumber;
+        _createdTransferNumber = submitted.transferNumber.isNotEmpty
+            ? submitted.transferNumber
+            : created.transferNumber;
         _isSubmitting = false;
         _currentStep = 3; // Success state
       });
@@ -268,11 +295,13 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
     } catch (e) {
       setState(() {
         _isSubmitting = false;
-        _errorMessage = 'Failed to submit requisition: ${e.toString().replaceAll("Exception: ", "")}';
+        _errorMessage =
+            'Failed to submit requisition: ${e.toString().replaceAll("Exception: ", "")}';
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_errorMessage ?? 'An error occurred during submission.'),
+          content:
+              Text(_errorMessage ?? 'An error occurred during submission.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -294,7 +323,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
             }
           },
         ),
-        title: Text(_currentStep <= 2 ? 'New Medicine Requisition (Step $_currentStep of 2)' : 'Requisition Submitted'),
+        title: Text(_currentStep <= 2
+            ? 'New Medicine Requisition (Step $_currentStep of 2)'
+            : 'Requisition Submitted'),
       ),
       body: SafeArea(
         child: Column(
@@ -302,13 +333,25 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
             // 2-Step Header Indicator
             if (_currentStep <= 2)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 color: AppColors.surface,
                 child: Row(
                   children: [
-                    _StepHeaderItem(stepNum: 1, label: 'Medicine & Quantity', isActive: _currentStep >= 1),
-                    Container(width: 32, height: 2, color: _currentStep >= 2 ? AppColors.primary : AppColors.border),
-                    _StepHeaderItem(stepNum: 2, label: 'Review & Submit', isActive: _currentStep >= 2),
+                    _StepHeaderItem(
+                        stepNum: 1,
+                        label: 'Medicine & Quantity',
+                        isActive: _currentStep >= 1),
+                    Container(
+                        width: 32,
+                        height: 2,
+                        color: _currentStep >= 2
+                            ? AppColors.primary
+                            : AppColors.border),
+                    _StepHeaderItem(
+                        stepNum: 2,
+                        label: 'Review & Submit',
+                        isActive: _currentStep >= 2),
                   ],
                 ),
               ),
@@ -336,9 +379,10 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
         children: [
           Text('Select Required Medicine', style: AppTextStyles.titleLarge),
           const SizedBox(height: 6),
-          Text('Choose from the official medicine catalog and specify requested quantity.', style: AppTextStyles.bodyMedium),
+          Text(
+              'Choose from the official medicine catalog and specify requested quantity.',
+              style: AppTextStyles.bodyMedium),
           const SizedBox(height: 20),
-
           if (_errorMessage != null && _availableMedicines.isEmpty)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -353,7 +397,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                   const Icon(Icons.error_outline, color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(_errorMessage!, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                    child: Text(_errorMessage!,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.error)),
                   ),
                   TextButton(
                     onPressed: _loadMedicines,
@@ -362,10 +408,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                 ],
               ),
             ),
-
-          Text('Medicine Name & Specification', style: AppTextStyles.labelLarge),
+          Text('Medicine Name & Specification',
+              style: AppTextStyles.labelLarge),
           const SizedBox(height: 8),
-
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
@@ -392,12 +437,15 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.primarySurface,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(med.code, style: AppTextStyles.badge.copyWith(color: AppColors.primaryDark)),
+                          child: Text(med.code,
+                              style: AppTextStyles.badge
+                                  .copyWith(color: AppColors.primaryDark)),
                         ),
                       ],
                     ),
@@ -409,12 +457,10 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               ),
             ),
           ),
-
           const SizedBox(height: 24),
-
-          Text('Requested Quantity (${_selectedMedicine?.unit ?? "units"})', style: AppTextStyles.labelLarge),
+          Text('Requested Quantity (${_selectedMedicine?.unit ?? "units"})',
+              style: AppTextStyles.labelLarge),
           const SizedBox(height: 10),
-
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -426,7 +472,8 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.remove_circle_outline_rounded, size: 36, color: AppColors.primary),
+                  icon: const Icon(Icons.remove_circle_outline_rounded,
+                      size: 36, color: AppColors.primary),
                   onPressed: () {
                     if (_quantity > 10) {
                       setState(() {
@@ -450,7 +497,8 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                           controller: _quantityController,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.displayMedium.copyWith(color: AppColors.primaryDark),
+                          style: AppTextStyles.displayMedium
+                              .copyWith(color: AppColors.primaryDark),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.zero,
@@ -463,12 +511,14 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                           },
                         ),
                       ),
-                      Text('${_selectedMedicine?.unit ?? "Units"} Required', style: AppTextStyles.bodySmall),
+                      Text('${_selectedMedicine?.unit ?? "Units"} Required',
+                          style: AppTextStyles.bodySmall),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 36, color: AppColors.primary),
+                  icon: const Icon(Icons.add_circle_outline_rounded,
+                      size: 36, color: AppColors.primary),
                   onPressed: () {
                     setState(() {
                       _quantity += 10;
@@ -479,9 +529,7 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
           Text('Clinical Urgency Tier', style: AppTextStyles.labelLarge),
           const SizedBox(height: 10),
           _UrgencyOptionTile(
@@ -509,21 +557,19 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
             groupValue: _urgencyTier,
             onChanged: (val) => setState(() => _urgencyTier = val!),
           ),
-
           const SizedBox(height: 24),
-
-          Text('Requisition Notes & Justification', style: AppTextStyles.labelLarge),
+          Text('Requisition Notes & Justification',
+              style: AppTextStyles.labelLarge),
           const SizedBox(height: 8),
           TextField(
             controller: _notesController,
             maxLines: 2,
             decoration: const InputDecoration(
-              hintText: 'Enter clinical justification or receiving unit notes...',
+              hintText:
+                  'Enter clinical justification or receiving unit notes...',
             ),
           ),
-
           const SizedBox(height: 32),
-
           ElevatedButton(
             onPressed: () => _goToStep(2),
             child: const Row(
@@ -542,9 +588,13 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
 
   Widget _buildStep2ReviewAndConfirm() {
     final user = ref.watch(authControllerProvider).user;
-    final hasDest = (widget.prefillDestinationFacilityId != null && widget.prefillDestinationFacilityId!.isNotEmpty) ||
+    final hasDest = (widget.prefillDestinationFacilityId != null &&
+            widget.prefillDestinationFacilityId!.isNotEmpty) ||
         (user?.facilityId != null && user!.facilityId!.isNotEmpty);
-    final destFacility = user?.facilityName ?? (widget.prefillDestinationFacilityId != null ? 'Alert Assigned Facility' : 'Not available');
+    final destFacility = user?.facilityName ??
+        (widget.prefillDestinationFacilityId != null
+            ? 'Alert Assigned Facility'
+            : 'Not available');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -553,7 +603,9 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
         children: [
           Text('Review & Confirm Requisition', style: AppTextStyles.titleLarge),
           const SizedBox(height: 6),
-          Text('Verify details before submitting to the AI Redistribution Engine.', style: AppTextStyles.bodyMedium),
+          Text(
+              'Verify details before submitting to the AI Redistribution Engine.',
+              style: AppTextStyles.bodyMedium),
           const SizedBox(height: 20),
 
           // Medicine & Requisition Card
@@ -570,9 +622,12 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('REQUEST ITEM', style: AppTextStyles.badge.copyWith(color: AppColors.primary)),
+                    Text('REQUEST ITEM',
+                        style: AppTextStyles.badge
+                            .copyWith(color: AppColors.primary)),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: _urgencyTier == 'Emergency'
                             ? AppColors.errorLight
@@ -596,21 +651,26 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(_selectedMedicine?.name ?? '', style: AppTextStyles.titleLarge),
+                Text(_selectedMedicine?.name ?? '',
+                    style: AppTextStyles.titleLarge),
                 const SizedBox(height: 4),
-                Text('Code: ${_selectedMedicine?.code ?? ""} • Requested: $_quantity ${_selectedMedicine?.unit ?? "units"}', style: AppTextStyles.bodyMedium),
+                Text(
+                    'Code: ${_selectedMedicine?.code ?? ""} • Requested: $_quantity ${_selectedMedicine?.unit ?? "units"}',
+                    style: AppTextStyles.bodyMedium),
                 const Divider(height: 24),
 
                 // Destination info
                 Row(
                   children: [
-                    const Icon(Icons.location_on_rounded, size: 18, color: AppColors.primary),
+                    const Icon(Icons.location_on_rounded,
+                        size: 18, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Receiving Facility', style: AppTextStyles.bodySmall),
+                          Text('Receiving Facility',
+                              style: AppTextStyles.bodySmall),
                           Text(destFacility, style: AppTextStyles.titleSmall),
                         ],
                       ),
@@ -629,12 +689,14 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
             decoration: BoxDecoration(
               color: AppColors.primarySurface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primaryLight.withOpacity(0.5)),
+              border:
+                  Border.all(color: AppColors.primaryLight.withOpacity(0.5)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryDark, size: 24),
+                const Icon(Icons.auto_awesome_rounded,
+                    color: AppColors.primaryDark, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -642,12 +704,14 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                     children: [
                       Text(
                         'Automated Source Facility Matching',
-                        style: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryDark),
+                        style: AppTextStyles.titleSmall
+                            .copyWith(color: AppColors.primaryDark),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Source facility is not hardcoded. The Redistribution Planning Agent will automatically discover regional surplus stock and propose the optimal supplying facility.',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark),
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.primaryDark),
                       ),
                     ],
                   ),
@@ -671,9 +735,12 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Manifest Notes', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                  Text('Manifest Notes',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textMuted)),
                   const SizedBox(height: 4),
-                  Text(_notesController.text.trim(), style: AppTextStyles.bodyMedium),
+                  Text(_notesController.text.trim(),
+                      style: AppTextStyles.bodyMedium),
                 ],
               ),
             ),
@@ -689,12 +756,14 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded, color: AppColors.error),
+                  const Icon(Icons.error_outline_rounded,
+                      color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'No receiving facility assigned to your user account or alert. Submission is blocked.',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.error),
                     ),
                   ),
                 ],
@@ -710,7 +779,8 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
                   )
                 : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -744,14 +814,16 @@ class _NewRequestWizardState extends ConsumerState<NewRequestWizard> {
               color: AppColors.successLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_rounded, size: 54, color: AppColors.success),
+            child: const Icon(Icons.check_circle_rounded,
+                size: 54, color: AppColors.success),
           ),
           const SizedBox(height: 20),
           Text('Requisition Submitted!', style: AppTextStyles.displayMedium),
           const SizedBox(height: 8),
           Text(
             'Transfer #: ${_createdTransferNumber ?? ""}',
-            style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.bold),
+            style: AppTextStyles.titleMedium.copyWith(
+                color: AppColors.primaryDark, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Text(
@@ -793,7 +865,8 @@ class _StepHeaderItem extends StatelessWidget {
   final String label;
   final bool isActive;
 
-  const _StepHeaderItem({required this.stepNum, required this.label, required this.isActive});
+  const _StepHeaderItem(
+      {required this.stepNum, required this.label, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
@@ -802,10 +875,14 @@ class _StepHeaderItem extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 12,
-          backgroundColor: isActive ? AppColors.primary : AppColors.surfaceSubtle,
+          backgroundColor:
+              isActive ? AppColors.primary : AppColors.surfaceSubtle,
           child: Text(
             '$stepNum',
-            style: TextStyle(fontSize: 11, color: isActive ? Colors.white : AppColors.textMuted, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontSize: 11,
+                color: isActive ? Colors.white : AppColors.textMuted,
+                fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(width: 8),
@@ -849,13 +926,18 @@ class _UrgencyOptionTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isSelected ? activeColor : AppColors.border),
       ),
-      child: RadioListTile<String>(
-        value: value,
-        groupValue: groupValue,
-        activeColor: activeColor,
-        title: Text(title, style: AppTextStyles.titleSmall.copyWith(color: isSelected ? activeColor : AppColors.textPrimary)),
-        subtitle: Text(subtitle, style: AppTextStyles.bodySmall),
-        onChanged: onChanged,
+      child: Material(
+        color: Colors.transparent,
+        child: RadioListTile<String>(
+          value: value,
+          groupValue: groupValue,
+          activeColor: activeColor,
+          title: Text(title,
+              style: AppTextStyles.titleSmall.copyWith(
+                  color: isSelected ? activeColor : AppColors.textPrimary)),
+          subtitle: Text(subtitle, style: AppTextStyles.bodySmall),
+          onChanged: onChanged,
+        ),
       ),
     );
   }

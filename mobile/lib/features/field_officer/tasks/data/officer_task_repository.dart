@@ -12,11 +12,11 @@ class PickupProof {
   PickupProof({this.signature, this.notes, this.latitude, this.longitude});
 
   Map<String, dynamic> toJson() => {
-    if (signature != null) 'signature': signature,
-    if (notes != null) 'notes': notes,
-    if (latitude != null) 'latitude': latitude,
-    if (longitude != null) 'longitude': longitude,
-  };
+        if (signature != null) 'signature': signature,
+        if (notes != null) 'notes': notes,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      };
 }
 
 class DeliveryProof {
@@ -26,15 +26,20 @@ class DeliveryProof {
   final double? latitude;
   final double? longitude;
 
-  DeliveryProof({this.signature, this.recipientName, this.notes, this.latitude, this.longitude});
+  DeliveryProof(
+      {this.signature,
+      this.recipientName,
+      this.notes,
+      this.latitude,
+      this.longitude});
 
   Map<String, dynamic> toJson() => {
-    if (signature != null) 'signature': signature,
-    if (recipientName != null) 'recipientName': recipientName,
-    if (notes != null) 'notes': notes,
-    if (latitude != null) 'latitude': latitude,
-    if (longitude != null) 'longitude': longitude,
-  };
+        if (signature != null) 'signature': signature,
+        if (recipientName != null) 'recipientName': recipientName,
+        if (notes != null) 'notes': notes,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      };
 }
 
 class OfficerTaskRepository {
@@ -42,8 +47,10 @@ class OfficerTaskRepository {
 
   OfficerTaskRepository(this._dio);
 
-  Future<List<TransferModel>> getAssignedTasks({int page = 1, int pageSize = 20}) async {
-    final resp = await _dio.get('/api/transfers/assigned-to-me', queryParameters: {
+  Future<List<TransferModel>> getAssignedTasks(
+      {int page = 1, int pageSize = 20}) async {
+    final resp =
+        await _dio.get('/api/transfers/assigned-to-me', queryParameters: {
       'page': page,
       'pageSize': pageSize,
     });
@@ -62,14 +69,17 @@ class OfficerTaskRepository {
       list = data;
     }
 
-    return list.map((j) => TransferModel.fromJson(j as Map<String, dynamic>)).toList();
+    return list
+        .map((j) => TransferModel.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> acceptTask(String transferId) =>
       _dio.post('/api/transfers/$transferId/accept');
 
   Future<void> declineTask(String transferId, [String? notes]) =>
-      _dio.post('/api/transfers/$transferId/decline', data: notes != null ? {'notes': notes} : null);
+      _dio.post('/api/transfers/$transferId/decline',
+          data: notes != null ? {'notes': notes} : null);
 
   Future<void> confirmPickup(String transferId, PickupProof proof) =>
       _dio.patch(
@@ -88,6 +98,7 @@ final officerTaskRepositoryProvider = Provider<OfficerTaskRepository>((ref) {
   return OfficerTaskRepository(DioClient().dio);
 });
 
-final assignedTasksProvider = FutureProvider.autoDispose<List<TransferModel>>((ref) async {
+final assignedTasksProvider =
+    FutureProvider.autoDispose<List<TransferModel>>((ref) async {
   return ref.watch(officerTaskRepositoryProvider).getAssignedTasks();
 });

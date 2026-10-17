@@ -9,6 +9,8 @@ import {
   TransferNotificationDto,
 } from '../types/redistribution';
 
+export * from '@/features/redistribution/api';
+
 export interface TransferFilterParams {
   status?: string;
   sourceFacilityId?: string;

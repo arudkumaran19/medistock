@@ -28,10 +28,6 @@ export interface FacilityRef {
   id: string;
   code: string;
   name: string;
-  address?: string | null;
-  city?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
   isActive?: boolean;
 }
 
@@ -80,18 +76,8 @@ export function useReferenceData() {
     registerReferenceNames(medicines.data ?? [], facilities.data ?? []);
   }
 
-  const isError = medicines.isError || facilities.isError;
-  const error = medicines.error || facilities.error;
-  const refetch = () => {
-    medicines.refetch();
-    facilities.refetch();
-  };
-
   return {
     isLoading: medicines.isLoading || facilities.isLoading,
-    isError,
-    error,
-    refetch,
     medicines: medicines.data ?? [],
     facilities: facilities.data ?? [],
   };

@@ -15,7 +15,8 @@ class MedicineCatalogueScreen extends StatefulWidget {
   const MedicineCatalogueScreen({super.key});
 
   @override
-  State<MedicineCatalogueScreen> createState() => _MedicineCatalogueScreenState();
+  State<MedicineCatalogueScreen> createState() =>
+      _MedicineCatalogueScreenState();
 }
 
 class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
@@ -38,7 +39,8 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
   }
 
   void _reload() {
-    setState(() => _future = _service.medicines(includeArchived: _includeArchived));
+    setState(
+        () => _future = _service.medicines(includeArchived: _includeArchived));
   }
 
   Future<void> _report(Future<void> Function() action, String success) async {
@@ -46,13 +48,16 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
       await action();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(success), backgroundColor: const Color(0xFF0F766E)),
+        SnackBar(
+            content: Text(success), backgroundColor: const Color(0xFF0F766E)),
       );
       _reload();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendly(e)), backgroundColor: const Color(0xFFDC2626)),
+        SnackBar(
+            content: Text(_friendly(e)),
+            backgroundColor: const Color(0xFFDC2626)),
       );
     }
   }
@@ -79,7 +84,9 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
         actions: [
           IconButton(
             tooltip: _includeArchived ? 'Hide archived' : 'Show archived',
-            icon: Icon(_includeArchived ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+            icon: Icon(_includeArchived
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined),
             onPressed: () {
               setState(() => _includeArchived = !_includeArchived);
               _reload();
@@ -107,7 +114,8 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
               decoration: InputDecoration(
                 hintText: 'Search by name or code',
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 isDense: true,
               ),
             ),
@@ -172,7 +180,8 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
           itemBuilder: (context, i) => _MedicineCard(
             medicine: items[i],
             onEdit: () => _openEdit(items[i]),
-            onArchive: items[i].isActive ? () => _confirmArchive(items[i]) : null,
+            onArchive:
+                items[i].isActive ? () => _confirmArchive(items[i]) : null,
           ),
         );
       },
@@ -253,7 +262,8 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626)),
             onPressed: () {
               final text = controller.text.trim();
               // The server requires a reason; refusing here keeps the button
@@ -279,7 +289,8 @@ class _MedicineCatalogueScreenState extends State<MedicineCatalogueScreen> {
 // ─────────────────────────────────────────────────────────────────────
 
 class _MedicineCard extends StatelessWidget {
-  const _MedicineCard({required this.medicine, required this.onEdit, this.onArchive});
+  const _MedicineCard(
+      {required this.medicine, required this.onEdit, this.onArchive});
 
   final InventoryMedicine medicine;
   final VoidCallback onEdit;
@@ -294,7 +305,9 @@ class _MedicineCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: archived ? const Color(0xFFF8FAFC) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: archived ? const Color(0xFFE2E8F0) : const Color(0xFFD7E4E1)),
+        border: Border.all(
+            color:
+                archived ? const Color(0xFFE2E8F0) : const Color(0xFFD7E4E1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,20 +320,26 @@ class _MedicineCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: archived ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                    color: archived
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF0F172A),
                   ),
                 ),
               ),
               if (archived)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Text(
                     'Archived',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B)),
                   ),
                 ),
             ],
@@ -342,7 +361,8 @@ class _MedicineCard extends StatelessWidget {
               if (onArchive != null)
                 TextButton.icon(
                   onPressed: onArchive,
-                  style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+                  style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626)),
                   icon: const Icon(Icons.archive_outlined, size: 18),
                   label: const Text('Archive'),
                 ),
@@ -392,7 +412,8 @@ class _MedicineFormSheetState extends State<_MedicineFormSheet> {
     _code = TextEditingController(text: existing?.code ?? '');
     _name = TextEditingController(text: existing?.name ?? '');
     _unit = TextEditingController(text: existing?.unit ?? '');
-    _minimum = TextEditingController(text: '${existing?.minimumStockLevel ?? 0}');
+    _minimum =
+        TextEditingController(text: '${existing?.minimumStockLevel ?? 0}');
   }
 
   @override
@@ -419,7 +440,8 @@ class _MedicineFormSheetState extends State<_MedicineFormSheet> {
       return;
     }
     if (unit.isEmpty) {
-      setState(() => _error = 'A unit is required, for example tablet or capsule.');
+      setState(
+          () => _error = 'A unit is required, for example tablet or capsule.');
       return;
     }
     if (minimum == null || minimum < 0) {
@@ -429,7 +451,8 @@ class _MedicineFormSheetState extends State<_MedicineFormSheet> {
 
     Navigator.pop(
       context,
-      _MedicineFormResult(code: code, name: name, unit: unit, minimumStockLevel: minimum),
+      _MedicineFormResult(
+          code: code, name: name, unit: unit, minimumStockLevel: minimum),
     );
   }
 
@@ -499,7 +522,9 @@ class _MedicineFormSheetState extends State<_MedicineFormSheet> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+              Text(_error!,
+                  style:
+                      const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
             ],
             const SizedBox(height: 20),
             SizedBox(
@@ -519,7 +544,11 @@ class _MedicineFormSheetState extends State<_MedicineFormSheet> {
 // ─────────────────────────────────────────────────────────────────────
 
 class _Message extends StatelessWidget {
-  const _Message({required this.icon, required this.title, required this.detail, this.action});
+  const _Message(
+      {required this.icon,
+      required this.title,
+      required this.detail,
+      this.action});
 
   final IconData icon;
   final String title, detail;
@@ -535,7 +564,9 @@ class _Message extends StatelessWidget {
           children: [
             Icon(icon, size: 44, color: const Color(0xFF94A3B8)),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text(
               detail,

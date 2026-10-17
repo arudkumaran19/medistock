@@ -95,8 +95,7 @@ class _StockLookupScreenState extends State<StockLookupScreen> {
                       labelText: 'Search medicine or facility',
                       border: OutlineInputBorder(),
                     ),
-                    onChanged: (value) =>
-                        setState(() => query = value),
+                    onChanged: (value) => setState(() => query = value),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(

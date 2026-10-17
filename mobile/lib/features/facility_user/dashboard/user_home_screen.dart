@@ -57,7 +57,8 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
         }
       });
 
-      _shortageDismissedSub = SignalRClient().onShortageAlertDismissed.listen((data) {
+      _shortageDismissedSub =
+          SignalRClient().onShortageAlertDismissed.listen((data) {
         if (mounted) {
           final id = data['id']?.toString() ?? data['Id']?.toString();
           if (id != null && id.isNotEmpty) {
@@ -93,8 +94,10 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
     final alertsAsync = ref.watch(alertsProvider);
     final openedAlerts = ref.watch(openedAlertsProvider);
     final alerts = alertsAsync.valueOrNull ?? [];
-    final unreadAlerts = alerts.where((a) => !openedAlerts.contains(a.id)).toList();
-    final latestUnreadAlert = unreadAlerts.isNotEmpty ? unreadAlerts.first : null;
+    final unreadAlerts =
+        alerts.where((a) => !openedAlerts.contains(a.id)).toList();
+    final latestUnreadAlert =
+        unreadAlerts.isNotEmpty ? unreadAlerts.first : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -107,14 +110,16 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.local_pharmacy_rounded, color: Colors.white, size: 20),
+              child: const Icon(Icons.local_pharmacy_rounded,
+                  color: Colors.white, size: 20),
             ),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('MediStock AI', style: AppTextStyles.titleMedium),
-                Text(user?.facilityName ?? 'Facility Portal', style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
+                Text(user?.facilityName ?? 'Facility Portal',
+                    style: AppTextStyles.bodySmall.copyWith(fontSize: 10)),
               ],
             ),
           ],
@@ -138,7 +143,8 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               backgroundColor: AppColors.primarySurface,
               child: Text(
                 user?.name.substring(0, 1) ?? 'K',
-                style: AppTextStyles.badge.copyWith(color: AppColors.primaryDark),
+                style:
+                    AppTextStyles.badge.copyWith(color: AppColors.primaryDark),
               ),
             ),
           ),
@@ -153,16 +159,25 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primarySurface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+                      Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle)),
                       const SizedBox(width: 6),
-                      Text('Grid Connected • AI Sync Active (2m ago)', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark, fontWeight: FontWeight.w600)),
+                      Text('Grid Connected • AI Sync Active (2m ago)',
+                          style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -181,7 +196,8 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.location_on_outlined, size: 14, color: AppColors.primary),
+                const Icon(Icons.location_on_outlined,
+                    size: 14, color: AppColors.primary),
                 const SizedBox(width: 4),
                 Text(
                   user?.facilityName ?? 'Facility Portal',
@@ -195,10 +211,13 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
               _ShortageAlertNotificationCard(
                 alert: latestUnreadAlert,
                 onTap: () {
-                  ref.read(openedAlertsProvider.notifier).markAsOpened(latestUnreadAlert.id);
+                  ref
+                      .read(openedAlertsProvider.notifier)
+                      .markAsOpened(latestUnreadAlert.id);
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => VerifyShortageScreen(shortageAlert: latestUnreadAlert.toJson()),
+                      builder: (_) => VerifyShortageScreen(
+                          shortageAlert: latestUnreadAlert.toJson()),
                     ),
                   );
                 },
@@ -208,7 +227,9 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
             const SizedBox(height: 20),
 
             // OPERATIONAL VITALS
-            Text('OPERATIONAL VITALS', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+            Text('OPERATIONAL VITALS',
+                style: AppTextStyles.badge
+                    .copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -227,14 +248,21 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Total Stock Items', style: AppTextStyles.bodySmall),
-                            const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.primary),
+                            Text('Total Stock Items',
+                                style: AppTextStyles.bodySmall),
+                            const Icon(Icons.inventory_2_outlined,
+                                size: 16, color: AppColors.primary),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Text('14,820', style: AppTextStyles.displayLarge.copyWith(fontSize: 26)),
+                        Text('14,820',
+                            style: AppTextStyles.displayLarge
+                                .copyWith(fontSize: 26)),
                         const SizedBox(height: 4),
-                        Text('+5.2% vs previous wk', style: AppTextStyles.bodySmall.copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
+                        Text('+5.2% vs previous wk',
+                            style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -248,22 +276,32 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.errorLight,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      border:
+                          Border.all(color: AppColors.error.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Low Stock Alerts', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+                        Text('Low Stock Alerts',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.error)),
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Text('3', style: AppTextStyles.displayLarge.copyWith(fontSize: 26, color: AppColors.error)),
+                            Text('3',
+                                style: AppTextStyles.displayLarge.copyWith(
+                                    fontSize: 26, color: AppColors.error)),
                             const SizedBox(width: 6),
-                            Text('CRITICAL ITEMS', style: AppTextStyles.badge.copyWith(color: AppColors.error)),
+                            Text('CRITICAL ITEMS',
+                                style: AppTextStyles.badge
+                                    .copyWith(color: AppColors.error)),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text('Amoxicillin, Ceftriaxone...', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error, fontSize: 11), overflow: TextOverflow.ellipsis),
+                        Text('Amoxicillin, Ceftriaxone...',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.error, fontSize: 11),
+                            overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -277,7 +315,9 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('QUICK OPERATIONS', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+                Text('QUICK OPERATIONS',
+                    style: AppTextStyles.badge
+                        .copyWith(color: AppColors.textSecondary)),
                 Text('1-Tap Portals', style: AppTextStyles.bodySmall),
               ],
             ),
@@ -349,152 +389,178 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
             const SizedBox(height: 24),
 
             ref.watch(myRequestsProvider(null)).when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (requests) {
-                final inTransitRequest = requests.where((r) {
-                  final s = r.status.toLowerCase();
-                  return s == 'intransit' || s == 'in transit';
-                }).firstOrNull;
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (requests) {
+                    final inTransitRequest = requests.where((r) {
+                      final s = r.status.toLowerCase();
+                      return s == 'intransit' || s == 'in transit';
+                    }).firstOrNull;
 
-                if (inTransitRequest == null) return const SizedBox.shrink();
+                    if (inTransitRequest == null)
+                      return const SizedBox.shrink();
 
-                final medicineName = inTransitRequest.items.isNotEmpty
-                    ? inTransitRequest.items.first.itemName
-                    : 'Emergency Requisition';
-                final routeText =
-                    '${inTransitRequest.sourceFacilityName} ➔ ${inTransitRequest.destinationFacilityName}';
+                    final medicineName = inTransitRequest.items.isNotEmpty
+                        ? inTransitRequest.items.first.itemName
+                        : 'Emergency Requisition';
+                    final routeText =
+                        '${inTransitRequest.sourceFacilityName} ➔ ${inTransitRequest.destinationFacilityName}';
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: InkWell(
-                    onTap: () => context.push('/user/requests/${inTransitRequest.id}'),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: InkWell(
+                        onTap: () => context
+                            .push('/user/requests/${inTransitRequest.id}'),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.info.withOpacity(0.4)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: AppColors.info.withOpacity(0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Icon(Icons.ac_unit_rounded, size: 18, color: AppColors.info),
-                                  const SizedBox(width: 8),
-                                  Text('Live Transit Corridor', style: AppTextStyles.titleMedium),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.ac_unit_rounded,
+                                          size: 18, color: AppColors.info),
+                                      const SizedBox(width: 8),
+                                      Text('Live Transit Corridor',
+                                          style: AppTextStyles.titleMedium),
+                                    ],
+                                  ),
+                                  Text(
+                                    inTransitRequest.transferNumber.isNotEmpty
+                                        ? inTransitRequest.transferNumber
+                                        : '#REQ-${inTransitRequest.id.substring(0, 8)}',
+                                    style: AppTextStyles.badge
+                                        .copyWith(color: AppColors.info),
+                                  ),
                                 ],
                               ),
-                              Text(
-                                inTransitRequest.transferNumber.isNotEmpty
-                                    ? inTransitRequest.transferNumber
-                                    : '#REQ-${inTransitRequest.id.substring(0, 8)}',
-                                style: AppTextStyles.badge.copyWith(color: AppColors.info),
+                              const SizedBox(height: 14),
+                              const ProgressStepper(currentStep: 3),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      medicineName,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                          fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      routeText,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.textSecondary),
+                                      textAlign: TextAlign.end,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
-                          const ProgressStepper(currentStep: 3),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  medicineName,
-                                  style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  routeText,
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                                  textAlign: TextAlign.end,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
 
             // RECENT REQUESTS
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('RECENT REQUESTS', style: AppTextStyles.badge.copyWith(color: AppColors.textSecondary)),
+                Text('RECENT REQUESTS',
+                    style: AppTextStyles.badge
+                        .copyWith(color: AppColors.textSecondary)),
                 TextButton(
                   onPressed: () => context.push('/user/requests'),
-                  child: Text('View All', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                  child: Text('View All',
+                      style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
             const SizedBox(height: 8),
 
             ref.watch(myRequestsProvider(null)).when(
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-              error: (err, _) => Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text('Failed to load recent requests', style: AppTextStyles.bodyMedium),
-              ),
-              data: (requests) {
-                if (requests.isEmpty) {
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                  loading: () => const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator())),
+                  error: (err, _) => Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Center(
-                      child: Text('No requisitions recorded yet.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
-                    ),
-                  );
-                }
+                    child: Text('Failed to load recent requests',
+                        style: AppTextStyles.bodyMedium),
+                  ),
+                  data: (requests) {
+                    if (requests.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Center(
+                          child: Text('No requisitions recorded yet.',
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.textMuted)),
+                        ),
+                      );
+                    }
 
-                final displayRequests = requests.take(3).toList();
-                return Column(
-                  children: displayRequests.map((r) {
-                    final medicineName = r.items.isNotEmpty ? r.items.first.itemName : 'Requisition Item';
-                    final details = r.items.isNotEmpty
-                        ? '${r.items.first.requestedQuantity} ${r.items.first.unitOfMeasure}'
-                        : 'Requisition';
-                    final route = '${r.sourceFacilityName} ➔ ${r.destinationFacilityName}';
-                    final idLabel = r.transferNumber.isNotEmpty ? r.transferNumber : '#REQ-${r.id.substring(0, 8)}';
+                    final displayRequests = requests.take(3).toList();
+                    return Column(
+                      children: displayRequests.map((r) {
+                        final medicineName = r.items.isNotEmpty
+                            ? r.items.first.itemName
+                            : 'Requisition Item';
+                        final details = r.items.isNotEmpty
+                            ? '${r.items.first.requestedQuantity} ${r.items.first.unitOfMeasure}'
+                            : 'Requisition';
+                        final route =
+                            '${r.sourceFacilityName} ➔ ${r.destinationFacilityName}';
+                        final idLabel = r.transferNumber.isNotEmpty
+                            ? r.transferNumber
+                            : '#REQ-${r.id.substring(0, 8)}';
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _RecentRequestCard(
-                        id: idLabel,
-                        medicineName: medicineName,
-                        details: details,
-                        route: route,
-                        status: r.status.toUpperCase(),
-                        onTap: () => context.push('/user/requests/${r.id}'),
-                      ),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _RecentRequestCard(
+                            id: idLabel,
+                            medicineName: medicineName,
+                            details: details,
+                            route: route,
+                            status: r.status.toUpperCase(),
+                            onTap: () => context.push('/user/requests/${r.id}'),
+                          ),
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
-                );
-              },
-            ),
+                  },
+                ),
           ],
         ),
       ),
@@ -511,11 +577,16 @@ class _UserHomeScreenState extends ConsumerState<UserHomeScreen> {
           if (index == 4) context.push('/user/profile');
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2_rounded), label: 'Inventory'),
-          BottomNavigationBarItem(icon: Icon(Icons.swap_horiz_rounded), label: 'Requests'),
-          BottomNavigationBarItem(icon: Icon(Icons.warning_amber_rounded), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.inventory_2_rounded), label: 'Inventory'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.swap_horiz_rounded), label: 'Requests'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.warning_amber_rounded), label: 'Alerts'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
         ],
       ),
     );
@@ -558,13 +629,17 @@ class _QuickOpCard extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                  color: iconBg, borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(height: 6),
             Text(title, style: AppTextStyles.titleSmall),
             const SizedBox(height: 2),
-            Text(subtitle, style: AppTextStyles.bodySmall.copyWith(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(subtitle,
+                style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -607,20 +682,29 @@ class _RecentRequestCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(id, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                Text(id,
+                    style: AppTextStyles.bodySmall
+                        .copyWith(fontWeight: FontWeight.bold)),
                 StatusChip(status: status),
               ],
             ),
             const SizedBox(height: 8),
-            Text(medicineName, style: AppTextStyles.titleSmall.copyWith(fontSize: 16)),
+            Text(medicineName,
+                style: AppTextStyles.titleSmall.copyWith(fontSize: 16)),
             const SizedBox(height: 2),
             Text(details, style: AppTextStyles.bodySmall),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.alt_route_rounded, size: 14, color: AppColors.primary),
+                const Icon(Icons.alt_route_rounded,
+                    size: 14, color: AppColors.primary),
                 const SizedBox(width: 6),
-                Expanded(child: Text(route, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+                Expanded(
+                    child: Text(route,
+                        style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis)),
               ],
             ),
           ],
@@ -675,7 +759,8 @@ class _ShortageAlertNotificationCard extends StatelessWidget {
                   color: badgeColor.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.warning_amber_rounded, color: badgeColor, size: 24),
+                child: Icon(Icons.warning_amber_rounded,
+                    color: badgeColor, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -685,26 +770,32 @@ class _ShortageAlertNotificationCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: badgeColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             isCritical ? 'CRITICAL ALERT' : 'SHORTAGE ALERT',
-                            style: AppTextStyles.badge.copyWith(color: Colors.white, fontSize: 10),
+                            style: AppTextStyles.badge
+                                .copyWith(color: Colors.white, fontSize: 10),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             'NEW',
-                            style: AppTextStyles.badge.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: AppTextStyles.badge.copyWith(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -712,17 +803,20 @@ class _ShortageAlertNotificationCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Shortage Risk: ${alert.medicineName}',
-                      style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                      style: AppTextStyles.titleSmall
+                          .copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Stock: ${alert.currentStock} units • Reorder: ${alert.suggestedQuantity} units (${alert.facilityName})',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textPrimary),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textMuted),
             ],
           ),
         ),

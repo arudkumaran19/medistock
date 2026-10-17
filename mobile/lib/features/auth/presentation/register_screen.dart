@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../data/auth_service.dart';
 import 'package:go_router/go_router.dart';
+import '../data/auth_service.dart';
+import '../../../core/routing/app_router.dart';
+import 'dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -40,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorMessage = null;
     });
     try {
-      await _authService.register(
+      final response = await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         confirmPassword: _confirmPasswordController.text,
@@ -49,9 +51,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: 'OperationalStaff',
       );
       if (!mounted) return;
-      context.go('/user/dashboard');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          settings: const RouteSettings(name: AppRouter.dashboard),
+          builder: (_) =>
+              DashboardScreen(user: response.user, authService: _authService),
+        ),
+        (route) => false,
+      );
     } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      setState(
+          () => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -67,7 +77,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/login/user'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/login/user'),
         ),
       ),
       body: SafeArea(
@@ -78,7 +89,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               constraints: const BoxConstraints(maxWidth: 420),
               child: Card(
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Form(
@@ -110,7 +122,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'Create an operational staff account for clinical inventory access',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.grey[600]),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 28),
@@ -118,20 +131,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         // Error banner
                         if (_errorMessage != null) ...[
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF2F2),
-                              border: Border.all(color: const Color(0xFFFECACA)),
+                              border:
+                                  Border.all(color: const Color(0xFFFECACA)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline, color: Color(0xFF991B1B), size: 18),
+                                const Icon(Icons.error_outline,
+                                    color: Color(0xFF991B1B), size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     _errorMessage!,
-                                    style: const TextStyle(fontSize: 13, color: Color(0xFF991B1B)),
+                                    style: const TextStyle(
+                                        fontSize: 13, color: Color(0xFF991B1B)),
                                   ),
                                 ),
                               ],
@@ -151,7 +168,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   labelText: 'First Name',
                                   border: OutlineInputBorder(),
                                 ),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Required'
+                                        : null,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -163,7 +183,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   labelText: 'Last Name',
                                   border: OutlineInputBorder(),
                                 ),
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Required'
+                                        : null,
                               ),
                             ),
                           ],
@@ -180,8 +203,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Email is required';
-                            if (!v.contains('@')) return 'Enter a valid email address';
+                            if (v == null || v.trim().isEmpty)
+                              return 'Email is required';
+                            if (!v.contains('@'))
+                              return 'Enter a valid email address';
                             return null;
                           },
                         ),
@@ -196,13 +221,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             border: const OutlineInputBorder(),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              icon: Icon(_obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Password is required';
-                            if (v.length < 6) return 'Password must be at least 6 characters';
+                            if (v == null || v.isEmpty)
+                              return 'Password is required';
+                            if (v.length < 6)
+                              return 'Password must be at least 6 characters';
                             return null;
                           },
                         ),
@@ -217,13 +247,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             border: const OutlineInputBorder(),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                              icon: Icon(_obscureConfirm
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                              onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm),
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Please confirm your password';
-                            if (v != _passwordController.text) return 'Passwords do not match';
+                            if (v == null || v.isEmpty)
+                              return 'Please confirm your password';
+                            if (v != _passwordController.text)
+                              return 'Passwords do not match';
                             return null;
                           },
                         ),
@@ -240,12 +275,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.security, size: 16, color: Color(0xFF166534)),
+                              const Icon(Icons.security,
+                                  size: 16, color: Color(0xFF166534)),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'RBAC Policy: Public registration creates an Operational Staff account. Privileged roles must be granted by a System Administrator.',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Color(0xFF166534)),
                                 ),
                               ),
                             ],
@@ -261,15 +298,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: cs.primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
                                     height: 22,
                                     width: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5, color: Colors.white),
                                   )
-                                : const Text('Register Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                                : const Text('Register Account',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w700)),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -278,9 +319,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Already authorized? ', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                            Text('Already authorized? ',
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[600])),
                             GestureDetector(
-                              onTap: () => context.canPop() ? context.pop() : context.go('/login/user'),
+                              onTap: () => context.canPop()
+                                  ? context.pop()
+                                  : context.go('/login/user'),
                               child: Text(
                                 'Sign In',
                                 style: TextStyle(

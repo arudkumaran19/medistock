@@ -29,7 +29,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _emailController = TextEditingController(
-      text: kDebugMode ? (isOfficer ? 'officer@medistock.com' : 'user@medistock.com') : '',
+      text: kDebugMode
+          ? (isOfficer ? 'officer@medistock.com' : 'user@medistock.com')
+          : '',
     );
     _passwordController = TextEditingController(
       text: kDebugMode ? 'Password123!' : '',
@@ -43,14 +45,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final controller = ref.read(authControllerProvider.notifier);
-    final success = await controller.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    final success = await ref.read(authControllerProvider.notifier).login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
     if (success && mounted) {
       if (isOfficer) {
@@ -75,7 +76,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final roleColor = isOfficer ? AppColors.secondary : AppColors.primary;
-    final roleTitle = isOfficer ? 'Field Officer Sign In' : 'Facility User Sign In';
+    final roleTitle =
+        isOfficer ? 'Field Officer Sign In' : 'Facility User Sign In';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -105,7 +107,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Row(
                     children: [
                       Icon(
-                        isOfficer ? Icons.local_shipping_rounded : Icons.local_hospital_rounded,
+                        isOfficer
+                            ? Icons.local_shipping_rounded
+                            : Icons.local_hospital_rounded,
                         color: roleColor,
                         size: 28,
                       ),
@@ -115,12 +119,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isOfficer ? 'FIELD LOGISTICS DISPATCH' : 'FACILITY & CLINIC PORTAL',
-                              style: AppTextStyles.badge.copyWith(color: roleColor),
+                              isOfficer
+                                  ? 'FIELD LOGISTICS DISPATCH'
+                                  : 'FACILITY & CLINIC PORTAL',
+                              style: AppTextStyles.badge
+                                  .copyWith(color: roleColor),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              isOfficer ? 'Authorized Courier Network' : 'Facility Inventory & Requisitions',
+                              isOfficer
+                                  ? 'Authorized Courier Network'
+                                  : 'Facility Inventory & Requisitions',
                               style: AppTextStyles.titleSmall,
                             ),
                           ],
@@ -132,23 +141,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 const SizedBox(height: 28),
 
-                if (authState.status == AuthStatus.error && authState.errorMessage != null)
+                if (authState.status == AuthStatus.error &&
+                    authState.errorMessage != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.errorLight,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      border:
+                          Border.all(color: AppColors.error.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.error),
+                        const Icon(Icons.error_outline_rounded,
+                            color: AppColors.error),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             authState.errorMessage!,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.error),
                           ),
                         ),
                       ],
@@ -166,8 +179,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     hintText: 'name@medistock.com',
                   ),
                   validator: (val) {
-                    if (val == null || val.trim().isEmpty) return 'Please enter your email';
-                    if (!val.contains('@')) return 'Enter a valid email address';
+                    if (val == null || val.trim().isEmpty)
+                      return 'Please enter your email';
+                    if (!val.contains('@'))
+                      return 'Enter a valid email address';
                     return null;
                   },
                 ),
@@ -184,14 +199,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     hintText: '••••••••',
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
                       },
                     ),
                   ),
                   validator: (val) {
-                    if (val == null || val.isEmpty) return 'Please enter your password';
+                    if (val == null || val.isEmpty)
+                      return 'Please enter your password';
                     return null;
                   },
                 ),
@@ -199,7 +217,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 28),
 
                 ElevatedButton(
-                  onPressed: authState.status == AuthStatus.loading ? null : _submit,
+                  onPressed:
+                      authState.status == AuthStatus.loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: roleColor,
                   ),
@@ -207,12 +226,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
                         )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Sign In to Dashboard', style: AppTextStyles.labelLarge.copyWith(color: Colors.white)),
+                            Text('Sign In to Dashboard',
+                                style: AppTextStyles.labelLarge
+                                    .copyWith(color: Colors.white)),
                             const SizedBox(width: 8),
                             const Icon(Icons.arrow_forward_rounded, size: 18),
                           ],
@@ -226,14 +248,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Center(
                     child: TextButton.icon(
                       onPressed: () {
-                        _emailController.text = isOfficer ? 'officer@medistock.com' : 'user@medistock.com';
+                        _emailController.text = isOfficer
+                            ? 'officer@medistock.com'
+                            : 'user@medistock.com';
                         _passwordController.text = 'Password123!';
                         _submit();
                       },
                       icon: const Icon(Icons.flash_on_rounded, size: 16),
                       label: Text(
                         'Sign In with Default Credentials',
-                        style: AppTextStyles.bodySmall.copyWith(color: roleColor, fontWeight: FontWeight.w600),
+                        style: AppTextStyles.bodySmall.copyWith(
+                            color: roleColor, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),

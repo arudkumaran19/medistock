@@ -18,7 +18,8 @@ class ForecastScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<PagedResponse<DemandForecast>> forecasts = ref.watch(forecastsProvider);
+    final AsyncValue<PagedResponse<DemandForecast>> forecasts =
+        ref.watch(forecastsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Demand forecast')),
@@ -88,12 +89,14 @@ class _ForecastCard extends StatelessWidget {
               value: forecast.predictedDemand.toStringAsFixed(0),
             ),
             MetricRow(label: 'Horizon', value: '${forecast.horizonDays} days'),
-            MetricRow(label: 'History window', value: '${forecast.windowDays} days'),
+            MetricRow(
+                label: 'History window', value: '${forecast.windowDays} days'),
             MetricRow(
               label: 'Confidence',
               value: '${(forecast.confidenceScore * 100).round()}%',
             ),
-            MetricRow(label: 'Lead time', value: '${forecast.leadTimeDays} days'),
+            MetricRow(
+                label: 'Lead time', value: '${forecast.leadTimeDays} days'),
           ],
         ),
       ),

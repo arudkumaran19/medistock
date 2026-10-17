@@ -37,7 +37,10 @@ class _ExpiryMonitorScreenState extends State<ExpiryMonitorScreen> {
       appBar: AppBar(
         title: const Text('Expiry monitor'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), tooltip: 'Refresh', onPressed: _reload),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _reload),
         ],
       ),
       body: Column(
@@ -46,7 +49,8 @@ class _ExpiryMonitorScreenState extends State<ExpiryMonitorScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(
               children: [
-                const Text('Within', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Within',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Wrap(
@@ -120,7 +124,8 @@ class _ExpiryMonitorScreenState extends State<ExpiryMonitorScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute<void>(
-                  builder: (_) => BatchDetailScreen(batchNumber: batch.batchNumber),
+                  builder: (_) =>
+                      BatchDetailScreen(batchNumber: batch.batchNumber),
                 ),
               ),
             );
@@ -139,7 +144,9 @@ class _ExpiryMonitorScreenState extends State<ExpiryMonitorScreen> {
           children: [
             Icon(icon, size: 44, color: const Color(0xFF94A3B8)),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Text(
               detail,
@@ -155,7 +162,8 @@ class _ExpiryMonitorScreenState extends State<ExpiryMonitorScreen> {
 }
 
 class _ExpiryCard extends StatelessWidget {
-  const _ExpiryCard({required this.batch, required this.daysLeft, required this.onTap});
+  const _ExpiryCard(
+      {required this.batch, required this.daysLeft, required this.onTap});
 
   final MedicineBatch batch;
   final int daysLeft;
@@ -194,17 +202,20 @@ class _ExpiryCard extends StatelessWidget {
                 children: [
                   Text(
                     batch.medicineName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '${batch.batchNumber} · ${batch.quantityOnHand} on hand',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     'Expires ${expiry.year}-${expiry.month.toString().padLeft(2, '0')}-${expiry.day.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
               ),
@@ -217,7 +228,8 @@ class _ExpiryCard extends StatelessWidget {
               ),
               child: Text(
                 label,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: accent),
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: accent),
               ),
             ),
           ],

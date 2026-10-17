@@ -15,18 +15,22 @@ class AuthInterceptor extends Interceptor {
       return await _readToken();
     }
     try {
-      return await _storage.getToken().timeout(const Duration(milliseconds: 100));
+      return await _storage
+          .getToken()
+          .timeout(const Duration(milliseconds: 100));
     } catch (_) {
       return null;
     }
   }
 
   /// For http-based API calls (Redistribution Slice)
-  Future<Map<String, String>> getHeaders({Map<String, String>? extraHeaders}) async {
+  Future<Map<String, String>> getHeaders(
+      {Map<String, String>? extraHeaders}) async {
     final token = await _getToken();
     Map<String, dynamic>? user;
     try {
-      user = await _storage.getUser().timeout(const Duration(milliseconds: 100));
+      user =
+          await _storage.getUser().timeout(const Duration(milliseconds: 100));
     } catch (_) {
       // Platform channels may not be available in test environments
     }

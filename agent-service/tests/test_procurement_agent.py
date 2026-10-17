@@ -7,6 +7,11 @@ from medistock_agents.models.agent_models import ProcurementAction, ProcurementA
 from medistock_agents.tools.procurement_tools import BackendUnavailableError
 from medistock_agents.main import app
 
+try:
+    from test_inventory_agent import _make_user_token
+except ModuleNotFoundError:
+    from tests.test_inventory_agent import _make_user_token
+
 
 class FakeProcurementBackend:
     def __init__(self, include_violations: bool = False, include_stale: bool = False):
@@ -455,6 +460,9 @@ def test_api_endpoint_procurement_agent():
             "payload": {"question": "What is the policy?"},
             "approved": False,
         },
+        # The route enforces role authorisation before any retrieval or tool execution,
+        # so the caller must present a permitted role, exactly as the API proxy does.
+        headers={"Authorization": f"Bearer {_make_user_token('SupplierOfficer')}"},
     )
     # The real backend may be offline in pure unit testing, but FastAPI schema and routing will execute
     assert response.status_code == 200
@@ -462,6 +470,35 @@ def test_api_endpoint_procurement_agent():
     assert "plan" in data
     assert "answer" in data
     assert "insights" in data
+
+
+def test_api_endpoint_refuses_a_role_without_procurement_access():
+    """A store role may not use the procurement agent, and no tool runs."""
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/procurement-agent/run",
+        json={
+            "action_type": "ask",
+            "payload": {"question": "Approve this order."},
+            "approved": False,
+        },
+        headers={"Authorization": f"Bearer {_make_user_token('OperationalStaff')}"},
+    )
+
+    assert response.status_code == 403
+    assert "your role does not permit" in response.json()["detail"]
+
+
+def test_api_endpoint_refuses_an_unauthenticated_caller():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/procurement-agent/run",
+        json={"action_type": "ask", "payload": {"question": "What is the policy?"}},
+    )
+
+    assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -494,11 +531,17 @@ def test_llm_provider_selection_ollama():
 async def test_gemini_provider_availability():
     from medistock_agents.llm.provider import GeminiProvider
 
+    # The quota flag is process-wide, so clear it first: another test may have
+    # simulated an exhausted quota and left it set.
+    GeminiProvider.reset_quota_state()
+
     unconfigured = GeminiProvider(api_key="")
     assert await unconfigured.is_available() is False
 
     configured = GeminiProvider(api_key="valid-test-key")
     assert await configured.is_available() is True
+
+    GeminiProvider.reset_quota_state()
 
 
 @pytest.mark.asyncio

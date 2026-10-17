@@ -18,7 +18,8 @@ class NotificationInboxScreen extends StatefulWidget {
   });
 
   @override
-  State<NotificationInboxScreen> createState() => _NotificationInboxScreenState();
+  State<NotificationInboxScreen> createState() =>
+      _NotificationInboxScreenState();
 }
 
 class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
@@ -65,7 +66,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     });
 
     try {
-      final items = await _apiService.getNotifications(audience: 'FieldOfficer');
+      final items =
+          await _apiService.getNotifications(audience: 'FieldOfficer');
       if (mounted) {
         setState(() {
           _notifications = items;
@@ -133,7 +135,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
         actions: [
           if (unreadCount > 0)
             TextButton.icon(
-              icon: const Icon(Icons.done_all_rounded, size: 16, color: AppColors.secondary),
+              icon: const Icon(Icons.done_all_rounded,
+                  size: 16, color: AppColors.secondary),
               label: const Text(
                 'Mark All Read',
                 style: TextStyle(
@@ -157,17 +160,20 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.statusRejected),
+                        const Icon(Icons.error_outline,
+                            size: 48, color: AppColors.statusRejected),
                         const SizedBox(height: 12),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style:
+                              const TextStyle(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadNotifications,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary),
                           child: const Text('Retry'),
                         ),
                       ],

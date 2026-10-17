@@ -149,7 +149,8 @@ void main() {
     await expectLater(
       repository.getShortageById('a1'),
       throwsA(
-        isA<ApiFailure>().having((ApiFailure f) => f.code, 'code', 'ALREADY_MAPPED'),
+        isA<ApiFailure>()
+            .having((ApiFailure f) => f.code, 'code', 'ALREADY_MAPPED'),
       ),
     );
   });

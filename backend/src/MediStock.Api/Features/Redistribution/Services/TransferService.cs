@@ -353,7 +353,7 @@ public class TransferService : ITransferService
             }
         }
 
-        if (!workflowTriggered && (transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty) && firstItem != null && medId != Guid.Empty)
+        if ((transfer.SourceFacilityId == null || transfer.SourceFacilityId == Guid.Empty) && firstItem != null && medId != Guid.Empty)
         {
             bool planningError = false;
             string? planningErrorMessage = null;
@@ -389,7 +389,7 @@ public class TransferService : ITransferService
                             WorkflowRunId = existingRun.Id,
                             StepNumber = existingRun.Steps.Count + 1,
                             StepName = "Planning execution error",
-                            Status = WorkflowStatus.Failed,
+                            Status = WorkflowStatus.Failed.ToString(),
                             OutputJson = System.Text.Json.JsonSerializer.Serialize(new { error = planningErrorMessage }),
                             ExecutedAt = DateTime.UtcNow
                         });
@@ -413,7 +413,7 @@ public class TransferService : ITransferService
                         WorkflowRunId = run.Id,
                         StepNumber = 1,
                         StepName = "Planning execution error",
-                        Status = WorkflowStatus.Failed,
+                        Status = WorkflowStatus.Failed.ToString(),
                         OutputJson = System.Text.Json.JsonSerializer.Serialize(new { error = planningErrorMessage }),
                         ExecutedAt = DateTime.UtcNow
                     });
@@ -482,7 +482,7 @@ public class TransferService : ITransferService
                         WorkflowRunId = run.Id,
                         StepNumber = 1,
                         StepName = "Detect Shortage & Initialize Context",
-                        Status = WorkflowStatus.Completed,
+                        Status = WorkflowStatus.Completed.ToString(),
                         InputJson = System.Text.Json.JsonSerializer.Serialize(new { transferId = transfer.Id, transferNumber = transfer.TransferNumber }),
                         OutputJson = System.Text.Json.JsonSerializer.Serialize(new { status = "Requested", submittedBy = userId }),
                         ExecutedAt = DateTime.UtcNow
@@ -494,14 +494,13 @@ public class TransferService : ITransferService
                         WorkflowRunId = run.Id,
                         StepNumber = 2,
                         StepName = "Awaiting Human-in-the-Loop Management Approval",
-                        Status = WorkflowStatus.WaitingForApproval,
+                        Status = WorkflowStatus.WaitingForApproval.ToString(),
                         InputJson = System.Text.Json.JsonSerializer.Serialize(new { prompt = "Transfer request submitted and ready for manager sign-off." }),
                         ExecutedAt = DateTime.UtcNow
                     });
 
                     _dbContext.WorkflowRuns.Add(run);
                     transfer.WorkflowRunId = run.Id;
-                    await _dbContext.SaveChangesAsync(ct);
                 }
                 else
                 {
@@ -509,10 +508,12 @@ public class TransferService : ITransferService
                     if (existingRun != null && existingRun.Status != WorkflowStatus.Approved && existingRun.Status != WorkflowStatus.Rejected)
                     {
                         existingRun.Status = WorkflowStatus.WaitingForApproval;
-                        await _dbContext.SaveChangesAsync(ct);
                     }
                 }
+
+                await _dbContext.SaveChangesAsync(ct);
             }
+
             else
             {
                 // =====================================================================
@@ -555,7 +556,7 @@ public class TransferService : ITransferService
                         WorkflowRunId = run.Id,
                         StepNumber = 1,
                         StepName = "Redistribution Candidate Analysis",
-                        Status = WorkflowStatus.Completed,
+                        Status = WorkflowStatus.Completed.ToString(),
                         OutputJson = System.Text.Json.JsonSerializer.Serialize(new { eligibleCandidatesCount = 0 }),
                         ExecutedAt = DateTime.UtcNow
                     });

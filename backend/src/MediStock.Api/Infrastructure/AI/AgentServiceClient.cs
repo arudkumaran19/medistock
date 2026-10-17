@@ -140,6 +140,58 @@ public sealed class AgentServiceClient
         }
     }
 
+    /// <summary>
+    /// Runs the inventory agent for a given action. Inventory vertical proxy.
+    /// Returns the raw JSON payload from the agent, or null when the service is
+    /// unconfigured, unreachable, or refuses – same safe-failure semantics.
+    /// </summary>
+    public async Task<System.Text.Json.JsonElement?> RunInventoryAgentAsync(
+        object request,
+        string? userToken,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ServiceToken) || _http.BaseAddress is null)
+        {
+            _logger.LogWarning("Agent service is not configured. Inventory agent call refused.");
+            return null;
+        }
+
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Post, "/api/inventory-agent/run")
+            {
+                Content = JsonContent.Create(request, options: JsonOptions),
+            };
+
+            message.Headers.Add("X-Internal-Token", _options.ServiceToken);
+
+            // Forward the user's JWT so the agent can call back into the .NET API
+            // with the user's own permissions rather than a privileged service account.
+            if (!string.IsNullOrWhiteSpace(userToken))
+            {
+                message.Headers.Add("X-User-Token", userToken);
+            }
+
+            using var response = await _http.SendAsync(message, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Inventory agent returned {StatusCode}.",
+                    (int)response.StatusCode);
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(
+                JsonOptions, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "Inventory agent service is unreachable.");
+            return null;
+        }
+    }
+
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
     {
         if (_http.BaseAddress is null)

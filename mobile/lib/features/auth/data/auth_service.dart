@@ -19,9 +19,9 @@ class UserFacilityInfo {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-  };
+        'id': id,
+        'name': name,
+      };
 }
 
 class AuthUser {
@@ -61,12 +61,18 @@ class AuthUser {
     );
   }
 
-  bool hasRole(String role) => roles.contains(role) || roles.contains('ADMIN') || roles.contains('Administrator');
+  bool hasRole(String role) =>
+      roles.contains(role) ||
+      roles.contains('ADMIN') ||
+      roles.contains('Administrator');
 
   bool get isAdmin => roles.any((r) => ['Administrator', 'ADMIN'].contains(r));
-  bool get isManager => roles.any((r) => ['FacilityManager', 'FACILITY_MANAGER'].contains(r));
-  bool get isSupplierOfficer => roles.any((r) => ['SupplierOfficer', 'SUPPLIER_OFFICER'].contains(r));
-  bool get isOperationalStaff => roles.any((r) => ['OperationalStaff', 'STORE_OFFICER'].contains(r));
+  bool get isManager =>
+      roles.any((r) => ['FacilityManager', 'FACILITY_MANAGER'].contains(r));
+  bool get isSupplierOfficer =>
+      roles.any((r) => ['SupplierOfficer', 'SUPPLIER_OFFICER'].contains(r));
+  bool get isOperationalStaff =>
+      roles.any((r) => ['OperationalStaff', 'STORE_OFFICER'].contains(r));
 
   String get roleLabel {
     if (isAdmin) return 'System Administrator';
@@ -109,7 +115,8 @@ class MobileAuthService {
     return _instance;
   }
 
-  MobileAuthService._internal({ApiClient? client}) : _client = client ?? ApiClient();
+  MobileAuthService._internal({ApiClient? client})
+      : _client = client ?? ApiClient();
 
   ApiClient _client;
 
@@ -129,7 +136,8 @@ class MobileAuthService {
       if (savedToken != null && savedUserJson != null) {
         _token = savedToken;
         _client.authToken = _token;
-        _currentUser = AuthUser.fromJson(jsonDecode(savedUserJson) as Map<String, dynamic>);
+        _currentUser = AuthUser.fromJson(
+            jsonDecode(savedUserJson) as Map<String, dynamic>);
         return true;
       }
     } catch (_) {}
@@ -153,11 +161,13 @@ class MobileAuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', _token!);
-      await prefs.setString('auth_user', jsonEncode({
-        'userId': _currentUser!.userId,
-        'email': _currentUser!.email,
-        'roles': _currentUser!.roles,
-      }));
+      await prefs.setString(
+          'auth_user',
+          jsonEncode({
+            'userId': _currentUser!.userId,
+            'email': _currentUser!.email,
+            'roles': _currentUser!.roles,
+          }));
     } catch (_) {}
 
     return response;
@@ -191,11 +201,13 @@ class MobileAuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', _token!);
-      await prefs.setString('auth_user', jsonEncode({
-        'userId': _currentUser!.userId,
-        'email': _currentUser!.email,
-        'roles': _currentUser!.roles,
-      }));
+      await prefs.setString(
+          'auth_user',
+          jsonEncode({
+            'userId': _currentUser!.userId,
+            'email': _currentUser!.email,
+            'roles': _currentUser!.roles,
+          }));
     } catch (_) {}
 
     return response;

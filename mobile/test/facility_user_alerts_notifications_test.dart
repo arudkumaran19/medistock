@@ -40,12 +40,14 @@ class FakeShortageRepository implements ShortageRepository {
       throw DioException(
         requestOptions: RequestOptions(path: '/api/shortages/$alertId/dismiss'),
         response: Response(
-          requestOptions: RequestOptions(path: '/api/shortages/$alertId/dismiss'),
+          requestOptions:
+              RequestOptions(path: '/api/shortages/$alertId/dismiss'),
           statusCode: 403,
           data: {
             'error': {
               'code': 'FORBIDDEN',
-              'message': 'You can only dismiss shortage alerts for your own assigned facility.'
+              'message':
+                  'You can only dismiss shortage alerts for your own assigned facility.'
             }
           },
         ),
@@ -55,10 +57,13 @@ class FakeShortageRepository implements ShortageRepository {
   }
 }
 
-class FakeAuthController extends StateNotifier<AuthState> implements AuthController {
+class FakeAuthController extends StateNotifier<AuthState>
+    implements AuthController {
   FakeAuthController(UserModel? user)
       : super(AuthState(
-          status: user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated,
+          status: user != null
+              ? AuthStatus.authenticated
+              : AuthStatus.unauthenticated,
           user: user,
           selectedRole: user?.role,
         ));
@@ -70,7 +75,8 @@ class FakeAuthController extends StateNotifier<AuthState> implements AuthControl
   void selectRole(String role) {}
 
   @override
-  Future<bool> login({required String email, required String password}) async => true;
+  Future<bool> login({required String email, required String password}) async =>
+      true;
 
   @override
   Future<void> logout() async {}
@@ -108,10 +114,12 @@ void main() {
   );
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({'opened_shortage_alert_ids': <String>[]});
+    SharedPreferences.setMockInitialValues(
+        {'opened_shortage_alert_ids': <String>[]});
   });
 
-  testWidgets('Alerts are sorted by createdAt descending (newest first)', (tester) async {
+  testWidgets('Alerts are sorted by createdAt descending (newest first)',
+      (tester) async {
     final fakeRepo = FakeShortageRepository([alertOld, alertNewer]);
     final container = ProviderContainer(
       overrides: [
@@ -140,17 +148,26 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final titles = find.byType(Text).evaluate().map((e) => (e.widget as Text).data).toList();
+    final titles = find
+        .byType(Text)
+        .evaluate()
+        .map((e) => (e.widget as Text).data)
+        .toList();
     final indexNewer = titles.indexOf('Shortage Risk: Amoxicillin 250mg');
     final indexOld = titles.indexOf('Shortage Risk: Paracetamol 500mg');
 
     expect(indexNewer, isNonNegative);
     expect(indexOld, isNonNegative);
-    expect(indexNewer, lessThan(indexOld), reason: 'Newer alert must appear before older alert');
+    expect(indexNewer, lessThan(indexOld),
+        reason: 'Newer alert must appear before older alert');
   });
 
-  testWidgets('Unopened alerts display NEW chip and chip disappears once opened', (tester) async {
-    SharedPreferences.setMockInitialValues({'opened_shortage_alert_ids': ['alert-1']});
+  testWidgets(
+      'Unopened alerts display NEW chip and chip disappears once opened',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'opened_shortage_alert_ids': ['alert-1']
+    });
 
     final fakeRepo = FakeShortageRepository([alertOld, alertNewer]);
     final container = ProviderContainer(
@@ -190,7 +207,9 @@ void main() {
     expect(find.byKey(const Key('new-alert-chip')), findsNothing);
   });
 
-  testWidgets('Dashboard displays notification banner and bell badge for unread alerts', (tester) async {
+  testWidgets(
+      'Dashboard displays notification banner and bell badge for unread alerts',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 2200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -230,7 +249,8 @@ void main() {
     expect(find.text('2'), findsWidgets);
 
     // Notification banner should be visible for latest unread alert
-    expect(find.byKey(const Key('shortage-notification-banner')), findsOneWidget);
+    expect(
+        find.byKey(const Key('shortage-notification-banner')), findsOneWidget);
     expect(find.textContaining('Amoxicillin 250mg'), findsWidgets);
   });
 
@@ -273,7 +293,9 @@ void main() {
     expect(find.text('Shortage Risk: Paracetamol 500mg'), findsOneWidget);
   });
 
-  testWidgets('VerifyShortageScreen dismiss calls POST /api/shortages/{id}/dismiss and shows success', (tester) async {
+  testWidgets(
+      'VerifyShortageScreen dismiss calls POST /api/shortages/{id}/dismiss and shows success',
+      (tester) async {
     final fakeRepo = FakeShortageRepository([alertOld, alertNewer]);
     final container = ProviderContainer(
       overrides: [
@@ -315,10 +337,13 @@ void main() {
     await tester.tap(dismissBtn);
     await tester.pumpAndSettle();
 
-    expect(find.text('Shortage alert dismissed as false positive.'), findsOneWidget);
+    expect(find.text('Shortage alert dismissed as false positive.'),
+        findsOneWidget);
   });
 
-  testWidgets('VerifyShortageScreen displays clear error when dismiss returns 403 Forbidden', (tester) async {
+  testWidgets(
+      'VerifyShortageScreen displays clear error when dismiss returns 403 Forbidden',
+      (tester) async {
     final fakeRepo = FakeShortageRepository([alertOld, alertNewer]);
     final container = ProviderContainer(
       overrides: [
@@ -339,7 +364,8 @@ void main() {
               data: {
                 'error': {
                   'code': 'FORBIDDEN',
-                  'message': 'You can only dismiss alerts for your own assigned facility.',
+                  'message':
+                      'You can only dismiss alerts for your own assigned facility.',
                 }
               },
             ),
@@ -368,10 +394,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('forbidden-error-snackbar')), findsOneWidget);
-    expect(find.textContaining('You can only dismiss alerts for your own assigned facility'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'You can only dismiss alerts for your own assigned facility'),
+        findsOneWidget);
   });
 
-  testWidgets('Dismiss as False Positive shows backend error message on 409 conflict', (tester) async {
+  testWidgets(
+      'Dismiss as False Positive shows backend error message on 409 conflict',
+      (tester) async {
     final dio = Dio();
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -384,7 +415,8 @@ void main() {
               data: {
                 'error': {
                   'code': 'CONFLICT',
-                  'message': 'Shortage alert is in status RESOLVED and cannot be dismissed. Only OPEN or ACKNOWLEDGED alerts can be dismissed.',
+                  'message':
+                      'Shortage alert is in status RESOLVED and cannot be dismissed. Only OPEN or ACKNOWLEDGED alerts can be dismissed.',
                 }
               },
             ),
@@ -410,10 +442,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('conflict-error-snackbar')), findsOneWidget);
-    expect(find.textContaining('Only OPEN or ACKNOWLEDGED alerts can be dismissed'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'Only OPEN or ACKNOWLEDGED alerts can be dismissed'),
+        findsOneWidget);
   });
 
-  testWidgets('RequestDetailScreen shows Rejected - no source with stock, reason, and purchase request', (tester) async {
+  testWidgets(
+      'RequestDetailScreen shows Rejected - no source with stock, reason, and purchase request',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 2200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -446,7 +483,8 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        transferByIdProvider('req-rej-1').overrideWith((ref) => Future.value(rejectedTransfer)),
+        transferByIdProvider('req-rej-1')
+            .overrideWith((ref) => Future.value(rejectedTransfer)),
       ],
     );
     addTearDown(container.dispose);
@@ -462,11 +500,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rejected - no source with stock'), findsOneWidget);
-    expect(find.text('No facility has surplus stock for this medicine'), findsOneWidget);
-    expect(find.textContaining('Purchase Request: PO-c9d8e7f6'), findsOneWidget);
+    expect(find.text('No facility has surplus stock for this medicine'),
+        findsOneWidget);
+    expect(
+        find.textContaining('Purchase Request: PO-c9d8e7f6'), findsOneWidget);
   });
 
-  testWidgets('RequestDetailScreen shows Planning failed, retry and Retry button when planning failed', (tester) async {
+  testWidgets(
+      'RequestDetailScreen shows Planning failed, retry and Retry button when planning failed',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 2200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -498,7 +540,8 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        transferByIdProvider('req-fail-1').overrideWith((ref) => Future.value(failedTransfer)),
+        transferByIdProvider('req-fail-1')
+            .overrideWith((ref) => Future.value(failedTransfer)),
       ],
     );
     addTearDown(container.dispose);
@@ -517,4 +560,3 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
   });
 }
-

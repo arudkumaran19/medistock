@@ -12,8 +12,10 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,
-        connectTimeout: const Duration(milliseconds: AppConfig.connectTimeoutMs),
-        receiveTimeout: const Duration(milliseconds: AppConfig.receiveTimeoutMs),
+        connectTimeout:
+            const Duration(milliseconds: AppConfig.connectTimeoutMs),
+        receiveTimeout:
+            const Duration(milliseconds: AppConfig.receiveTimeoutMs),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -35,13 +37,15 @@ class DioClient {
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            debugPrint('✅ [DIO RES] ${response.statusCode} <- ${response.requestOptions.path}');
+            debugPrint(
+                '✅ [DIO RES] ${response.statusCode} <- ${response.requestOptions.path}');
           }
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            debugPrint('❌ [DIO ERR] ${e.response?.statusCode} <- ${e.requestOptions.path}: ${e.message}');
+            debugPrint(
+                '❌ [DIO ERR] ${e.response?.statusCode} <- ${e.requestOptions.path}: ${e.message}');
           }
           if (e.response?.statusCode == 401) {
             await _storage.clearAll();
@@ -54,7 +58,8 @@ class DioClient {
 
   Dio get dio => _dio;
 
-  Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<dynamic> get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
     try {
       final response = await _dio.get(path, queryParameters: queryParameters);
       return _parseResponse(response);
