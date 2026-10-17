@@ -33,6 +33,7 @@ jobs:
       JWT_SIGNING_KEY: "test-only-deterministic-agent-service-signing-key-for-unit-testing-32-bytes-minimum"
       JWT_ISSUER: "MediStock.Api"
       JWT_AUDIENCE: "MediStock.Client"
+      PYTHONPATH: "src:tests"
 
     steps:
       - name: Checkout

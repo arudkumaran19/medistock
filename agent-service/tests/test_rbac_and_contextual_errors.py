@@ -180,7 +180,10 @@ def test_configured_token_is_available_for_the_guard():
 def test_coordinator_chat_refuses_invalid_internal_token(monkeypatch):
     """Coordinator HTTP route must refuse calls with invalid internal token."""
     from medistock_agents.config import Settings
-    monkeypatch.setattr(routes, "get_settings", lambda: Settings(internal_service_token="secret-token-123"))
+    import medistock_agents.api.coordinator_routes as coord_routes
+    dummy_settings = Settings(internal_service_token="secret-token-123")
+    monkeypatch.setattr(routes, "get_settings", lambda: dummy_settings)
+    monkeypatch.setattr(coord_routes, "get_settings", lambda: dummy_settings)
 
     client = TestClient(app)
     response = client.post(

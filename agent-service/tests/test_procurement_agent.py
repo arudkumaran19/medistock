@@ -7,7 +7,10 @@ from medistock_agents.models.agent_models import ProcurementAction, ProcurementA
 from medistock_agents.tools.procurement_tools import BackendUnavailableError
 from medistock_agents.main import app
 
-from test_inventory_agent import _make_user_token
+try:
+    from test_inventory_agent import _make_user_token
+except ModuleNotFoundError:
+    from tests.test_inventory_agent import _make_user_token
 
 
 class FakeProcurementBackend:
