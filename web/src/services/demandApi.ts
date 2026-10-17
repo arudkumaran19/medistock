@@ -37,8 +37,10 @@ import type {
   PagedResponse,
   ShortageAlert,
   ShortageCreateRequest,
+  ShortageDismissRequest,
   ShortageQuery,
   ShortageRecalculateRequest,
+  ShortageResolveRequest,
   ShortageScanResult,
   ShortageUpdateRequest,
 } from '@/types/demand';
@@ -153,8 +155,44 @@ export async function updateShortage(
   });
 }
 
-export async function resolveShortage(id: string): Promise<ShortageAlert> {
-  return apiRequest<ShortageAlert>(`/api/shortages/${id}/resolve`, { method: 'POST' });
+export async function resolveShortage(
+  id: string,
+  request?: ShortageResolveRequest,
+): Promise<ShortageAlert> {
+  return apiRequest<ShortageAlert>(`/api/shortages/${id}/resolve`, {
+    method: 'POST',
+    ...(request ? body(request) : {}),
+  });
+}
+
+export async function dismissShortage(
+  id: string,
+  request: ShortageDismissRequest,
+): Promise<ShortageAlert> {
+  return apiRequest<ShortageAlert>(`/api/shortages/${id}/dismiss`, {
+    method: 'POST',
+    ...body(request),
+  });
+}
+
+export async function linkShortageTransfer(
+  id: string,
+  transferId: string,
+): Promise<ShortageAlert> {
+  return apiRequest<ShortageAlert>(`/api/shortages/${id}/link-transfer`, {
+    method: 'POST',
+    ...body({ transferId }),
+  });
+}
+
+export async function linkShortagePurchaseOrder(
+  id: string,
+  purchaseOrderId: string,
+): Promise<ShortageAlert> {
+  return apiRequest<ShortageAlert>(`/api/shortages/${id}/link-purchase-order`, {
+    method: 'POST',
+    ...body({ purchaseOrderId }),
+  });
 }
 
 export async function deleteShortage(id: string): Promise<void> {

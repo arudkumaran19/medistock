@@ -62,10 +62,15 @@ class GeminiProvider(LLMProvider):
     ) -> None:
         settings = get_settings()
         self._api_key = api_key if api_key is not None else settings.gemini_api_key
-        self._model = (model or settings.gemini_model or "gemini-3.8-flash").strip()
+        # Fall back to a currently published model id. The previous default
+        # ("gemini-3.8-flash") is not a real model, so every call failed and the
+        # provider silently degraded. GEMINI_MODEL still overrides this.
+        self._model = (model or settings.gemini_model or "gemini-2.5-flash").strip()
         self._timeout = timeout
         self._fallback_provider = fallback_provider
         self._client: Any = None
+
+        self._quota_exhausted = False
 
     @property
     def provider_name(self) -> str:
@@ -75,7 +80,22 @@ class GeminiProvider(LLMProvider):
     def model_name(self) -> str:
         return self._model
 
+    _quota_exhausted: bool = False
+
+    @classmethod
+    def reset_quota_state(cls) -> None:
+        """Clear the process-wide quota flag.
+
+        The flag exists so one exhausted key stops the service hammering a dead
+        endpoint. It is process-wide by design, which also means one test that
+        simulates a quota error would otherwise disable the provider for every
+        later test in the same run.
+        """
+        cls._quota_exhausted = False
+
     async def is_available(self) -> bool:
+        if GeminiProvider._quota_exhausted or self._quota_exhausted:
+            return False
         return bool(self._api_key and self._api_key.strip())
 
     def _get_client(self) -> Any:
@@ -93,7 +113,7 @@ class GeminiProvider(LLMProvider):
     async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         if not await self.is_available():
             if self._fallback_provider and await self._fallback_provider.is_available():
-                logger.warning("Gemini API key unconfigured; auto-falling back to %s", self._fallback_provider.provider_name)
+                logger.warning("Gemini API key unconfigured or quota exhausted; auto-falling back to %s", self._fallback_provider.provider_name)
                 return await self._fallback_provider.generate(prompt, system_prompt)
             raise RuntimeError("Gemini API key is not configured and no fallback is available.")
 
@@ -112,6 +132,11 @@ class GeminiProvider(LLMProvider):
                 return "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
             return str(content)
         except Exception as ex:
+            err_str = str(ex).lower()
+            if "quota" in err_str or "resource_exhausted" in err_str or "resourceexhausted" in err_str or "429" in err_str:
+                logger.warning("Gemini API quota exhausted; disabling provider globally for this process: %s", ex)
+                GeminiProvider._quota_exhausted = True
+                self._quota_exhausted = True
             if self._fallback_provider and await self._fallback_provider.is_available():
                 logger.warning("Gemini generation failed (%s); auto-falling back to %s", ex, self._fallback_provider.provider_name)
                 return await self._fallback_provider.generate(prompt, system_prompt)

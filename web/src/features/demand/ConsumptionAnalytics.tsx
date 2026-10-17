@@ -30,6 +30,7 @@ import { SkeletonChart, SkeletonMetrics, SkeletonRegion, SkeletonTable } from '.
 import { formatDate, formatNumber } from './format';
 import { facilityName, knownFacilities, knownMedicines, medicineName, optionLabel } from './reference';
 import {
+  DEMO_FACILITY_ID,
   useConsumption,
   useDeleteConsumption,
   useUpdateConsumption,
@@ -38,7 +39,7 @@ import {
 const PAGE_SIZE = 10;
 
 export function ConsumptionAnalytics({
-  facilityId: initialFacilityId = '',
+  facilityId: initialFacilityId = DEMO_FACILITY_ID,
 }: {
   facilityId?: string;
 }) {
@@ -82,20 +83,36 @@ export function ConsumptionAnalytics({
 
   const { data, isLoading, isError, error, refetch } = useConsumption(query);
 
+  const chartQuery = useMemo(
+    () => ({
+      facilityId: facilityId || undefined,
+      medicineId: medicineId || undefined,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      page: 1,
+      pageSize: 100,
+      sortBy: 'consumptionDate',
+      sortOrder: 'asc' as const,
+    }),
+    [facilityId, medicineId, fromDate, toDate],
+  );
+  const { data: chartDataResponse } = useConsumption(chartQuery);
+
   const items = data?.items ?? [];
 
   const totalOnPage = items.reduce((sum, record) => sum + record.quantityUsed, 0);
   const averageOnPage = items.length > 0 ? totalOnPage / items.length : 0;
   const peak = items.reduce((max, record) => Math.max(max, record.quantityUsed), 0);
 
-  // Oldest first, so the chart reads left to right in time order.
-  const chartData = items
-    .slice()
-    .reverse()
-    .map((record) => ({
-      date: formatDate(record.consumptionDate),
-      quantityUsed: record.quantityUsed,
-    }));
+  // Time-ordered series for the analytics chart (prioritize full unconstrained query).
+  const chartItems = chartDataResponse?.items && chartDataResponse.items.length > 0
+    ? chartDataResponse.items
+    : items.slice().reverse();
+
+  const chartData = chartItems.map((record) => ({
+    date: formatDate(record.consumptionDate),
+    quantityUsed: record.quantityUsed,
+  }));
 
   const columns: Column<ConsumptionRecord>[] = [
     {
@@ -365,32 +382,38 @@ export function ConsumptionAnalytics({
           ) : (
             <div className="chart" data-testid="consumption-chart">
               <ResponsiveContainer>
-                <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -14 }}>
-                  <CartesianGrid stroke="var(--gridline)" vertical={false} />
+                <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 8, left: -10 }}>
+                  <defs>
+                    <linearGradient id="consumptionBarGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0d9488" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="#0f766e" stopOpacity={0.75} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
                     tickLine={false}
-                    axisLine={{ stroke: 'var(--border-strong)' }}
+                    axisLine={{ stroke: '#cbd5e1' }}
                     tickMargin={8}
                   />
                   <YAxis
-                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    tick={{ fill: '#64748b', fontSize: 11, fontWeight: 500 }}
                     tickLine={false}
                     axisLine={false}
                     width={48}
                     domain={[0, Math.ceil(peak * 1.15)]}
                   />
                   <Tooltip
-                    cursor={{ fill: 'var(--accent-wash)' }}
+                    cursor={{ fill: 'rgba(13, 148, 136, 0.08)' }}
                     content={<ChartTooltip unit="units" />}
                   />
                   <Bar
                     dataKey="quantityUsed"
                     name="Quantity used"
-                    fill="var(--series-1)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={26}
+                    fill="url(#consumptionBarGrad)"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={32}
                     animationDuration={400}
                   />
                 </BarChart>

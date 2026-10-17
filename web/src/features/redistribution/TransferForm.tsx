@@ -105,9 +105,7 @@ export function TransferForm() {
               Destination (facility in need)
               <select value={destinationId} disabled={isEdit} aria-label="Destination facility" onChange={(e) => setDestinationId(e.target.value)}>
                 <option value="">Select a facility</option>
-                {(facilities.data ?? [])
-                  .filter((f) => f.latitude != null && f.longitude != null && (f.latitude !== 0 || f.longitude !== 0))
-                  .map((f) => (
+                {(facilities.data ?? []).map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
                   </option>

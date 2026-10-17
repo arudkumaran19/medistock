@@ -1,12 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../core/network/signalr_client.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/text_styles.dart';
-import '../domain/auth_state.dart';
-import 'auth_controller.dart';
+import '../data/auth_service.dart';
+import '../../../core/routing/app_router.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String roleType; // 'user' or 'officer'
@@ -17,7 +13,10 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
+  final _authService = MobileAuthService();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
@@ -45,29 +44,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final controller = ref.read(authControllerProvider.notifier);
-    final success = await controller.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    if (success && mounted) {
-      if (isOfficer) {
-        SignalRClient().connect().then((_) {
-          SignalRClient().joinOfficerGroup();
-        });
-        context.go('/officer/dashboard');
-      } else {
-        final authState = ref.read(authControllerProvider);
-        final facilityId = authState.user?.facilityId;
-        if (facilityId != null && facilityId.isNotEmpty) {
-          SignalRClient().connect().then((_) {
-            SignalRClient().joinFacilityGroup(facilityId);
-          });
-        }
-        context.go('/user/dashboard');
-      }
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final response = await _authService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          settings: const RouteSettings(name: AppRouter.dashboard),
+          builder: (_) => DashboardScreen(user: response.user, authService: _authService),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -124,32 +121,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: AppTextStyles.titleSmall,
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                if (authState.status == AuthStatus.error && authState.errorMessage != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.errorLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.error),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            authState.errorMessage!,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-                          ),
                         ),
                       ],
                     ),

@@ -12,7 +12,3 @@ analyzer:
     - build/**
     - android/**
     - web/**
-
-linter:
-  rules:
-    avoid_print: false

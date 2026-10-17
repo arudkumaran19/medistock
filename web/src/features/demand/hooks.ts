@@ -11,6 +11,7 @@ import {
   deleteConsumption,
   deleteForecast,
   deleteShortage,
+  dismissShortage,
   getConsumption,
   getCurrentStock,
   getForecasts,
@@ -18,6 +19,8 @@ import {
   getShortages,
   recalculateShortage,
   resolveShortage,
+  linkShortageTransfer,
+  linkShortagePurchaseOrder,
   scanShortages,
   updateConsumption,
   updateShortage,
@@ -26,9 +29,13 @@ import type {
   ConsumptionQuery,
   ConsumptionRequest,
   ForecastQuery,
+  ShortageDismissRequest,
   ShortageQuery,
   ShortageUpdateRequest,
 } from '@/types/demand';
+
+/** Facility used by the seeded demonstration dataset. */
+export const DEMO_FACILITY_ID = 'b1000000-0000-0000-0000-000000000002';
 
 export const demandKeys = {
   all: ['demand'] as const,
@@ -121,7 +128,10 @@ function useDemandMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<
 
   return useMutation({
     mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: demandKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: demandKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
   });
 }
 
@@ -136,7 +146,30 @@ export function useUpdateShortage() {
 }
 
 export function useResolveShortage() {
-  return useDemandMutation((id: string) => resolveShortage(id));
+  return useDemandMutation((args: { id: string; request?: import('@/types/demand').ShortageResolveRequest } | string) => {
+    if (typeof args === 'string') {
+      return resolveShortage(args);
+    }
+    return resolveShortage(args.id, args.request);
+  });
+}
+
+export function useDismissShortage() {
+  return useDemandMutation(({ id, request }: { id: string; request: ShortageDismissRequest }) =>
+    dismissShortage(id, request),
+  );
+}
+
+export function useLinkShortageTransfer() {
+  return useDemandMutation(({ id, transferId }: { id: string; transferId: string }) =>
+    linkShortageTransfer(id, transferId),
+  );
+}
+
+export function useLinkShortagePurchaseOrder() {
+  return useDemandMutation(({ id, purchaseOrderId }: { id: string; purchaseOrderId: string }) =>
+    linkShortagePurchaseOrder(id, purchaseOrderId),
+  );
 }
 
 export function useDeleteShortage() {

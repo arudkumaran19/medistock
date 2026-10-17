@@ -493,7 +493,7 @@ public static class DbInitializer
                     WorkflowRunId = sampleWorkflowRun.Id,
                     StepNumber = 1,
                     StepName = "Detect Shortage & Initialize Context",
-                    Status = WorkflowStatus.Completed,
+                    Status = WorkflowStatus.Completed.ToString(),
                     ExecutedAt = DateTime.UtcNow
                 });
 
@@ -503,7 +503,7 @@ public static class DbInitializer
                     WorkflowRunId = sampleWorkflowRun.Id,
                     StepNumber = 2,
                     StepName = "Agentic Candidate & Route Analysis",
-                    Status = WorkflowStatus.Completed,
+                    Status = WorkflowStatus.Completed.ToString(),
                     ExecutedAt = DateTime.UtcNow
                 });
 
@@ -513,7 +513,7 @@ public static class DbInitializer
                     WorkflowRunId = sampleWorkflowRun.Id,
                     StepNumber = 3,
                     StepName = "Deterministic Business Rule Validation",
-                    Status = WorkflowStatus.Completed,
+                    Status = WorkflowStatus.Completed.ToString(),
                     ExecutedAt = DateTime.UtcNow
                 });
 
@@ -523,7 +523,7 @@ public static class DbInitializer
                     WorkflowRunId = sampleWorkflowRun.Id,
                     StepNumber = 4,
                     StepName = "Awaiting Human-in-the-Loop Management Approval",
-                    Status = WorkflowStatus.WaitingForApproval,
+                    Status = WorkflowStatus.WaitingForApproval.ToString(),
                     ExecutedAt = DateTime.UtcNow
                 });
 

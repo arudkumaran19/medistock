@@ -79,19 +79,26 @@ export const procurementAgentApi = {
         if (response.status === 401) {
           throw new Error("Your session has expired. Please sign in again.");
         }
+        if (response.status === 403) {
+          throw new Error("Access restricted: Your account permissions do not permit running procurement AI actions. Manual procurement operations remain operational.");
+        }
+        if (response.status === 503) {
+          throw new Error("The procurement AI assistant is temporarily busy or unavailable. Manual procurement remains fully operational.");
+        }
         const errText = await response.text().catch(() => "");
+        const isClean = errText && !errText.includes("Traceback") && !errText.includes("Exception") && !errText.startsWith("HTTP");
         throw new Error(
-          errText || `AI assistant encountered an issue (${response.status}). Manual procurement remains operational.`
+          isClean ? errText : "The AI assistant encountered an issue. Manual procurement remains fully operational."
         );
       }
 
       return (await response.json()) as ProcurementAgentResponse;
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") {
-        throw new Error("AI assistant timed out after 2 minutes. The LLM is under load — please try again in a moment.", { cause: e });
+        throw new Error("The AI assistant took too long to respond. The system is under load — please try again in a moment.", { cause: e });
       }
       if (e instanceof Error && (e.message.includes("Failed to fetch") || e.message.includes("NetworkError") || e.message.includes("fetch failed"))) {
-        throw new Error("AI assistant unavailable. The procurement system is still available. Try again later or continue manually.", { cause: e });
+        throw new Error("Unable to connect to the procurement AI assistant. The manual procurement system is active and ready to use.", { cause: e });
       }
       throw e;
     } finally {
@@ -103,19 +110,35 @@ export const procurementAgentApi = {
     request: CoordinatorTaskRequest,
     approved = false
   ): Promise<CoordinatorTaskResponse> {
-    const response = await fetch(
-      `${AGENT_BASE_URL}/api/procurement-agent/coordinator-task?approved=${approved}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(request),
+    try {
+      const response = await fetch(
+        `${AGENT_BASE_URL}/api/procurement-agent/coordinator-task?approved=${approved}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(request),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Your session has expired. Please sign in again.");
+        }
+        if (response.status === 403) {
+          throw new Error("Access restricted: You do not have permission to execute this delegated procurement task.");
+        }
+        if (response.status === 503) {
+          throw new Error("The procurement service is temporarily unavailable. Please try again shortly.");
+        }
+        throw new Error("The delegated procurement task could not be completed at this time.");
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Coordinator task delegation error (${response.status})`);
+      return response.json() as Promise<CoordinatorTaskResponse>;
+    } catch (e) {
+      if (e instanceof Error && (e.message.includes("Failed to fetch") || e.message.includes("NetworkError") || e.message.includes("fetch failed"))) {
+        throw new Error("Unable to connect to the procurement service. Please check your network connection and try again.");
+      }
+      throw e;
     }
-
-    return response.json() as Promise<CoordinatorTaskResponse>;
   },
 };

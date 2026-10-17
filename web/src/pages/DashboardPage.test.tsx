@@ -14,19 +14,6 @@ vi.mock("../layouts/DashboardLayout", () => ({
   DashboardLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  PieChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Pie: () => null,
-  Cell: () => null,
-  BarChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Bar: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  Tooltip: () => null,
-  Legend: () => null,
-}));
-
 vi.mock("../services/procurementApi", () => ({
   procurementApi: {
     getPurchaseOrders: vi.fn().mockResolvedValue([]),

@@ -1,14 +1,20 @@
-using System;
-
 namespace MediStock.Api.Features.Workflow.Models;
 
-public class AuditLog
+public sealed class AuditLog
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string EntityName { get; set; } = string.Empty;
-    public Guid EntityId { get; set; }
-    public string Action { get; set; } = string.Empty; // Create, Update, Delete, Transition, Reserve, Receive
-    public Guid UserId { get; set; }
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    public Guid WorkflowRunId { get; set; }
+
+    public WorkflowRun? WorkflowRun { get; set; }
+
+    public string EventType { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+
     public string? DetailsJson { get; set; }
+
+    public Guid? PerformedByUserId { get; set; }
+
+    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 }

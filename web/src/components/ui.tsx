@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 
 interface PageHeaderProps {
   eyebrow: string;
@@ -78,13 +79,13 @@ export function PageHeader({ eyebrow, title, subtitle, actions }: PageHeaderProp
 type BadgeVariant = "success" | "warning" | "danger" | "neutral" | "info" | "ai" | "primary";
 
 const BADGE_STYLES: Record<BadgeVariant, React.CSSProperties> = {
-  success: { background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0" },
-  warning: { background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" },
-  danger:  { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" },
-  neutral: { background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" },
-  info:    { background: "#dbeafe", color: "#1d4ed8", border: "1px solid #bfdbfe" },
-  ai:      { background: "#e0e7ff", color: "#4338ca", border: "1px solid #c7d2fe" },
-  primary: { background: "#ccfbf1", color: "#0f766e", border: "1px solid #99f6e4" },
+  success: { background: "var(--color-success-100)", color: "var(--color-success-700)", border: "1px solid var(--color-success-200)" },
+  warning: { background: "var(--color-warning-100)", color: "var(--color-warning-700)", border: "1px solid var(--color-warning-200)" },
+  danger:  { background: "var(--color-danger-100)", color: "var(--color-danger-700)", border: "1px solid var(--color-danger-200)" },
+  neutral: { background: "var(--color-slate-100)", color: "var(--color-slate-700)", border: "1px solid var(--color-slate-200)" },
+  info:    { background: "var(--color-info-100)", color: "var(--color-info-700)", border: "1px solid var(--color-info-200)" },
+  ai:      { background: "var(--color-ai-100)", color: "var(--color-ai-700)", border: "1px solid var(--color-ai-200)" },
+  primary: { background: "var(--color-primary-100)", color: "var(--color-primary-700)", border: "1px solid var(--color-primary-200)" },
 };
 
 interface StatusBadgeProps {
@@ -152,52 +153,66 @@ interface KPICardProps {
   icon: React.ReactNode;
   accent?: string;
   variant?: "default" | "warning" | "danger" | "success";
+  trend?: { value: number; label?: string }; // positive = up, negative = down
+  compact?: boolean;
 }
 
-export function KPICard({ label, value, context, icon, accent = "#0f766e", variant = "default" }: KPICardProps) {
+export function KPICard({ label, value, context, icon, accent = "var(--color-primary-700)", variant = "default", trend, compact }: KPICardProps) {
   const bgMap = {
     default: "#ffffff",
-    warning: "#fffbeb",
-    danger:  "#fef2f2",
-    success: "#f0fdf4",
+    warning: "var(--color-warning-50)",
+    danger:  "var(--color-danger-50)",
+    success: "#f0fdf9",
   };
   const borderMap = {
     default: "#e2e8f0",
-    warning: "#fde68a",
-    danger:  "#fecaca",
-    success: "#bbf7d0",
+    warning: "var(--color-warning-200)",
+    danger:  "var(--color-danger-200)",
+    success: "#a7f3d0",
   };
 
+  const trendColor = trend
+    ? trend.value > 0
+      ? "#16a34a"
+      : trend.value < 0
+      ? "#dc2626"
+      : "#64748b"
+    : null;
+  const trendArrow = trend
+    ? trend.value > 0
+      ? "▲"
+      : trend.value < 0
+      ? "▼"
+      : "–"
+    : null;
+
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -2, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
       style={{
         background: bgMap[variant],
-        border: `1px solid ${borderMap[variant]}`,
-        borderRadius: "10px",
-        padding: "16px 18px",
+        borderTop: `1px solid ${borderMap[variant]}`,
+        borderRight: `1px solid ${borderMap[variant]}`,
+        borderBottom: `1px solid ${borderMap[variant]}`,
+        borderLeft: `3px solid ${accent}`,
+        borderRadius: "var(--radius-xl)",
+        padding: compact ? "14px 16px" : "18px 20px",
         display: "flex",
         alignItems: "center",
-        gap: "14px",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-        transition: "box-shadow 150ms, transform 150ms",
+        gap: compact ? 12 : 16,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+        transition: "all 0.18s cubic-bezier(0.16,1,0.3,1)",
         width: "100%",
         boxSizing: "border-box",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 3px 10px rgba(0,0,0,0.07)";
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 2px rgba(0,0,0,0.04)";
-        (e.currentTarget as HTMLElement).style.transform = "none";
+        cursor: "default",
       }}
     >
       <div
         aria-hidden="true"
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: "10px",
+          width: compact ? 36 : 44,
+          height: compact ? 36 : 44,
+          borderRadius: "var(--radius-lg)",
           background: `${accent}16`,
           display: "flex",
           alignItems: "center",
@@ -211,15 +226,14 @@ export function KPICard({ label, value, context, icon, accent = "#0f766e", varia
       <div style={{ minWidth: 0, flex: 1 }}>
         <p
           style={{
-            fontSize: "0.72rem",
-            fontWeight: 600,
+            fontSize: "0.6875rem",
+            fontWeight: 700,
             color: "#64748b",
             textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            letterSpacing: "0.06em",
             margin: 0,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            lineHeight: 1.25,
+            whiteSpace: "normal",
           }}
           title={label}
         >
@@ -227,33 +241,49 @@ export function KPICard({ label, value, context, icon, accent = "#0f766e", varia
         </p>
         <p
           style={{
-            fontFamily: "var(--font-display, inherit)",
-            fontSize: "1.5rem",
+            fontFamily: "var(--font-display, 'Space Grotesk', system-ui, sans-serif)",
+            fontSize: compact ? "var(--text-2xl)" : "var(--text-3xl)",
             fontWeight: 700,
             color: "#0f172a",
             margin: "2px 0 0",
-            lineHeight: 1.2,
+            lineHeight: 1.15,
           }}
         >
           {value}
         </p>
-        {context && (
-          <p
-            style={{
-              fontSize: "0.72rem",
-              color: "#94a3b8",
-              margin: "2px 0 0",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            title={context}
-          >
-            {context}
-          </p>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+          {context && (
+            <p
+              style={{
+                fontSize: "0.6875rem",
+                color: "#94a3b8",
+                margin: 0,
+                lineHeight: 1.25,
+                whiteSpace: "normal",
+              }}
+              title={context}
+            >
+              {context}
+            </p>
+          )}
+          {trend && trendColor && (
+            <span
+              style={{
+                fontSize: "0.6875rem",
+                fontWeight: 700,
+                color: trendColor,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+                flexShrink: 0,
+              }}
+            >
+              {trendArrow} {trend.label ?? `${Math.abs(trend.value)}%`}
+            </span>
+          )}
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -270,58 +300,60 @@ interface QuickActionProps {
   accent?: string;
 }
 
-export function QuickAction({ to, label, description, icon, accent = "#0f766e" }: QuickActionProps) {
+export function QuickAction({ to, label, description, icon, accent = "var(--color-primary-700)" }: QuickActionProps) {
   return (
-    <Link
-      to={to}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "14px",
-        padding: "13px 16px",
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        borderRadius: "8px",
-        textDecoration: "none",
-        color: "#0f172a",
-        transition: "all 150ms",
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = "#f0fdf4";
-        el.style.borderColor = "#bbf7d0";
-        el.style.textDecoration = "none";
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = "#f8fafc";
-        el.style.borderColor = "#e2e8f0";
-      }}
-    >
-      <div
-        aria-hidden="true"
+    <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+      <Link
+        to={to}
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: "8px",
-          background: `${accent}15`,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          color: accent,
+          gap: "14px",
+          padding: "13px 16px",
+          background: "var(--bg-surface-subtle)",
+          border: "1px solid var(--border-default)",
+          borderRadius: "var(--radius-lg)",
+          textDecoration: "none",
+          color: "var(--text-primary)",
+          transition: "all var(--duration-fast)",
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.background = "var(--color-success-50)";
+          el.style.borderColor = "var(--color-success-200)";
+          el.style.textDecoration = "none";
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.background = "var(--bg-surface-subtle)";
+          el.style.borderColor = "var(--border-default)";
         }}
       >
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontWeight: 600, fontSize: "0.8125rem", color: "#0f172a" }}>
-          {label}
-        </p>
-        <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>{description}</p>
-      </div>
-      <ArrowRight size={14} style={{ color: "#94a3b8", flexShrink: 0 }} />
-    </Link>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "var(--radius-md)",
+            background: `${accent}15`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: accent,
+          }}
+        >
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
+            {label}
+          </p>
+          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>{description}</p>
+        </div>
+        <ArrowRight size={14} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+      </Link>
+    </motion.div>
   );
 }
 
@@ -430,67 +462,71 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const variantStyle: React.CSSProperties =
     variant === "danger"
-      ? { background: "#dc2626", color: "#fff", border: "1px solid #dc2626" }
+      ? { background: "var(--color-danger-600)", color: "#fff", border: "1px solid var(--color-danger-600)" }
       : variant === "warning"
-      ? { background: "#d97706", color: "#fff", border: "1px solid #d97706" }
-      : { background: "#0f766e", color: "#fff", border: "1px solid #0f766e" };
+      ? { background: "var(--color-warning-600)", color: "#fff", border: "1px solid var(--color-warning-600)" }
+      : { background: "var(--color-primary-700)", color: "#fff", border: "1px solid var(--color-primary-700)" };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(15,23,42,0.55)",
+        background: "var(--bg-overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 400,
+        zIndex: "var(--z-modal-backdrop)",
         padding: "16px",
-        animation: "overlayIn 150ms ease",
       }}
     >
-      <div
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 150 }}
         style={{
-          background: "#fff",
-          borderRadius: "12px",
+          background: "var(--bg-surface)",
+          borderRadius: "var(--radius-2xl)",
           maxWidth: 440,
           width: "100%",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+          boxShadow: "var(--shadow-2xl)",
           overflow: "hidden",
-          animation: "modalIn 200ms ease",
         }}
       >
         <div
           style={{
             padding: "20px 24px",
-            borderBottom: "1px solid #e2e8f0",
+            borderBottom: "1px solid var(--border-default)",
           }}
         >
           <h2
             id="confirm-dialog-title"
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "1.0625rem",
+              fontSize: "var(--text-lg)",
               fontWeight: 600,
-              color: "#0f172a",
+              color: "var(--text-primary)",
               margin: 0,
             }}
           >
             {title}
           </h2>
         </div>
-        <div style={{ padding: "20px 24px", fontSize: "0.875rem", color: "#334155" }}>
+        <div style={{ padding: "20px 24px", fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           {typeof message === "string" ? <p style={{ margin: 0 }}>{message}</p> : message}
           {children && <div style={{ marginTop: 16 }}>{children}</div>}
         </div>
         <div
           style={{
             padding: "14px 24px",
-            borderTop: "1px solid #e2e8f0",
-            background: "#f8fafc",
+            borderTop: "1px solid var(--border-default)",
+            background: "var(--bg-surface-subtle)",
             display: "flex",
             justifyContent: "flex-end",
             gap: "10px",
@@ -501,11 +537,11 @@ export function ConfirmDialog({
             disabled={isLoading}
             style={{
               padding: "8px 16px",
-              borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              background: "#fff",
-              color: "#334155",
-              fontSize: "0.8125rem",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border-strong)",
+              background: "var(--bg-surface)",
+              color: "var(--text-secondary)",
+              fontSize: "var(--text-sm)",
               fontWeight: 600,
               cursor: "pointer",
             }}
@@ -517,8 +553,8 @@ export function ConfirmDialog({
             disabled={isLoading}
             style={{
               padding: "8px 16px",
-              borderRadius: "6px",
-              fontSize: "0.8125rem",
+              borderRadius: "var(--radius-md)",
+              fontSize: "var(--text-sm)",
               fontWeight: 600,
               cursor: isLoading ? "not-allowed" : "pointer",
               opacity: isLoading ? 0.6 : 1,
@@ -528,7 +564,7 @@ export function ConfirmDialog({
             {isLoading ? "Processing…" : confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

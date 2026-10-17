@@ -6,7 +6,8 @@ public enum WorkflowStatus
     Running = 1,
     WaitingForApproval = 2,
     Approved = 3,
-    Rejected = 4,
-    Completed = 5,
-    Failed = 6
+    Completed = 4,
+    Rejected = 5,
+    Failed = 6,
+    Cancelled = 7
 }

@@ -107,11 +107,38 @@ export interface ShortageAlert {
   resolvedAt?: string | null;
   /** Set when the alert resolved itself, e.g. "Stock now covers lead time". */
   resolutionReason?: string | null;
-  dismissedAt?: string | null;
-  dismissedByUserId?: string | null;
-  dismissReason?: string | null;
   /** True when raising refreshed an existing OPEN/ACKNOWLEDGED alert. */
   existingAlertUpdated?: boolean;
+  transferId?: string | null;
+  purchaseOrderId?: string | null;
+  resolutionVerified?: boolean;
+  verifiedBy?: string | null;
+  verificationNotes?: string | null;
+  verificationMethod?: string | null;
+  statusHistory?: ShortageStatusHistoryEntry[];
+}
+
+export interface ShortageStatusHistoryEntry {
+  id: string;
+  fromStatus: string;
+  toStatus: string;
+  changedBy: string;
+  changedAt: string;
+  reason?: string | null;
+  notes?: string | null;
+  verificationMethod?: string | null;
+}
+
+export interface ShortageResolveRequest {
+  verificationNotes?: string;
+  verificationMethod?: string;
+  verifiedCurrentStock?: number;
+  transferId?: string;
+  purchaseOrderId?: string;
+}
+
+export interface ShortageDismissRequest {
+  reason: string;
 }
 
 /** GET /api/shortages/current-stock — Inventory balance, read-only. */

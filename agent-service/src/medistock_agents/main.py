@@ -18,12 +18,10 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from medistock_agents.api.routes import router, procurement_router, inventory_router
 from medistock_agents.api.demand_routes import demand_router
-from medistock_agents.api.routes import (
-    inventory_router,
-    procurement_router,
-    router,
-)
+from medistock_agents.api.redistribution_routes import redistribution_router
+from medistock_agents.api.coordinator_routes import coordinator_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,12 +50,6 @@ app = FastAPI(
 LOCAL_WEB_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5050",
-    "http://127.0.0.1:5050",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
 ]
 
 # Deployed web origins, e.g. "https://medistock-web.onrender.com". Comma-separated.
@@ -70,7 +62,7 @@ DEPLOYED_WEB_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(set(LOCAL_WEB_ORIGINS + DEPLOYED_WEB_ORIGINS)),
+    allow_origins=LOCAL_WEB_ORIGINS + DEPLOYED_WEB_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +81,8 @@ app.include_router(router)
 app.include_router(inventory_router)
 app.include_router(procurement_router)
 app.include_router(demand_router)
+app.include_router(redistribution_router)
+app.include_router(coordinator_router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -22,6 +22,69 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.AppNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("ShortageAlertId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("FacilityId");
+
+                    b.HasIndex("IsRead");
+
+                    b.HasIndex("Role");
+
+                    b.HasIndex("ShortageAlertId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AppNotifications");
+                });
+
             modelBuilder.Entity("MediStock.Api.Domain.Entities.Facility", b =>
                 {
                     b.Property<Guid>("Id")
@@ -61,41 +124,73 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("Facilities", (string)null);
                 });
 
-            modelBuilder.Entity("MediStock.Api.Domain.Entities.Medicine", b =>
+            modelBuilder.Entity("MediStock.Api.Domain.Entities.SystemAuditLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Category")
+                    b.Property<string>("Action")
                         .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ActorEmail")
                         .HasColumnType("text");
 
-                    b.Property<string>("GenericName")
-                        .IsRequired()
+                    b.Property<string>("ActorId")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
+                    b.Property<string>("ActorRole")
                         .HasColumnType("text");
 
-                    b.Property<bool>("RequiresRefrigeration")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Sku")
-                        .IsRequired()
+                    b.Property<string>("AfterStateJson")
                         .HasColumnType("text");
 
-                    b.Property<string>("UnitOfMeasure")
-                        .IsRequired()
+                    b.Property<string>("BeforeStateJson")
                         .HasColumnType("text");
+
+                    b.Property<string>("CorrelationId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResourceId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Medicine");
+                    b.HasIndex("Action");
+
+                    b.HasIndex("ActorEmail");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("ResourceType");
+
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("SystemAuditLogs");
                 });
 
             modelBuilder.Entity("MediStock.Api.Domain.Entities.UserFacility", b =>
@@ -261,20 +356,9 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<int?>("DaysRemaining")
-                        .IsRequired()
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("DemandForecastId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DismissReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("DismissedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DismissedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("FacilityId")
@@ -292,7 +376,7 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ProjectedStockoutDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("RelatedTransferId")
+                    b.Property<Guid?>("PurchaseOrderId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("RequiresTransfer")
@@ -301,6 +385,11 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("ResolutionReason")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("ResolutionVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("timestamp with time zone");
@@ -315,8 +404,23 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<Guid?>("TransferId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationMethod")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("VerificationNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("VerifiedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 
@@ -325,13 +429,55 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("RiskLevel")
                         .HasDatabaseName("IX_ShortageAlerts_RiskLevel");
 
-                    b.HasIndex("FacilityId", "MedicineId", "DismissedAt")
-                        .HasDatabaseName("IX_ShortageAlerts_Facility_Medicine_DismissedAt");
-
                     b.HasIndex("FacilityId", "Status", "GeneratedAt")
                         .HasDatabaseName("IX_ShortageAlerts_Facility_Status_GeneratedAt");
 
                     b.ToTable("ShortageAlerts", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ShortageStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ShortageAlertId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("VerificationMethod")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAt");
+
+                    b.HasIndex("ShortageAlertId");
+
+                    b.ToTable("ShortageStatusHistories");
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>
@@ -695,53 +841,6 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("AllocatedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("BatchNumber")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("MedicineId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("MedicineName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("ReceivedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RequestedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TransferRequestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("UnitOfMeasure")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MedicineId");
-
-                    b.HasIndex("TransferRequestId");
-
-                    b.ToTable("TransferItem");
-                });
-
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -751,80 +850,87 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ApprovedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("AssignedAt")
+                    b.Property<string>("BatchNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("AssignedOfficerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("DeliveredAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("DestinationFacilityId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("DispatchedAt")
+                    b.Property<DateTime?>("DispatchedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal?>("EstimatedDistanceKm")
-                        .HasColumnType("numeric");
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<decimal?>("EstimatedDurationMinutes")
-                        .HasColumnType("numeric");
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
 
-                    b.Property<double?>("LastLatitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime?>("LastLocationAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("LastLongitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RequestedByUserId")
+                    b.Property<Guid>("MedicineId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("RoutePolyline")
-                        .HasColumnType("text");
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("RoutingProvider")
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<Guid?>("SourceFacilityId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<string>("TransferNumber")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("WorkflowRunId")
-                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("DestinationFacilityId");
 
+                    b.HasIndex("MedicineId");
+
                     b.HasIndex("SourceFacilityId");
 
-                    b.ToTable("TransferRequests");
+                    b.HasIndex("TransferNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "CreatedAtUtc")
+                        .HasDatabaseName("IX_TransferRequests_Status_CreatedAt");
+
+                    b.ToTable("TransferRequests", (string)null);
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferStatusHistory", b =>
@@ -833,32 +939,322 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("ChangedAt")
+                    b.Property<DateTime>("ChangedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("ChangedByUserId")
+                    b.Property<string>("ChangedByEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ChangedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("FromStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("text");
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<string>("Reason")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
-                    b.Property<int>("ToStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<Guid>("TransferRequestId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TransferRequestId");
+                    b.HasIndex("TransferRequestId", "ChangedAtUtc");
 
-                    b.ToTable("TransferStatusHistory");
+                    b.ToTable("TransferStatusHistory", (string)null);
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.AgentExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgentName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("ExecutionDurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Prompt")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Response")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TokensUsed")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AgentExecutions");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.Approval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DecidedByUserName")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequiredRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowRunId");
+
+                    b.ToTable("Approvals");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowRunId");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.ToolExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InputParametersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OutputResultJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ToolExecutions");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.ValidationResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("EvaluatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PolicyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ValidationResults");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.WorkflowPlanStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgentName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InputJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutputJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutputSummary")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StepKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowRunId");
+
+                    b.ToTable("WorkflowPlanSteps");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.WorkflowRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContextJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("FacilityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("InitiatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("MedicineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Objective")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("RequiresApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WorkflowType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WorkflowRuns");
                 });
 
             modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.ApplicationUser", b =>
@@ -1112,6 +1508,15 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ShortageStatusHistory", b =>
+                {
+                    b.HasOne("MediStock.Api.Features.Demand.Models.ShortageAlert", null)
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("ShortageAlertId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.InventoryBalance", b =>
                 {
                     b.HasOne("MediStock.Api.Domain.Entities.Facility", "Facility")
@@ -1201,71 +1606,24 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MediStock.Api.Features.Procurement.Models.ReplenishmentRequest", b =>
-                {
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "Facility")
-                        .WithMany()
-                        .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Domain.Entities.Medicine", "Medicine")
-                        .WithMany()
-                        .HasForeignKey("MedicineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Features.Procurement.Models.PurchaseOrder", "PurchaseOrder")
-                        .WithMany()
-                        .HasForeignKey("PurchaseOrderId");
-
-                    b.HasOne("MediStock.Api.Features.Redistribution.Models.TransferRequest", "SourceTransfer")
-                        .WithMany()
-                        .HasForeignKey("SourceTransferId");
-
-                    b.Navigation("Facility");
-
-                    b.Navigation("Medicine");
-
-                    b.Navigation("PurchaseOrder");
-
-                    b.Navigation("SourceTransfer");
-                });
-
-            modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferItem", b =>
-                {
-                    b.HasOne("MediStock.Api.Domain.Entities.Medicine", "Medicine")
-                        .WithMany()
-                        .HasForeignKey("MedicineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MediStock.Api.Features.Redistribution.Models.TransferRequest", "TransferRequest")
-                        .WithMany("Items")
-                        .HasForeignKey("TransferRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Medicine");
-
-                    b.Navigation("TransferRequest");
-                });
-
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
                 {
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "DestinationFacility")
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
                         .WithMany()
                         .HasForeignKey("DestinationFacilityId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MediStock.Api.Domain.Entities.Facility", "SourceFacility")
+                    b.HasOne("MediStock.Api.Features.Inventory.Models.Medicine", null)
                         .WithMany()
-                        .HasForeignKey("SourceFacilityId");
+                        .HasForeignKey("MedicineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Navigation("DestinationFacility");
-
-                    b.Navigation("SourceFacility");
+                    b.HasOne("MediStock.Api.Domain.Entities.Facility", null)
+                        .WithMany()
+                        .HasForeignKey("SourceFacilityId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferStatusHistory", b =>
@@ -1277,6 +1635,39 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("TransferRequest");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.Approval", b =>
+                {
+                    b.HasOne("MediStock.Api.Features.Workflow.Models.WorkflowRun", "WorkflowRun")
+                        .WithMany("Approvals")
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowRun");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.AuditLog", b =>
+                {
+                    b.HasOne("MediStock.Api.Features.Workflow.Models.WorkflowRun", "WorkflowRun")
+                        .WithMany("AuditLogs")
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowRun");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.WorkflowPlanStep", b =>
+                {
+                    b.HasOne("MediStock.Api.Features.Workflow.Models.WorkflowRun", "WorkflowRun")
+                        .WithMany("Steps")
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowRun");
                 });
 
             modelBuilder.Entity("MediStock.Api.Infrastructure.Persistence.Identity.RefreshToken", b =>
@@ -1341,6 +1732,11 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MediStock.Api.Features.Demand.Models.ShortageAlert", b =>
+                {
+                    b.Navigation("StatusHistory");
+                });
+
             modelBuilder.Entity("MediStock.Api.Features.Inventory.Models.Medicine", b =>
                 {
                     b.Navigation("Batches");
@@ -1362,9 +1758,16 @@ namespace MediStock.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("MediStock.Api.Features.Redistribution.Models.TransferRequest", b =>
                 {
-                    b.Navigation("Items");
-
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("MediStock.Api.Features.Workflow.Models.WorkflowRun", b =>
+                {
+                    b.Navigation("Approvals");
+
+                    b.Navigation("AuditLogs");
+
+                    b.Navigation("Steps");
                 });
 #pragma warning restore 612, 618
         }

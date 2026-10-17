@@ -1,5 +1,9 @@
 namespace MediStock.Api.Common;
 
+/// <summary>
+/// SHARED CONTRACT - primary owner: ILHAM MM (IT24103530).
+/// Contains shared system roles, routing constants, pagination settings, and system IDs.
+/// </summary>
 public static class Constants
 {
     public const string OpenRouteServiceBaseUrl = "https://api.openrouteservice.org";
@@ -13,6 +17,9 @@ public static class Constants
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
 
+    /// <summary>
+    /// Role names defined by the blueprint (section 8).
+    /// </summary>
     public static class Roles
     {
         public const string Admin = "ADMIN";

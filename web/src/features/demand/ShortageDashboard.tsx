@@ -5,8 +5,8 @@
  * React is the management application: monitor, analyse and report. Recording
  * consumption in the field belongs to Flutter.
  *
- * The page is ordered so the answer arrives before the detail: headline figures, then
- * the split of severities, then the per-medicine rows.
+ * Redesigned for high information density, responsive layout, verified resolution,
+ * manager dismissal workflows, and sticky headers.
  */
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -29,8 +29,13 @@ import { SeverityBadge, StatusChip } from './components/SeverityBadge';
 import { SkeletonMetrics, SkeletonRegion, SkeletonTable } from './components/Skeleton';
 import { describeScan, formatDate, formatDaysRemaining, formatNumber } from './format';
 import { facilityName, knownFacilities, medicineName, optionLabel } from './reference';
-import { useDeleteShortage, useResolveShortage, useScanShortages, useShortages } from './hooks';
-import { useTransferSignalR } from '@/features/redistribution/useTransferSignalR';
+import {
+  useDeleteShortage,
+  useDismissShortage,
+  useResolveShortage,
+  useScanShortages,
+  useShortages,
+} from './hooks';
 
 const PAGE_SIZE = 10;
 
@@ -43,9 +48,6 @@ export function ShortageDashboard({
   // arrive, which is what lets the facility dropdown list every facility.
   useReferenceData();
 
-  // Real-time updates: listen for shortage status changes and dismissals
-  useTransferSignalR({ isManager: true });
-
   // Every facility by default. This page used to be pinned to the demonstration
   // facility, so an alert raised anywhere else was saved but never shown here.
   const [facilityId, setFacilityId] = useState(initialFacilityId);
@@ -56,7 +58,20 @@ export function ShortageDashboard({
   const [sortBy, setSortBy] = useState('generatedAt');
   const [pendingDelete, setPendingDelete] = useState<ShortageAlert | null>(null);
 
+  // Verified Resolution Modal state
+  const [resolveTarget, setResolveTarget] = useState<ShortageAlert | null>(null);
+  const [verificationMethod, setVerificationMethod] = useState<string>('STOCK_AUDIT');
+  const [verificationNotes, setVerificationNotes] = useState('');
+  const [verifiedStock, setVerifiedStock] = useState('');
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  // Dismiss Modal state
+  const [dismissTarget, setDismissTarget] = useState<ShortageAlert | null>(null);
+  const [dismissReason, setDismissReason] = useState('');
+  const [dismissError, setDismissError] = useState<string | null>(null);
+
   const resolveShortage = useResolveShortage();
+  const dismissShortage = useDismissShortage();
   const deleteShortage = useDeleteShortage();
   const scanShortages = useScanShortages();
 
@@ -98,86 +113,190 @@ export function ShortageDashboard({
     .filter((date): date is string => Boolean(date))
     .sort()[0];
 
+  function openResolveModal(alert: ShortageAlert) {
+    setResolveTarget(alert);
+    setVerificationMethod('STOCK_AUDIT');
+    setVerificationNotes('');
+    setVerifiedStock(String(alert.currentStock));
+    setResolveError(null);
+  }
+
+  function openDismissModal(alert: ShortageAlert) {
+    setDismissTarget(alert);
+    setDismissReason('');
+    setDismissError(null);
+  }
+
+  async function handleConfirmResolve(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resolveTarget) return;
+    if (!verificationNotes.trim()) {
+      setResolveError('Clinical justification / verification rationale is required.');
+      return;
+    }
+    setResolveError(null);
+
+    try {
+      await resolveShortage.mutateAsync({
+        id: resolveTarget.id,
+        request: {
+          verificationMethod,
+          verificationNotes: verificationNotes.trim(),
+          verifiedCurrentStock: verifiedStock !== '' ? Number(verifiedStock) : undefined,
+          transferId: resolveTarget.transferId ?? undefined,
+          purchaseOrderId: resolveTarget.purchaseOrderId ?? undefined,
+        },
+      });
+      setResolveTarget(null);
+    } catch (err) {
+      setResolveError(toErrorMessage(err));
+    }
+  }
+
+  async function handleConfirmDismiss(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dismissTarget) return;
+    if (!dismissReason.trim()) {
+      setDismissError('A dismissal reason is required.');
+      return;
+    }
+    setDismissError(null);
+
+    try {
+      await dismissShortage.mutateAsync({
+        id: dismissTarget.id,
+        request: { reason: dismissReason.trim() },
+      });
+      setDismissTarget(null);
+    } catch (err) {
+      setDismissError(toErrorMessage(err));
+    }
+  }
+
   const columns: Column<ShortageAlert>[] = [
     {
       key: 'medicine',
       header: 'Medicine',
       render: (row) => (
-        <>
+        <div style={{ minWidth: 200 }}>
           <div className="cell-primary">{medicineName(row.medicineId)}</div>
           <div className="cell-secondary">{facilityName(row.facilityId)}</div>
-        </>
+        </div>
+      ),
+    },
+    {
+      key: 'facility',
+      header: 'Facility',
+      render: (row) => (
+        <div style={{ minWidth: 140 }}>
+          <span className="cell-primary" style={{ fontSize: '0.8125rem' }}>
+            {facilityName(row.facilityId)}
+          </span>
+        </div>
       ),
     },
     {
       key: 'stock',
       header: 'Stock',
       render: (row) => (
-        <>
+        <div style={{ minWidth: 110 }}>
           <div className="cell-emphasis">{formatNumber(row.currentStock)}</div>
           <div className="cell-secondary">{formatNumber(row.averageDailyConsumption)}/day</div>
-        </>
+        </div>
       ),
     },
     {
       key: 'daysRemaining',
       header: 'Days of cover',
       render: (row) => (
-        <span className={row.requiresTransfer ? 'cell-critical' : 'cell-emphasis'}>
-          {formatDaysRemaining(row.daysRemaining)}
-        </span>
+        <div style={{ minWidth: 110 }}>
+          <span className={row.requiresTransfer ? 'cell-critical' : 'cell-emphasis'}>
+            {formatDaysRemaining(row.daysRemaining)}
+          </span>
+        </div>
       ),
     },
-    { key: 'leadTime', header: 'Lead time', render: (row) => `${row.leadTimeDays} days` },
+    {
+      key: 'leadTime',
+      header: 'Lead time',
+      render: (row) => <div style={{ minWidth: 90 }}>{`${row.leadTimeDays} days`}</div>,
+    },
     {
       key: 'stockout',
       header: 'Projected stockout',
-      render: (row) => formatDate(row.projectedStockoutDate),
+      render: (row) => (
+        <div style={{ minWidth: 120 }}>{formatDate(row.projectedStockoutDate)}</div>
+      ),
     },
     {
       key: 'risk',
       header: 'Severity',
-      render: (row) => <SeverityBadge level={row.riskLevel} />,
+      render: (row) => (
+        <div style={{ minWidth: 100 }}>
+          <SeverityBadge level={row.riskLevel} />
+        </div>
+      ),
     },
-    { key: 'status', header: 'Status', render: (row) => <StatusChip status={row.status} /> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => (
+        <div style={{ minWidth: 110 }}>
+          <StatusChip status={row.status} />
+        </div>
+      ),
+    },
     {
       key: 'actions',
       header: 'Actions',
       render: (row) => (
-        <span className="row-actions">
-          <Link to={`/demand/shortages/${row.id}`}>View</Link>
-          <Link to={`/demand/shortages/${row.id}/edit`}>Edit</Link>
-          {row.status !== 'RESOLVED' && (
+        <div style={{ minWidth: 160 }}>
+          <span className="row-actions">
+            <Link to={`/demand/shortages/${row.id}`}>View</Link>
+            <Link to={`/demand/shortages/${row.id}/edit`}>Edit</Link>
+            {row.status !== 'RESOLVED' && row.status !== 'DISMISSED' && (
+              <>
+                <button
+                  type="button"
+                  disabled={resolveShortage.isPending}
+                  onClick={() => openResolveModal(row)}
+                >
+                  Resolve
+                </button>
+                <button
+                  type="button"
+                  disabled={dismissShortage.isPending}
+                  onClick={() => openDismissModal(row)}
+                  style={{ color: '#64748b' }}
+                >
+                  Dismiss
+                </button>
+              </>
+            )}
             <button
               type="button"
-              disabled={resolveShortage.isPending}
-              onClick={() => resolveShortage.mutate(row.id)}
+              className="button--destructive"
+              onClick={() => setPendingDelete(row)}
             >
-              Resolve
+              Delete
             </button>
-          )}
-          <button
-            type="button"
-            className="button--destructive"
-            onClick={() => setPendingDelete(row)}
-          >
-            Delete
-          </button>
-        </span>
+          </span>
+        </div>
       ),
     },
   ];
 
   return (
-    <section aria-labelledby="shortage-dashboard-heading" className="demand-vertical stack" data-theme="light">
+    <section
+      aria-labelledby="shortage-dashboard-heading"
+      className="demand-vertical stack"
+      data-theme="light"
+    >
       <PageHeader
         title="Demand & Shortage Monitoring"
         subtitle="Monitor consumption trends, forecast demand, and identify potential medicine shortages before they occur."
         actions={
           <span className="row-actions">
-            {/* Re-checks every facility and medicine with consumption history and a
-                reorder rule against live Inventory stock. Manager and admin only;
-                the backend enforces the role. */}
             <button
               type="button"
               disabled={scanShortages.isPending}
@@ -225,7 +344,14 @@ export function ShortageDashboard({
       )}
 
       {data && items.length > 0 && (
-        <div className="metrics">
+        <div
+          className="metrics"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: 'var(--space-4)',
+          }}
+        >
           <MetricCard
             index={0}
             icon="alert"
@@ -258,23 +384,59 @@ export function ShortageDashboard({
             note="Soonest projected across alerts at risk"
             tone={earliest ? 'critical' : 'positive'}
           />
+          <div
+            className="card"
+            style={{
+              padding: '16px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              background: '#ffffff',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 6,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#64748b',
+                }}
+              >
+                Risk distribution
+              </span>
+              <span
+                className="cell-secondary"
+                data-testid="high-risk-summary"
+                style={{ fontSize: '0.6875rem' }}
+              >
+                {atRisk.length} of {items.length} alerts on this page require a transfer.
+              </span>
+            </div>
+            <RiskDistribution high={highCount} medium={mediumCount} />
+          </div>
         </div>
       )}
 
       {data && (
-        <div className="split">
-          {/*
-            The filter controls live outside every data conditional. They are controls,
-            not results: unmounting them while a query reloads throws away focus
-            mid-keystroke and makes the search box vanish as you type.
-          */}
+        <div style={{ width: '100%' }}>
           <Panel
             title="Shortage risk"
             description="Medicines whose cover is shorter than their supplier lead time"
             icon="activity"
             flush
             actions={
-              <div className="toolbar">
+              <div className="toolbar" style={{ flexWrap: 'wrap', gap: 10 }}>
                 <SearchBar
                   value={search}
                   onChange={(value) => {
@@ -364,31 +526,240 @@ export function ShortageDashboard({
               </div>
             ) : (
               <>
-                <div className="table-wrap">
+                <div
+                  className="table-wrap shortage-table-wrap"
+                  style={{
+                    overflowX: 'auto',
+                    maxHeight: 'calc(100vh - 360px)',
+                    minHeight: 280,
+                  }}
+                >
                   <DataTable caption="Shortage alerts" columns={columns} rows={items} />
                 </div>
                 <Pagination page={data.page} totalPages={pageCount(data)} onPageChange={setPage} />
               </>
             )}
           </Panel>
-
-          {items.length > 0 && (
-            <Panel
-              title="Risk distribution"
-              description="Severity split across the alerts shown"
-              icon="chart"
-            >
-              <RiskDistribution high={highCount} medium={mediumCount} />
-              <p className="cell-secondary" style={{ marginTop: 'var(--space-4)' }}>
-                <span data-testid="high-risk-summary">
-                  {atRisk.length} of {items.length} alerts on this page require a transfer.
-                </span>
-              </p>
-            </Panel>
-          )}
         </div>
       )}
 
+      {/* Verified Resolution Modal */}
+      {resolveTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 520,
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem', color: '#0f172a' }}>
+              Verified Resolution
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#64748b' }}>
+              Confirm verified resolution for{' '}
+              <strong>{medicineName(resolveTarget.medicineId)}</strong> at{' '}
+              <strong>{facilityName(resolveTarget.facilityId)}</strong>.
+            </p>
+
+            <form onSubmit={handleConfirmResolve}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <label className="field">
+                  Verification Method
+                  <select
+                    value={verificationMethod}
+                    aria-label="Verification Method"
+                    onChange={(e) => setVerificationMethod(e.target.value)}
+                  >
+                    <option value="STOCK_AUDIT">Physical Stock Count / Audit Recheck</option>
+                    <option value="TRANSFER_RECEIPT">Delivered Inter-Hospital Transfer</option>
+                    <option value="PROCUREMENT_RECEIPT">Received Supplier Purchase Order</option>
+                    <option value="CLINICAL_WAIVER">Clinical Protocol Substitution / Safety Waiver</option>
+                  </select>
+                </label>
+
+                {verificationMethod === 'STOCK_AUDIT' && (
+                  <label className="field">
+                    Verified Physical Stock Count
+                    <input
+                      type="number"
+                      min={0}
+                      aria-label="Verified Physical Stock Count"
+                      value={verifiedStock}
+                      onChange={(e) => setVerifiedStock(e.target.value)}
+                    />
+                  </label>
+                )}
+
+                <label className="field">
+                  Verification Rationale & Evidence (Required for Audit Trail)
+                  <textarea
+                    rows={3}
+                    aria-label="Verification Rationale"
+                    value={verificationNotes}
+                    placeholder="Document physical inventory audit result, transfer delivery confirmation, or medical waiver reason…"
+                    onChange={(e) => setVerificationNotes(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </label>
+
+                {resolveError && (
+                  <div
+                    style={{
+                      color: '#be123c',
+                      fontSize: '0.85rem',
+                      background: '#ffe4e6',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    {resolveError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResolveTarget(null);
+                      setResolveError(null);
+                    }}
+                    disabled={resolveShortage.isPending}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="button--primary"
+                    disabled={resolveShortage.isPending}
+                  >
+                    {resolveShortage.isPending ? 'Verifying…' : 'Confirm Resolution'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dismiss Shortage Modal */}
+      {dismissTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 480,
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem', color: '#0f172a' }}>
+              Dismiss Shortage Alert
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#64748b' }}>
+              Dismiss this alert for{' '}
+              <strong>{medicineName(dismissTarget.medicineId)}</strong> as invalid, duplicate, or clinically mitigated.
+            </p>
+
+            <form onSubmit={handleConfirmDismiss}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <label className="field">
+                  Dismissal Reason (Required for Audit Trail)
+                  <textarea
+                    rows={3}
+                    aria-label="Dismissal Reason"
+                    value={dismissReason}
+                    placeholder="Provide justification for dismissing this alert (e.g. duplicate notification, seasonal pause, alternate formulary available)…"
+                    onChange={(e) => setDismissReason(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </label>
+
+                {dismissError && (
+                  <div
+                    style={{
+                      color: '#be123c',
+                      fontSize: '0.85rem',
+                      background: '#ffe4e6',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    {dismissError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDismissTarget(null);
+                      setDismissError(null);
+                    }}
+                    disabled={dismissShortage.isPending}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="button--primary"
+                    disabled={dismissShortage.isPending}
+                  >
+                    {dismissShortage.isPending ? 'Dismissing…' : 'Confirm Dismissal'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
       {pendingDelete && (
         <ConfirmDialog
           title="Delete this alert?"
@@ -406,6 +777,20 @@ export function ShortageDashboard({
           }}
         />
       )}
+
+      <style>{`
+        .shortage-table-wrap thead th {
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 2 !important;
+          background: #f8fafc !important;
+          box-shadow: 0 1px 0 #e2e8f0;
+        }
+        .shortage-table-wrap tbody td {
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+        }
+      `}</style>
     </section>
   );
 }

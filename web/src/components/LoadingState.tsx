@@ -1,45 +1,17 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
-
-export interface LoadingStateProps {
-  message?: string;
-  label?: string;
-}
-
-export const LoadingState: React.FC<LoadingStateProps> = ({ message, label }) => {
-  const text = message ?? label ?? 'Loading...';
-
+/**
+ * SHARED REACT DESIGN SYSTEM - primary owner: Arudkumaran V. (IT24103011).
+ *
+ * Placeholder created by the Demand vertical (Sathurstiga S., IT24103156) only so the
+ * demand feature can be built and tested against the shared component contract.
+ * Replace with the owner's implementation on integration.
+ */
+export function LoadingState({ label, message }: { label?: string; message?: string }) {
+  const text = label ?? message ?? 'Loading…';
   return (
-    <div
-      className="state state--loading"
-      role="status"
-      aria-live="polite"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px 20px',
-        gap: '16px',
-        color: 'var(--text-secondary, #94a3b8)',
-      }}
-    >
-      <Loader2
-        size={36}
-        style={{
-          animation: 'spin 1s linear infinite',
-          color: 'var(--color-primary, #0ea5e9)',
-        }}
-      />
-      <p style={{ fontSize: '0.95rem', margin: 0 }}>{text}</p>
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+    <div className="state state--loading" role="status" aria-live="polite">
+      {text}
     </div>
   );
-};
+}
 
 export default LoadingState;

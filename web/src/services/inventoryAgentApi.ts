@@ -1,5 +1,14 @@
-const AGENT_BASE_URL =
-  import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8000";
+/**
+ * Inventory Agent API
+ *
+ * All calls go through the .NET backend at /api/inventory/agent/run.
+ * The backend enforces FacilityInventoryAccess RBAC before proxying to the
+ * Python agent service with an internal service token.
+ *
+ * The agent service is NEVER called directly from the browser - doing so
+ * would bypass authorization and expose the internal service token.
+ */
+import { apiRequest } from "./apiClient";
 
 export type InventoryAgentRequest = {
   action_type: "analyze" | "ask" | "receive" | "adjust" | "reserve";
@@ -18,27 +27,16 @@ export type InventoryAgentResponse = {
 };
 
 export const inventoryAgentApi = {
-  async run(
-    request: InventoryAgentRequest
-  ): Promise<InventoryAgentResponse> {
-    const response = await fetch(`${AGENT_BASE_URL}/api/inventory-agent/run`, {
+  async run(request: InventoryAgentRequest): Promise<InventoryAgentResponse> {
+    // Routes through .NET API → Python agent service (with X-Internal-Token).
+    // JWT is automatically attached by apiRequest via getStoredToken().
+    return apiRequest<InventoryAgentResponse>("/api/inventory/agent/run", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({
         action_type: request.action_type,
         payload: request.payload ?? {},
         approved: request.approved ?? false,
       }),
     });
-
-    if (!response.ok) {
-      throw new Error(
-        `Inventory Agent request failed (${response.status})`
-      );
-    }
-
-    return response.json() as Promise<InventoryAgentResponse>;
   },
 };

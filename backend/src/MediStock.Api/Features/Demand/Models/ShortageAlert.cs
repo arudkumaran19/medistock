@@ -52,8 +52,6 @@ public class ShortageAlert
 
     public bool RequiresTransfer { get; set; }
 
-    public Guid? RelatedTransferId { get; set; }
-
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 
     public string Status { get; set; } = ShortageAlertStatuses.Open;
@@ -73,6 +71,11 @@ public class ShortageAlert
     /// </summary>
     public string? ResolutionReason { get; set; }
 
+    /// <summary>Linked Inter-Hospital Transfer initiated to address this shortage.</summary>
+    public Guid? TransferId { get; set; }
+
+    public Guid? RelatedTransferId { get => TransferId; set => TransferId = value; }
+
     /// <summary>When the alert was dismissed (e.g. as a false positive). Null while active.</summary>
     public DateTime? DismissedAt { get; set; }
 
@@ -81,6 +84,24 @@ public class ShortageAlert
 
     /// <summary>User-provided or default explanation for dismissal.</summary>
     public string? DismissReason { get; set; }
+
+    /// <summary>Linked Purchase Order initiated to replenish this shortage.</summary>
+    public Guid? PurchaseOrderId { get; set; }
+
+    /// <summary>Whether resolution was formally verified by inventory balance re-audit or delivery confirmation.</summary>
+    public bool ResolutionVerified { get; set; }
+
+    /// <summary>User or system authority that verified the shortage resolution.</summary>
+    public string? VerifiedBy { get; set; }
+
+    /// <summary>Clinical notes or physical count rationale supplied upon resolution verification.</summary>
+    public string? VerificationNotes { get; set; }
+
+    /// <summary>Method of verification: AUTO_SCAN, STOCK_AUDIT, TRANSFER_RECEIPT, or PROCUREMENT_RECEIPT.</summary>
+    public string? VerificationMethod { get; set; }
+
+    /// <summary>Audit trail of status transitions for this alert.</summary>
+    public ICollection<ShortageStatusHistory> StatusHistory { get; set; } = new List<ShortageStatusHistory>();
 }
 
 /// <summary>

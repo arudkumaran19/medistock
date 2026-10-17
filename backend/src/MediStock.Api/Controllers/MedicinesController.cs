@@ -2,6 +2,7 @@ using MediStock.Api.Common;
 using MediStock.Api.Features.Inventory.DTOs;
 using MediStock.Api.Features.Inventory.Services;
 using MediStock.Api.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,7 @@ namespace MediStock.Api.Controllers;
 public sealed class MedicinesController(ApplicationDbContext db, MedicineService service) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Policy = "AddMedicineAndExpiryAccess")]
     public async Task<ActionResult<ApiResponse<MedicineResponse>>> Create(CreateMedicineRequest request, CancellationToken cancellationToken) => Created(string.Empty, new ApiResponse<MedicineResponse>(await service.CreateAsync(request, cancellationToken)));
 
     [HttpGet]
@@ -21,8 +23,10 @@ public sealed class MedicinesController(ApplicationDbContext db, MedicineService
     public async Task<ActionResult<ApiResponse<MedicineResponse>>> Get(Guid id, CancellationToken cancellationToken) => (await db.Medicines.AsNoTracking().Where(x => x.Id == id).Select(x => new MedicineResponse(x.Id, x.Code, x.Name, x.Unit, x.MinimumStockLevel, x.IsActive)).FirstOrDefaultAsync(cancellationToken)) is { } result ? Ok(new ApiResponse<MedicineResponse>(result)) : NotFound(new { code = "MEDICINE_NOT_FOUND", message = "Medicine was not found." });
 
     [HttpPost("{id:guid}/archive")]
+    [Authorize(Policy = "AddMedicineAndExpiryAccess")]
     public async Task<ActionResult<ApiResponse<MedicineResponse>>> Archive(Guid id, ArchiveMedicineRequest request, CancellationToken cancellationToken) => Ok(new ApiResponse<MedicineResponse>(await service.ArchiveAsync(id, request, cancellationToken)));
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "AddMedicineAndExpiryAccess")]
     public async Task<ActionResult<ApiResponse<MedicineResponse>>> Update(Guid id, UpdateMedicineRequest request, CancellationToken cancellationToken) => Ok(new ApiResponse<MedicineResponse>(await service.UpdateAsync(id, request, cancellationToken)));
 }

@@ -1,28 +1,14 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
+  // From develop: the repository-root .env is the single source for web config.
   envDir: '..',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/hubs': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        ws: true,
-      },
     },
   },
   test: {
@@ -30,8 +16,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    pool: 'forks',
+    testTimeout: 15000,
   },
 });
