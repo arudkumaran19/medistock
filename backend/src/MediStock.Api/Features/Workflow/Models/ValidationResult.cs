@@ -1,15 +1,18 @@
-using System;
-
 namespace MediStock.Api.Features.Workflow.Models;
 
-public class ValidationResult
+public sealed class ValidationResult
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid WorkflowRunId { get; set; }
-    public WorkflowRun? WorkflowRun { get; set; }
 
-    public string RuleName { get; set; } = string.Empty;
-    public bool IsValid { get; set; }
-    public string? ValidationDetailsJson { get; set; }
-    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+    public Guid WorkflowRunId { get; set; }
+
+    public string PolicyName { get; set; } = string.Empty;
+
+    public bool Passed { get; set; }
+
+    public string Message { get; set; } = string.Empty;
+
+    public string? DetailsJson { get; set; }
+
+    public DateTimeOffset EvaluatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

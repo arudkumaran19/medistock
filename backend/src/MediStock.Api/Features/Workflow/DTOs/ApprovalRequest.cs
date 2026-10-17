@@ -1,10 +1,12 @@
-using System;
+using System.ComponentModel.DataAnnotations;
 using MediStock.Api.Domain.Enums;
 
 namespace MediStock.Api.Features.Workflow.DTOs;
 
-public class ApprovalRequest
+public sealed class ApprovalRequest
 {
-    public Guid ApproverUserId { get; set; }
-    public string? DecisionNotes { get; set; }
+    [Required]
+    public ApprovalDecision Decision { get; set; } = ApprovalDecision.Approved;
+
+    public string? Comments { get; set; }
 }

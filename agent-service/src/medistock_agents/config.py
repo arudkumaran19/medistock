@@ -24,14 +24,6 @@ else:
     load_dotenv()
 
 
-def _resolve_backend_url() -> str:
-    for key in ("MEDISTOCK_API_BASE_URL", "BACKEND_URL"):
-        val = os.getenv(key)
-        if val and "backend" in val:
-            return val.rstrip("/")
-    return (os.getenv("BACKEND_URL") or os.getenv("MEDISTOCK_API_BASE_URL") or "http://localhost:5050").rstrip("/")
-
-
 @dataclass(frozen=True)
 class Settings:
     """Runtime configuration for MediStock Agent Service."""
@@ -50,13 +42,19 @@ class Settings:
     ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3")
 
     # ASP.NET Core Authoritative Backend API
-    medistock_api_base_url: str = _resolve_backend_url()
+    medistock_api_base_url: str = os.getenv(
+        "MEDISTOCK_API_BASE_URL", "http://localhost:5050"
+    ).rstrip("/")
 
-    # Explicit backend client aliases
-    BACKEND_URL: str = _resolve_backend_url()
-    INTERNAL_TOKEN: str = os.getenv(
-        "INTERNAL_TOKEN", os.getenv("AGENT_SERVICE_TOKEN", "medistock-internal-agent-token-2024")
-    )
+    # Internal service token shared between the .NET API and this agent service.
+    # Set via AgentService__ServiceToken in the .env. When empty, internal-token
+    # validation is skipped (dev-friendly) but a warning is logged.
+    internal_service_token: str = os.getenv("AGENT_SERVICE_TOKEN", "")
+
+    # JWT Authentication settings (shared with ASP.NET Core API)
+    jwt_signing_key: str = os.getenv("JWT_SIGNING_KEY") or os.getenv("Jwt__SigningKey", "")
+    jwt_issuer: str = os.getenv("JWT_ISSUER") or os.getenv("Jwt__Issuer", "MediStock.Api")
+    jwt_audience: str = os.getenv("JWT_AUDIENCE") or os.getenv("Jwt__Audience", "MediStock.Client")
 
     # Timeouts
     agent_timeout_seconds: float = float(os.getenv("AGENT_TIMEOUT_SECONDS", "30"))
@@ -78,10 +76,6 @@ def get_settings(reload: bool = False) -> Settings:
     """Return the active settings instance (singleton unless reload=True)."""
     global _settings
     if _settings is None or reload:
-        backend_url = _resolve_backend_url()
-        token = os.getenv(
-            "INTERNAL_TOKEN", os.getenv("AGENT_SERVICE_TOKEN", "medistock-internal-agent-token-2024")
-        )
         _settings = Settings(
             environment=os.getenv("ENVIRONMENT", "development").lower(),
             llm_provider=os.getenv("LLM_PROVIDER", "gemini").lower(),
@@ -89,15 +83,14 @@ def get_settings(reload: bool = False) -> Settings:
             gemini_model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3"),
-            medistock_api_base_url=backend_url,
-            BACKEND_URL=backend_url,
-            INTERNAL_TOKEN=token,
+            medistock_api_base_url=os.getenv(
+                "MEDISTOCK_API_BASE_URL", "http://localhost:5050"
+            ).rstrip("/"),
             agent_timeout_seconds=float(os.getenv("AGENT_TIMEOUT_SECONDS", "30")),
             llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "30")),
+            internal_service_token=os.getenv("AGENT_SERVICE_TOKEN", ""),
+            jwt_signing_key=os.getenv("JWT_SIGNING_KEY") or os.getenv("Jwt__SigningKey", ""),
+            jwt_issuer=os.getenv("JWT_ISSUER") or os.getenv("Jwt__Issuer", "MediStock.Api"),
+            jwt_audience=os.getenv("JWT_AUDIENCE") or os.getenv("Jwt__Audience", "MediStock.Client"),
         )
     return _settings
-
-
-# Module-level settings instance for direct import
-settings: Settings = get_settings()
-

@@ -218,11 +218,6 @@ public class MediStockDbContext : DbContext
             entity.ToTable("agent_executions");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.AgentName).IsRequired().HasMaxLength(100);
-
-            entity.HasOne(e => e.WorkflowRun)
-                .WithMany(w => w.AgentExecutions)
-                .HasForeignKey(e => e.WorkflowRunId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ToolExecution
@@ -231,11 +226,6 @@ public class MediStockDbContext : DbContext
             entity.ToTable("tool_executions");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ToolName).IsRequired().HasMaxLength(100);
-
-            entity.HasOne(e => e.AgentExecution)
-                .WithMany(a => a.ToolExecutions)
-                .HasForeignKey(e => e.AgentExecutionId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ValidationResult
@@ -243,12 +233,7 @@ public class MediStockDbContext : DbContext
         {
             entity.ToTable("validation_results");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.RuleName).IsRequired().HasMaxLength(200);
-
-            entity.HasOne(e => e.WorkflowRun)
-                .WithMany(w => w.ValidationResults)
-                .HasForeignKey(e => e.WorkflowRunId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.PolicyName).HasMaxLength(200);
         });
 
         // Approval
@@ -256,7 +241,7 @@ public class MediStockDbContext : DbContext
         {
             entity.ToTable("approvals");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.Decision).HasConversion<string>().HasMaxLength(30);
 
             entity.HasOne(e => e.WorkflowRun)
                 .WithMany(w => w.Approvals)
@@ -269,10 +254,13 @@ public class MediStockDbContext : DbContext
         {
             entity.ToTable("audit_logs");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.EntityName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Action).IsRequired().HasMaxLength(50);
-            entity.HasIndex(e => new { e.EntityName, e.EntityId });
+            entity.HasIndex(e => e.WorkflowRunId);
             entity.HasIndex(e => e.Timestamp);
+
+            entity.HasOne(e => e.WorkflowRun)
+                .WithMany(w => w.AuditLogs)
+                .HasForeignKey(e => e.WorkflowRunId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ReplenishmentRequest

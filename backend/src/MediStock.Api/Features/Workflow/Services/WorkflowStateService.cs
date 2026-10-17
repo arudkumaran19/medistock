@@ -1,143 +1,182 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using MediStock.Api.Data;
+using System.Text.Json;
 using MediStock.Api.Domain.Enums;
 using MediStock.Api.Features.Workflow.Models;
+using MediStock.Api.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediStock.Api.Features.Workflow.Services;
 
-public class WorkflowStateService : IWorkflowStateService
+public interface IWorkflowStateService
 {
-    private readonly MediStockDbContext _dbContext;
+    Task<WorkflowRun?> GetWorkflowAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<List<WorkflowRun>> GetActiveWorkflowsAsync(Guid? userId = null, CancellationToken cancellationToken = default);
+
+    Task<List<WorkflowRun>> GetWorkflowsBySessionAsync(string sessionId, Guid? userId = null, CancellationToken cancellationToken = default);
+
+    Task UpdateStatusAsync(
+        Guid workflowId,
+        WorkflowStatus newStatus,
+        string? errorMessage = null,
+        CancellationToken cancellationToken = default);
+
+    Task AddAuditLogAsync(
+        Guid workflowId,
+        string eventType,
+        string description,
+        object? details = null,
+        Guid? userId = null,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateStepStatusAsync(
+        Guid stepId,
+        string status,
+        string? outputSummary = null,
+        string? outputJson = null,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class WorkflowStateService : IWorkflowStateService
+{
+    private readonly ApplicationDbContext _db;
     private readonly ILogger<WorkflowStateService> _logger;
 
     public WorkflowStateService(
-        MediStockDbContext dbContext,
+        ApplicationDbContext db,
         ILogger<WorkflowStateService> logger)
     {
-        _dbContext = dbContext;
+        _db = db;
         _logger = logger;
     }
 
-    public async Task<WorkflowRun> CreateRunAsync(
-        string workflowType,
-        Guid initiatorUserId,
-        string? contextJson,
-        CancellationToken ct = default)
+    public async Task<WorkflowRun?> GetWorkflowAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var run = new WorkflowRun
-        {
-            Id = Guid.NewGuid(),
-            WorkflowType = workflowType,
-            Status = WorkflowStatus.Running,
-            InitiatorUserId = initiatorUserId,
-            ContextJson = contextJson,
-            StartedAt = DateTime.UtcNow
-        };
-
-        _dbContext.WorkflowRuns.Add(run);
-        await _dbContext.SaveChangesAsync(ct);
-
-        await LogAuditAsync("WorkflowRun", run.Id, "CREATED", initiatorUserId, contextJson, ct);
-        _logger.LogInformation("Created WorkflowRun {WorkflowRunId} for {WorkflowType}", run.Id, workflowType);
-
-        return run;
+        return await _db.Set<WorkflowRun>()
+            .Include(w => w.Steps.OrderBy(s => s.StepOrder))
+            .Include(w => w.Approvals)
+            .Include(w => w.AuditLogs.OrderByDescending(a => a.Timestamp))
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
     }
 
-    public async Task<WorkflowPlanStep> AddStepAsync(
-        Guid workflowRunId,
-        int stepNumber,
-        string stepName,
-        string? inputJson = null,
-        CancellationToken ct = default)
+    public async Task<List<WorkflowRun>> GetActiveWorkflowsAsync(Guid? userId = null, CancellationToken cancellationToken = default)
     {
-        var step = new WorkflowPlanStep
+        var query = _db.Set<WorkflowRun>()
+            .Include(w => w.Steps.OrderBy(s => s.StepOrder))
+            .Include(w => w.Approvals)
+            .Where(w => w.Status == WorkflowStatus.Running || w.Status == WorkflowStatus.WaitingForApproval);
+
+        if (userId.HasValue)
         {
-            Id = Guid.NewGuid(),
-            WorkflowRunId = workflowRunId,
-            StepNumber = stepNumber,
-            StepName = stepName,
-            Status = WorkflowStatus.Running,
-            InputJson = inputJson,
-            ExecutedAt = DateTime.UtcNow
-        };
+            query = query.Where(w => !w.InitiatedByUserId.HasValue || w.InitiatedByUserId == userId.Value);
+        }
 
-        _dbContext.WorkflowPlanSteps.Add(step);
-        await _dbContext.SaveChangesAsync(ct);
-
-        return step;
+        return await query
+            .OrderByDescending(w => w.CreatedAt)
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task CompleteStepAsync(
+    public async Task<List<WorkflowRun>> GetWorkflowsBySessionAsync(string sessionId, Guid? userId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _db.Set<WorkflowRun>()
+            .Include(w => w.Steps.OrderBy(s => s.StepOrder))
+            .Include(w => w.Approvals)
+            .Where(w => w.SessionId == sessionId);
+
+        if (userId.HasValue)
+        {
+            query = query.Where(w => !w.InitiatedByUserId.HasValue || w.InitiatedByUserId == userId.Value);
+        }
+
+        return await query
+            .OrderBy(w => w.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateStatusAsync(
+        Guid workflowId,
+        WorkflowStatus newStatus,
+        string? errorMessage = null,
+        CancellationToken cancellationToken = default)
+    {
+        var run = await _db.Set<WorkflowRun>().FirstOrDefaultAsync(w => w.Id == workflowId, cancellationToken);
+        if (run is null)
+        {
+            _logger.LogWarning("WorkflowRun {WorkflowId} not found when updating status to {Status}", workflowId, newStatus);
+            return;
+        }
+
+        var oldStatus = run.Status;
+        run.Status = newStatus;
+        run.UpdatedAt = DateTimeOffset.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            run.ErrorMessage = errorMessage;
+        }
+
+        if (newStatus is WorkflowStatus.Completed or WorkflowStatus.Failed or WorkflowStatus.Rejected or WorkflowStatus.Cancelled)
+        {
+            run.CompletedAt = DateTimeOffset.UtcNow;
+        }
+
+        var audit = new AuditLog
+        {
+            WorkflowRunId = workflowId,
+            EventType = "STATUS_CHANGED",
+            Description = $"Status transitioned from {oldStatus} to {newStatus}",
+            DetailsJson = errorMessage is not null ? JsonSerializer.Serialize(new { errorMessage }) : null,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        _db.Set<AuditLog>().Add(audit);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddAuditLogAsync(
+        Guid workflowId,
+        string eventType,
+        string description,
+        object? details = null,
+        Guid? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var audit = new AuditLog
+        {
+            WorkflowRunId = workflowId,
+            EventType = eventType,
+            Description = description,
+            DetailsJson = details is not null ? JsonSerializer.Serialize(details) : null,
+            PerformedByUserId = userId,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        _db.Set<AuditLog>().Add(audit);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateStepStatusAsync(
         Guid stepId,
-        WorkflowStatus status,
+        string status,
+        string? outputSummary = null,
         string? outputJson = null,
-        CancellationToken ct = default)
+        CancellationToken cancellationToken = default)
     {
-        var step = await _dbContext.WorkflowPlanSteps.FindAsync(new object[] { stepId }, ct);
-        if (step != null)
+        var step = await _db.Set<WorkflowPlanStep>().FirstOrDefaultAsync(s => s.Id == stepId, cancellationToken);
+        if (step is null) return;
+
+        step.Status = status;
+        if (outputSummary is not null) step.OutputSummary = outputSummary;
+        if (outputJson is not null) step.OutputJson = outputJson;
+
+        if (status == "Running" && step.StartedAt is null)
         {
-            step.Status = status;
-            step.OutputJson = outputJson;
-            step.ExecutedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync(ct);
+            step.StartedAt = DateTimeOffset.UtcNow;
         }
-    }
-
-    public async Task UpdateRunStatusAsync(
-        Guid workflowRunId,
-        WorkflowStatus status,
-        CancellationToken ct = default)
-    {
-        var run = await _dbContext.WorkflowRuns.FindAsync(new object[] { workflowRunId }, ct);
-        if (run != null)
+        else if (status is "Completed" or "Failed" or "Skipped")
         {
-            run.Status = status;
-            if (status == WorkflowStatus.Completed || status == WorkflowStatus.Failed || status == WorkflowStatus.Rejected)
-            {
-                run.CompletedAt = DateTime.UtcNow;
-            }
-            await _dbContext.SaveChangesAsync(ct);
+            step.CompletedAt = DateTimeOffset.UtcNow;
         }
-    }
 
-    public async Task LogAuditAsync(
-        string entityName,
-        Guid entityId,
-        string action,
-        Guid userId,
-        string? detailsJson = null,
-        CancellationToken ct = default)
-    {
-        var log = new AuditLog
-        {
-            Id = Guid.NewGuid(),
-            EntityName = entityName,
-            EntityId = entityId,
-            Action = action,
-            UserId = userId,
-            Timestamp = DateTime.UtcNow,
-            DetailsJson = detailsJson
-        };
-
-        _dbContext.AuditLogs.Add(log);
-        await _dbContext.SaveChangesAsync(ct);
-    }
-
-    public async Task<List<AuditLog>> GetAuditLogsAsync(
-        string entityName,
-        Guid entityId,
-        CancellationToken ct = default)
-    {
-        return await _dbContext.AuditLogs
-            .AsNoTracking()
-            .Where(a => a.EntityName == entityName && a.EntityId == entityId)
-            .OrderByDescending(a => a.Timestamp)
-            .ToListAsync(ct);
+        await _db.SaveChangesAsync(cancellationToken);
     }
 }

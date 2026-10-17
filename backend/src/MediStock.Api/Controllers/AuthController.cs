@@ -1,11 +1,13 @@
 using System.Security.Claims;
+using MediStock.Api.Common.Audit;
 using MediStock.Api.Features.Auth.DTOs;
 using MediStock.Api.Features.Auth.Services;
-using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MediStock.Api.Security;
+
+using Microsoft.EntityFrameworkCore;
+using MediStock.Api.Infrastructure.Persistence;
 
 namespace MediStock.Api.Controllers;
 
@@ -15,16 +17,55 @@ public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly CurrentUserService _currentUserService;
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IAuditService _auditService;
+    private readonly ApplicationDbContext? _dbContext;
 
     public AuthController(
         AuthService authService,
         CurrentUserService currentUserService,
         ApplicationDbContext dbContext)
+        : this(authService, currentUserService, null, dbContext)
+    {
+    }
+
+    public AuthController(
+        AuthService authService,
+        CurrentUserService currentUserService,
+        IAuditService? auditService,
+        ApplicationDbContext? dbContext = null)
     {
         _authService = authService;
         _currentUserService = currentUserService;
+        _auditService = auditService;
         _dbContext = dbContext;
+    }
+
+    private async Task LogAuditAsync(
+        string action,
+        string resourceType,
+        string? resourceId = null,
+        string outcome = "SUCCESS",
+        string? reason = null,
+        object? details = null,
+        string? actorEmail = null,
+        string? actorRole = null,
+        string? correlationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (_auditService != null)
+        {
+            await _auditService.LogAsync(
+                action: action,
+                resourceType: resourceType,
+                resourceId: resourceId,
+                outcome: outcome,
+                reason: reason,
+                details: details,
+                actorEmail: actorEmail,
+                actorRole: actorRole,
+                correlationId: correlationId,
+                cancellationToken: cancellationToken);
+        }
     }
 
     [HttpPost("register")]
@@ -36,6 +77,17 @@ public sealed class AuthController : ControllerBase
         var response = await _authService.RegisterAsync(
             request,
             cancellationToken);
+
+        await LogAuditAsync(
+            action: "USER_REGISTERED",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            details: new { response.Email, Roles = response.Roles },
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         return Ok(response);
     }
@@ -52,6 +104,17 @@ public sealed class AuthController : ControllerBase
 
         if (response is null)
         {
+            await LogAuditAsync(
+                action: "USER_LOGIN_FAILED",
+                resourceType: "Auth",
+                resourceId: null,
+                outcome: "FAILURE",
+                reason: "Invalid email or password",
+                actorEmail: request.Email,
+                actorRole: "Anonymous",
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
             return Unauthorized(new
             {
                 success = false,
@@ -63,8 +126,20 @@ public sealed class AuthController : ControllerBase
             });
         }
 
+        await LogAuditAsync(
+            action: "USER_LOGIN_SUCCESS",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            details: new { response.Email, Roles = response.Roles },
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
         return Ok(response);
     }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Refresh(
@@ -77,6 +152,16 @@ public sealed class AuthController : ControllerBase
 
         if (response is null)
         {
+            await LogAuditAsync(
+                action: "TOKEN_REFRESH_FAILED",
+                resourceType: "Auth",
+                resourceId: null,
+                outcome: "FAILURE",
+                reason: "Invalid or expired refresh token",
+                actorRole: "Anonymous",
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
             return Unauthorized(new
             {
                 success = false,
@@ -88,8 +173,19 @@ public sealed class AuthController : ControllerBase
             });
         }
 
+        await LogAuditAsync(
+            action: "TOKEN_REFRESH_SUCCESS",
+            resourceType: "User",
+            resourceId: response.UserId.ToString(),
+            outcome: "SUCCESS",
+            actorEmail: response.Email,
+            actorRole: response.Roles.FirstOrDefault() ?? "User",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
         return Ok(response);
     }
+
     [HttpPost("logout")]
     [AllowAnonymous]
     public async Task<IActionResult> Logout(
@@ -99,6 +195,14 @@ public sealed class AuthController : ControllerBase
         await _authService.LogoutAsync(
             request,
             cancellationToken);
+
+        await LogAuditAsync(
+            action: "USER_LOGOUT",
+            resourceType: "Auth",
+            resourceId: null,
+            outcome: "SUCCESS",
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         return NoContent();
     }
@@ -116,7 +220,7 @@ public sealed class AuthController : ControllerBase
             .Select(claim => claim.Value)
             .ToArray();
 
-        var facilities = userId.HasValue
+        var facilities = userId.HasValue && _dbContext != null
             ? await (from uf in _dbContext.UserFacilities
                      join f in _dbContext.Facilities on uf.FacilityId equals f.Id
                      where uf.UserId == userId.Value

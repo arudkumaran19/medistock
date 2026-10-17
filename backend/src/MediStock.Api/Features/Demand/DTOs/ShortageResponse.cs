@@ -13,11 +13,11 @@ public class ShortageResponse
 
     public Guid FacilityId { get; set; }
 
+    public string? FacilityName { get; set; }
+
     public Guid MedicineId { get; set; }
 
     public string? MedicineName { get; set; }
-
-    public string? FacilityName { get; set; }
 
     public Guid? DemandForecastId { get; set; }
 
@@ -40,8 +40,6 @@ public class ShortageResponse
 
     public DateTime GeneratedAt { get; set; }
 
-    public Guid? RelatedTransferId { get; set; }
-
     public string Status { get; set; } = string.Empty;
 
     public DateTime? UpdatedAt { get; set; }
@@ -63,14 +61,50 @@ public class ShortageResponse
     /// for the same facility and medicine instead of creating a duplicate.
     /// </summary>
     public bool ExistingAlertUpdated { get; set; }
+
+    /// <summary>Linked Inter-Hospital Transfer initiated to address this shortage.</summary>
+    public Guid? TransferId { get; set; }
+
+    /// <summary>Linked Purchase Order initiated to replenish this shortage.</summary>
+    public Guid? PurchaseOrderId { get; set; }
+
+    /// <summary>Whether resolution was formally verified by inventory balance re-audit or delivery confirmation.</summary>
+    public bool ResolutionVerified { get; set; }
+
+    /// <summary>User or system authority that verified the shortage resolution.</summary>
+    public string? VerifiedBy { get; set; }
+
+    /// <summary>Clinical notes or physical count rationale supplied upon resolution verification.</summary>
+    public string? VerificationNotes { get; set; }
+
+    /// <summary>Method of verification: AUTO_SCAN, STOCK_AUDIT, TRANSFER_RECEIPT, or PROCUREMENT_RECEIPT.</summary>
+    public string? VerificationMethod { get; set; }
+
+    /// <summary>Historical transitions of this shortage alert.</summary>
+    public List<ShortageStatusHistoryResponse> StatusHistory { get; set; } = new();
 }
 
+public record ShortageStatusHistoryResponse(
+    Guid Id,
+    string FromStatus,
+    string ToStatus,
+    string ChangedBy,
+    DateTime ChangedAt,
+    string? Reason,
+    string? Notes,
+    string? VerificationMethod);
+
 /// <summary>
-/// Body of POST /api/shortages/{id}/dismiss.
+/// Request payload for resolving a shortage alert with verification evidence.
 /// </summary>
-public class ShortageDismissRequest
+public class ShortageResolveRequest
 {
-    public string? Reason { get; set; }
+    public string? VerificationNotes { get; set; }
+    public string? VerificationMethod { get; set; }
+    public string? VerifiedBy { get; set; }
+    public decimal? VerifiedCurrentStock { get; set; }
+    public Guid? TransferId { get; set; }
+    public Guid? PurchaseOrderId { get; set; }
 }
 
 /// <summary>
@@ -168,6 +202,9 @@ public class ShortageUpdateRequest
 
     /// <summary>Corrected lead time. Omit to leave unchanged.</summary>
     public int? LeadTimeDays { get; set; }
+
+    /// <summary>Optional decision notes or dismissal rationale.</summary>
+    public string? Notes { get; set; }
 }
 
 /// <summary>
@@ -195,3 +232,10 @@ public class ShortageQuery
 
     public int PageSize { get; set; } = Constants.DefaultPageSize;
 }
+
+public record LinkTransferRequest(Guid TransferId);
+
+public record LinkPurchaseOrderRequest(Guid PurchaseOrderId);
+
+public record ShortageDismissRequest(string Reason);
+

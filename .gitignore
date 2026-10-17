@@ -1,17 +1,13 @@
-## Visual Studio & .NET Build artifacts
-[Bb]in/
-[Oo]bj/
-[Pp]ublish/
-[Ll]og/
-[Ll]ogs/
-merge-disputed-backup/
-.vs/
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# .NET
+**/bin/
+**/obj/
 *.user
 *.suo
-*.userosscache
-*.sln.docstates
-
-## OS Generated Files
 
 # Node / React
 web/node_modules/
@@ -50,40 +46,11 @@ performance/results/*.json
 # OS
 .DS_Store
 Thumbs.db
-ehthumbs.db
-
-## Node & Web (for future steps)
-node_modules/
-.npm
-dist/
-build/
-.env
-.env.*
-.env.local
-.env.*.local
-agent-service/.env
-agent-service/.env.*
-
-## Python (for agent service step)
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-ENV/
-.pytest_cache/
-
-## Flutter / Dart (for mobile step)
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-*.apk
-*.aab
 
 # Local secrets / credentials
 *.pem
 *.key
+
 # Scratch / verification scripts
 agent-service/demonstration_runner.py
 agent-service/e2e_verification.py
@@ -92,9 +59,11 @@ agent-service/notebooks/
 MediStock-Architecture-Blueprint-Final.md
 .fake
 
-# Local tooling
-.claude/
-*.tsbuildinfo
+/.agents/
+# Build publish artifacts
 backend/publish/
+
+# Scratch / local work
 scratch/
 **/scratch/
+merge-disputed-backup/

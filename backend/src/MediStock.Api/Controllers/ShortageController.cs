@@ -1,5 +1,7 @@
-using System.Security.Claims;
+namespace MediStock.Api.Controllers;
+
 using MediStock.Api.Common;
+using MediStock.Api.Common.Audit;
 using MediStock.Api.Features.Demand.DTOs;
 using MediStock.Api.Features.Demand.Models;
 using MediStock.Api.Features.Demand.Services;
@@ -11,9 +13,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
-namespace MediStock.Api.Controllers;
+using System.Security.Claims;
 
 /// <summary>
 /// Shortage endpoints of the frozen Demand API contract.
@@ -24,7 +26,6 @@ namespace MediStock.Api.Controllers;
 ///   POST /api/shortages/recalculate
 ///   POST /api/shortages/scan            (automatic re-evaluation, not in the frozen contract)
 ///   GET  /api/shortages/current-stock   (Inventory balance read, not in the frozen contract)
-///   POST /api/shortages/{id}/dismiss    (dismiss as false positive)
 ///
 /// POST /api/shortages/recalculate is a non-CRUD business operation: it derives days of
 /// stock, the projected stockout date and the shortage risk level.
@@ -38,27 +39,40 @@ public class ShortageController : ControllerBase
     private readonly ShortageService _shortageService;
     private readonly ShortageEvaluationService _evaluationService;
     private readonly DemandValidator _validator;
-    private readonly IHubContext<TransferHub, ITransferHubClient> _hub;
-    private readonly CurrentUserService _currentUserService;
-    private readonly ApplicationDbContext _db;
+    private readonly IAuditService? _auditService;
+    private readonly CurrentUserService? _currentUserService;
+    private readonly ApplicationDbContext? _db;
+    private readonly IHubContext<TransferHub, ITransferHubClient>? _hub;
     private readonly ILogger<ShortageController>? _logger;
 
+    [ActivatorUtilitiesConstructor]
     public ShortageController(
         ShortageService shortageService,
         ShortageEvaluationService evaluationService,
         DemandValidator validator,
-        IHubContext<TransferHub, ITransferHubClient> hub,
         CurrentUserService currentUserService,
         ApplicationDbContext db,
+        IAuditService? auditService = null,
+        IHubContext<TransferHub, ITransferHubClient>? hub = null,
         ILogger<ShortageController>? logger = null)
     {
         _shortageService = shortageService;
         _evaluationService = evaluationService;
         _validator = validator;
-        _hub = hub;
         _currentUserService = currentUserService;
         _db = db;
+        _auditService = auditService;
+        _hub = hub;
         _logger = logger;
+    }
+
+    public ShortageController(
+        ShortageService shortageService,
+        ShortageEvaluationService evaluationService,
+        DemandValidator validator,
+        IAuditService auditService)
+        : this(shortageService, evaluationService, validator, null!, null!, auditService, null, null)
+    {
     }
 
     /// <summary>
@@ -120,17 +134,10 @@ public class ShortageController : ControllerBase
     [HttpGet]
     [Authorize(Roles = $"{Constants.Roles.StoreOfficer},{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
     [ProducesResponseType(typeof(ApiResponse<PagedResponse<ShortageResponse>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetShortages(
         [FromQuery] ShortageQuery query,
         CancellationToken cancellationToken)
     {
-        var validation = _validator.ValidateShortageQuery(query);
-        if (!validation.IsValid)
-        {
-            return BadRequest(Error(validation.Code!, validation.Message!));
-        }
-
         var result = await _shortageService.GetShortagesAsync(query, cancellationToken);
 
         return Ok(new ApiResponse<PagedResponse<ShortageResponse>>(result));
@@ -193,38 +200,59 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse response;
+        ShortageResponse alert;
 
         try
         {
-            response = await _shortageService.CreateShortageAsync(request, cancellationToken);
+            alert = await _shortageService.CreateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
+            await _auditService.LogAsync(
+                action: "SHORTAGE_ALERT_CREATE_FAILED",
+                resourceType: "ShortageAlert",
+                resourceId: null,
+                outcome: "FAILURE",
+                details: new { request.FacilityId, request.MedicineId, Reason = ex.Message },
+                actorEmail: User.Identity?.Name,
+                actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
-        await _hub.Clients
-            .Group("all_facility_users")
-            .ShortageAlertCreated(response);
-
-        await _hub.Clients
-            .Group("managers")
-            .ShortageAlertCreated(response);
-
-        _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+        await _auditService.LogAsync(
+            action: alert.ExistingAlertUpdated ? "SHORTAGE_ALERT_REFRESHED" : "SHORTAGE_ALERT_RAISED",
+            resourceType: "ShortageAlert",
+            resourceId: alert.Id.ToString(),
+            outcome: "SUCCESS",
+            details: new
+            {
+                alert.FacilityId,
+                alert.MedicineId,
+                alert.CurrentStock,
+                alert.DaysRemaining,
+                alert.RiskLevel,
+                alert.RequiresTransfer,
+                alert.ExistingAlertUpdated
+            },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         // Raising an alert that is already active refreshes it rather than duplicating
         // it, so that case is a 200 on the existing resource, not a 201.
-        if (response.ExistingAlertUpdated)
+        if (alert.ExistingAlertUpdated)
         {
-            return Ok(new ApiResponse<ShortageResponse>(response));
+            return Ok(new ApiResponse<ShortageResponse>(alert));
         }
 
         return CreatedAtAction(
             nameof(GetShortageById),
-            new { id = response.Id },
-            new ApiResponse<ShortageResponse>(response));
+            new { id = alert.Id },
+            new ApiResponse<ShortageResponse>(alert));
     }
 
     /// <summary>
@@ -256,7 +284,7 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        var alert = await _shortageService.UpdateShortageAsync(id, request, cancellationToken);
+        var alert = await _shortageService.UpdateShortageAsync(id, request, User.Identity?.Name, cancellationToken);
 
         if (alert is null)
         {
@@ -271,73 +299,66 @@ public class ShortageController : ControllerBase
                             });
         }
 
+        await _auditService.LogAsync(
+            action: "SHORTAGE_ALERT_UPDATED",
+            resourceType: "ShortageAlert",
+            resourceId: alert.Id.ToString(),
+            outcome: "SUCCESS",
+            details: new { alert.Status, alert.CurrentStock, alert.RiskLevel },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
         return Ok(new ApiResponse<ShortageResponse>(alert));
     }
 
     /// <summary>
-    /// Marks an alert resolved. The alert stays on record so the history is auditable.
+    /// Marks an alert resolved with verified evidence. The alert stays on record so the history is auditable.
     /// </summary>
     [HttpPost("{id:guid}/resolve")]
     [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
     [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ResolveShortage(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> ResolveShortage(
+        Guid id,
+        [FromBody] ShortageResolveRequest? request,
+        CancellationToken cancellationToken)
     {
-        var alert = await _shortageService.ResolveShortageAsync(id, cancellationToken);
-
-        if (alert is null)
+        ShortageResponse? alert;
+        try
         {
-            return NotFound(new ErrorResponse
-                            {
-                                Error = new ErrorDetail
-                                {
-                                    Code = DemandValidator.NotFoundCode,
-                                    Message = $"Shortage alert {id} was not found.",
-                                    TraceId = HttpContext.TraceIdentifier,
-                                },
-                            });
+            alert = await _shortageService.ResolveShortageAsync(
+                id,
+                request,
+                User.Identity?.Name,
+                enforceVerification: true,
+                cancellationToken: cancellationToken);
         }
-
-        return Ok(new ApiResponse<ShortageResponse>(alert));
-    }
-
-    /// <summary>
-    /// Permanently removes an alert raised in error. Prefer resolve over delete.
-    /// </summary>
-    [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteShortage(Guid id, CancellationToken cancellationToken)
-    {
-        var deleted = await _shortageService.DeleteShortageAsync(id, cancellationToken);
-
-        if (!deleted)
+        catch (ShortageResolutionNotVerifiedException ex)
         {
-            return NotFound(new ErrorResponse
-                            {
-                                Error = new ErrorDetail
-                                {
-                                    Code = DemandValidator.NotFoundCode,
-                                    Message = $"Shortage alert {id} was not found.",
-                                    TraceId = HttpContext.TraceIdentifier,
-                                },
-                            });
+            await _auditService.LogAsync(
+                action: "SHORTAGE_RESOLVE_FAILED",
+                resourceType: "ShortageAlert",
+                resourceId: id.ToString(),
+                outcome: "FAILURE",
+                details: new { Reason = ex.Message },
+                actorEmail: User.Identity?.Name,
+                actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+
+            return BadRequest(new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = "SHORTAGE_RESOLUTION_NOT_VERIFIED",
+                    Message = ex.Message,
+                    TraceId = HttpContext.TraceIdentifier
+                }
+            });
         }
-
-        return NoContent();
-    }
-
-    /// <summary>
-    /// Marks a shortage alert as acknowledged by a facility user.
-    /// </summary>
-    [HttpPost("{id:guid}/acknowledge")]
-    [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AcknowledgeShortage(Guid id, CancellationToken cancellationToken)
-    {
-        var alert = await _shortageService.AcknowledgeShortageAsync(id, cancellationToken);
 
         if (alert is null)
         {
@@ -351,6 +372,26 @@ public class ShortageController : ControllerBase
                 },
             });
         }
+
+        await _auditService.LogAsync(
+            action: "SHORTAGE_ALERT_RESOLVED",
+            resourceType: "ShortageAlert",
+            resourceId: id.ToString(),
+            outcome: "SUCCESS",
+            details: new
+            {
+                alert.FacilityId,
+                alert.MedicineId,
+                alert.VerificationMethod,
+                alert.VerifiedBy,
+                alert.VerificationNotes,
+                alert.TransferId,
+                alert.PurchaseOrderId
+            },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
 
         return Ok(new ApiResponse<ShortageResponse>(alert));
     }
@@ -373,13 +414,18 @@ public class ShortageController : ControllerBase
         CancellationToken cancellationToken)
     {
         // 1. Resolve user ID: if cannot be resolved return 401
-        var userId = _currentUserService.UserId;
+        var userId = _currentUserService?.UserId;
         if (!userId.HasValue || userId.Value == Guid.Empty)
         {
             return Unauthorized(Error("UNAUTHORIZED", "User identity could not be resolved from token."));
         }
 
         // 2. Fetch alert: if not found return 404
+        if (_db is null)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, Error("DATABASE_UNAVAILABLE", "Database context is not available."));
+        }
+
         var alert = await _db.ShortageAlerts
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -427,21 +473,155 @@ public class ShortageController : ControllerBase
         }
 
         // 6. SignalR: broadcast ShortageAlertDismissed only to alert facility group and managers group
-        var facilityGroup = TransferHub.GetFacilityGroupName(alert.FacilityId.ToString());
-        await _hub.Clients
-            .Group(facilityGroup)
-            .ShortageAlertDismissed(response);
+        if (_hub != null)
+        {
+            var facilityGroup = TransferHub.GetFacilityGroupName(alert.FacilityId.ToString());
+            await _hub.Clients
+                .Group(facilityGroup)
+                .ShortageAlertDismissed(response);
 
-        await _hub.Clients
-            .Group("managers")
-            .ShortageAlertDismissed(response);
+            await _hub.Clients
+                .Group("managers")
+                .ShortageAlertDismissed(response);
+        }
+
+        if (_auditService != null)
+        {
+            await _auditService.LogAsync(
+                action: "SHORTAGE_ALERT_DISMISSED",
+                resourceType: "ShortageAlert",
+                resourceId: id.ToString(),
+                outcome: "SUCCESS",
+                details: new { Reason = request?.Reason },
+                actorEmail: User.Identity?.Name,
+                actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+                correlationId: HttpContext.TraceIdentifier,
+                cancellationToken: cancellationToken);
+        }
 
         _logger?.LogInformation(
-            "Shortage alert {AlertId} dismissed. Broadcasted ShortageAlertDismissed to {FacilityGroup} and managers.",
-            response.Id,
-            facilityGroup);
+            "Shortage alert {AlertId} dismissed. Broadcasted ShortageAlertDismissed to managers.",
+            response.Id);
 
         return Ok(new ApiResponse<ShortageResponse>(response));
+    }
+
+    /// <summary>
+    /// Links an Inter-Hospital Transfer to an active shortage alert.
+    /// </summary>
+    [HttpPost("{id:guid}/link-transfer")]
+    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
+    [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LinkTransfer(
+        Guid id,
+        [FromBody] LinkTransferRequest request,
+        CancellationToken cancellationToken)
+    {
+        var alert = await _shortageService.LinkTransferAsync(id, request.TransferId, User.Identity?.Name, cancellationToken);
+        if (alert is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = DemandValidator.NotFoundCode,
+                    Message = $"Shortage alert {id} was not found.",
+                    TraceId = HttpContext.TraceIdentifier,
+                },
+            });
+        }
+
+        await _auditService.LogAsync(
+            action: "SHORTAGE_TRANSFER_LINKED",
+            resourceType: "ShortageAlert",
+            resourceId: id.ToString(),
+            outcome: "SUCCESS",
+            details: new { TransferId = request.TransferId },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
+        return Ok(new ApiResponse<ShortageResponse>(alert));
+    }
+
+    /// <summary>
+    /// Links a Purchase Order to an active shortage alert.
+    /// </summary>
+    [HttpPost("{id:guid}/link-purchase-order")]
+    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
+    [ProducesResponseType(typeof(ApiResponse<ShortageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LinkPurchaseOrder(
+        Guid id,
+        [FromBody] LinkPurchaseOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        var alert = await _shortageService.LinkPurchaseOrderAsync(id, request.PurchaseOrderId, User.Identity?.Name, cancellationToken);
+        if (alert is null)
+        {
+            return NotFound(new ErrorResponse
+            {
+                Error = new ErrorDetail
+                {
+                    Code = DemandValidator.NotFoundCode,
+                    Message = $"Shortage alert {id} was not found.",
+                    TraceId = HttpContext.TraceIdentifier,
+                },
+            });
+        }
+
+        await _auditService.LogAsync(
+            action: "SHORTAGE_PO_LINKED",
+            resourceType: "ShortageAlert",
+            resourceId: id.ToString(),
+            outcome: "SUCCESS",
+            details: new { PurchaseOrderId = request.PurchaseOrderId },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
+        return Ok(new ApiResponse<ShortageResponse>(alert));
+    }
+
+    /// <summary>
+    /// Permanently removes an alert raised in error. Prefer resolve over delete.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Constants.Roles.FacilityManager},{Constants.Roles.Admin}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteShortage(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _shortageService.DeleteShortageAsync(id, cancellationToken);
+
+        if (!deleted)
+        {
+            return NotFound(new ErrorResponse
+                            {
+                                Error = new ErrorDetail
+                                {
+                                    Code = DemandValidator.NotFoundCode,
+                                    Message = $"Shortage alert {id} was not found.",
+                                    TraceId = HttpContext.TraceIdentifier,
+                                },
+                            });
+        }
+
+        await _auditService.LogAsync(
+            action: "SHORTAGE_ALERT_DELETED",
+            resourceType: "ShortageAlert",
+            resourceId: id.ToString(),
+            outcome: "SUCCESS",
+            details: new { AlertId = id },
+            actorEmail: User.Identity?.Name,
+            actorRole: User.FindFirst(ClaimTypes.Role)?.Value,
+            correlationId: HttpContext.TraceIdentifier,
+            cancellationToken: cancellationToken);
+
+        return NoContent();
     }
 
     /// <summary>
@@ -470,33 +650,33 @@ public class ShortageController : ControllerBase
                               });
         }
 
-        ShortageResponse response;
+        ShortageResponse alert;
 
         try
         {
-            response = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
+            alert = await _shortageService.RecalculateShortageAsync(request, cancellationToken);
         }
         catch (ShortageStockNotFoundException ex)
         {
             return BadRequest(Error(DemandValidator.StockNotFoundCode, ex.Message));
         }
 
-        if (response.Status != ShortageAlertStatuses.Dismissed)
+        if (_hub != null && alert.Status != ShortageAlertStatuses.Dismissed)
         {
             await _hub.Clients
                 .Group("all_facility_users")
-                .ShortageAlertCreated(response);
+                .ShortageAlertCreated(alert);
 
             await _hub.Clients
                 .Group("managers")
-                .ShortageAlertCreated(response);
+                .ShortageAlertCreated(alert);
 
-            _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", response.Id);
+            _logger?.LogInformation("SignalR broadcast to all_facility_users and managers for shortage alert {AlertId}", alert.Id);
         }
 
         return StatusCode(
             StatusCodes.Status201Created,
-            new ApiResponse<ShortageResponse>(response));
+            new ApiResponse<ShortageResponse>(alert));
     }
 
     private ErrorResponse Error(string code, string message) => new()

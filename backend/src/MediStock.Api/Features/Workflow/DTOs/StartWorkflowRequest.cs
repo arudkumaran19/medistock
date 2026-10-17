@@ -1,14 +1,30 @@
-using System;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace MediStock.Api.Features.Workflow.DTOs;
 
-public class StartWorkflowRequest
+public sealed class StartWorkflowRequest
 {
-    public Guid TransferRequestId { get; set; }
-    public Guid DestinationFacilityId { get; set; }
-    public Guid MedicineId { get; set; }
-    public int ShortageQuantity { get; set; }
-    public Guid InitiatorUserId { get; set; }
+    [Required]
+    public string Objective { get; set; } = string.Empty;
+
+    public string WorkflowType { get; set; } = string.Empty;
+
+    public Guid? FacilityId { get; set; }
+
+    public Guid? MedicineId { get; set; }
+
+    public Dictionary<string, object>? Parameters { get; set; }
+
+    /// <summary>Frontend chat session ID – used to group workflow runs by conversation.</summary>
+    public string? SessionId { get; set; }
+
+    /// <summary>Frontend message ID that triggered this workflow – links the workflow to a specific chat turn.</summary>
+    public string? MessageId { get; set; }
+
+    // Compatibility fields for redistribution TransferService
+    public Guid? TransferRequestId { get; set; }
+    public Guid? DestinationFacilityId { get => FacilityId; set => FacilityId = value; }
+    public int? ShortageQuantity { get; set; }
+    public Guid? InitiatorUserId { get; set; }
     public string? AdditionalContext { get; set; }
 }

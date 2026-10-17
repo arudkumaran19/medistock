@@ -258,6 +258,15 @@ builder.Services.AddScoped<ForecastService>();
 builder.Services.AddScoped<ShortageService>();
 builder.Services.AddScoped<ShortageEvaluationService>();
 builder.Services.AddScoped<DemandValidator>();
+builder.Services.AddScoped<MediStock.Api.Features.Notifications.Services.INotificationService, MediStock.Api.Features.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<MediStock.Api.Common.Audit.IAuditService, MediStock.Api.Common.Audit.AuditService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<MediStock.Api.Security.CurrentUserService>();
+builder.Services.AddScoped<MediStock.Api.Security.FacilityAuthorizationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Validation.Services.PolicyValidationService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.SupplierService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.ProcurementService>();
+builder.Services.AddScoped<MediStock.Api.Features.Procurement.Services.DeliveryService>();
 
 // AI & External HttpClients
 builder.Services.Configure<AgentServiceOptions>(builder.Configuration.GetSection(AgentServiceOptions.SectionName));
