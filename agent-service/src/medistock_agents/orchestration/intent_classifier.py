@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 ALLOWED_INTENTS: frozenset[str] = frozenset([
+    "Greeting",
     "InventoryAudit",
     "CatalogueQuery",
     "ExpiryAudit",
@@ -101,6 +102,7 @@ Your role is to interpret the user request and produce a structured JSON decisio
 You must ONLY select from the allowed intents, agents, and tools listed below.
 
 ALLOWED_INTENTS (choose exactly one):
+- Greeting              : Ordinary greetings, pleasantries, or acknowledgements ("Hi", "Hello", "Good morning", "Thank you", "Goodbye")
 - InventoryAudit        : Simple factual stock lookup ("What is the stock of X?")
 - CatalogueQuery        : Multi-medicine catalogue or all-medicines stock query
 - ExpiryAudit           : Batch expiry scan across all facilities ("which batches expire in X days?")
@@ -113,15 +115,17 @@ ALLOWED_INTENTS (choose exactly one):
 - RedistributionEvaluation : Advisory redistribution comparison, no action
 - ProcurementEvaluation : Advisory procurement comparison, no action
 - Clarification         : Essential information is missing; ask a focused question
-- GeneralInquiry        : Greetings, capabilities, or general MediStock operational questions
-- OutOfDomain           : Inquiries unrelated to MediStock or healthcare inventory (weather, general chat)
+- GeneralInquiry        : Questions about MediStock capabilities or how the system works
+- OutOfDomain           : Inquiries unrelated to MediStock or healthcare inventory (poems, homework, weather, jokes, recipes, holidays, celebrity news)
 - InsufficientData      : Data required to answer is missing or unavailable
 
 ALLOWED_AGENTS: InventoryAudit, DemandForecast, StockRedistribution, AutonomousProcurement, PolicyValidation
 ALLOWED_TOOLS: get_stock_balance, get_medicine_catalogue, calculate_days_of_supply, calculate_demand_forecast, find_donor_candidates, score_suppliers, validate_policy
 
 RULES:
-1. Simple stock question -> InventoryAudit only. response_detail = concise.
+0. Greeting / polite pleasantry without operational request -> Greeting.
+1. Unrelated request (poems, homework, jokes, news, holidays) -> OutOfDomain.
+2. Simple stock question -> InventoryAudit only. response_detail = concise.
 2. Multi-medicine/all-medicines -> CatalogueQuery only.
 3. Forecast/days-of-supply question -> DemandForecast only.
 4. Full shortage inquiry -> ShortageAnalysis.

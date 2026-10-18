@@ -35,7 +35,9 @@ class Settings:
 
     # Google Gemini settings
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    gemini_api_key_secondary: str = os.getenv("GEMINI_API_KEY_SECONDARY", "")
+    gemini_api_key_tertiary: str = os.getenv("GEMINI_API_KEY_TERTIARY", "")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     # Ollama settings
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")

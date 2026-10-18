@@ -19,12 +19,15 @@ logger = logging.getLogger(__name__)
 coordinator_router = APIRouter(prefix="/api/coordinator", tags=["coordinator"])
 
 
-def _check_internal_token(x_internal_token: str | None) -> None:
+def _check_internal_token(x_internal_token: str | None) -> bool:
     """Validate internal service token when configured."""
     cfg = get_settings()
     expected_token = cfg.internal_service_token
-    if expected_token and x_internal_token != expected_token:
-        raise HTTPException(status_code=403, detail="Forbidden: invalid internal token")
+    if expected_token:
+        if x_internal_token != expected_token:
+            raise HTTPException(status_code=403, detail="Forbidden: invalid internal token")
+        return True
+    return False
 
 
 def _extract_user_token(x_user_token: str | None, authorization: str | None) -> str | None:
@@ -35,8 +38,11 @@ def _extract_user_token(x_user_token: str | None, authorization: str | None) -> 
     return None
 
 
-def _authorise(user_token: str | None) -> None:
+def _authorise(user_token: str | None, has_valid_internal_token: bool = False) -> None:
     """Enforce RBAC before the Coordinator retrieves data or delegates to any agent."""
+    if has_valid_internal_token and not user_token:
+        # Verified internal backend service call
+        return
     try:
         require_role(user_token, COORDINATOR_ALLOWED_ROLES, "the MediStock AI Coordinator")
     except AccessDenied as error:
@@ -65,9 +71,9 @@ async def run_coordinator(
     x_user_token: str | None = Header(None),
     authorization: str | None = Header(None),
 ) -> dict[str, Any]:
-    _check_internal_token(x_internal_token)
+    valid_internal = _check_internal_token(x_internal_token)
     user_token = _extract_user_token(x_user_token, authorization)
-    _authorise(user_token)
+    _authorise(user_token, has_valid_internal_token=valid_internal)
 
     agent = CoordinatorAgent()
     return await agent.run(
@@ -86,9 +92,10 @@ async def chat_coordinator(
     x_user_token: str | None = Header(None),
     authorization: str | None = Header(None),
 ) -> dict[str, Any]:
-    _check_internal_token(x_internal_token)
+    valid_internal = _check_internal_token(x_internal_token)
     user_token = _extract_user_token(x_user_token, authorization)
-    _authorise(user_token)
+    # Conversational chat requires an authenticated user token
+    _authorise(user_token, has_valid_internal_token=False)
 
     agent = CoordinatorAgent()
     result = await agent.run(

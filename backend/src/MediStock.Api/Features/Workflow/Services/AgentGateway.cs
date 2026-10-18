@@ -53,17 +53,20 @@ public sealed class AgentGateway : IAgentGateway
     private readonly AgentServiceOptions _options;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AgentGateway> _logger;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
 
     public AgentGateway(
         HttpClient http,
         IOptions<AgentServiceOptions> options,
         IServiceScopeFactory scopeFactory,
-        ILogger<AgentGateway> logger)
+        ILogger<AgentGateway> logger,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
         _http = http;
         _options = options.Value;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<CoordinatorExecutionResult> ExecuteCoordinatorWorkflowAsync(
@@ -159,6 +162,16 @@ public sealed class AgentGateway : IAgentGateway
             if (!string.IsNullOrWhiteSpace(_options.ServiceToken))
             {
                 request.Headers.Add("X-Internal-Token", _options.ServiceToken);
+            }
+
+            var authHeader = _httpContextAccessor?.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(authHeader))
+            {
+                request.Headers.TryAddWithoutValidation("Authorization", authHeader);
+                var rawToken = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                    ? authHeader.Substring(7).Trim()
+                    : authHeader.Trim();
+                request.Headers.TryAddWithoutValidation("X-User-Token", rawToken);
             }
 
             using var response = await _http.SendAsync(request, cancellationToken);

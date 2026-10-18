@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using MediStock.Api.Domain.Enums;
 
 namespace MediStock.Api.Features.Workflow.Models;
@@ -45,12 +46,14 @@ public sealed class WorkflowRun
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
     // Compatibility aliases for Redistribution TransferService
+    [NotMapped]
     public Guid InitiatorUserId
     {
         get => InitiatedByUserId ?? Guid.Empty;
         set => InitiatedByUserId = value;
     }
 
+    [NotMapped]
     public DateTime StartedAt
     {
         get => CreatedAt.UtcDateTime;

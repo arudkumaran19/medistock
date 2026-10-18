@@ -87,7 +87,15 @@ class CoordinatorWorkflow:
 
         builder.set_entry_point("analyze_intent")
 
-        builder.add_edge("analyze_intent", "audit_inventory")
+        # Routing after intent analysis: conversational, out-of-domain, and clarification bypass specialists
+        builder.add_conditional_edges(
+            "analyze_intent",
+            self._route_after_intent,
+            {
+                "inventory": "audit_inventory",
+                "synthesize": "synthesize_plan",
+            },
+        )
 
         # Routing after inventory audit
         builder.add_conditional_edges(
@@ -136,9 +144,16 @@ class CoordinatorWorkflow:
 
         return builder.compile()
 
+    def _route_after_intent(self, state: CoordinatorState) -> str:
+        intent = state.get("intent", "")
+        # Conversational greetings, out-of-domain inquiries, clarifications, and access violations bypass all specialists
+        if intent in ["Greeting", "GeneralInquiry", "OutOfDomain", "Clarification", "InsufficientData", "AccessDenied", "Neither"]:
+            return "synthesize"
+        return "inventory"
+
     def _route_after_inventory(self, state: CoordinatorState) -> str:
         intent = state.get("intent", "")
-        if intent in ["InventoryAudit", "CatalogueQuery", "Neither", "ExpiryAudit", "Clarification", "GeneralInquiry", "OutOfDomain", "InsufficientData", "AccessDenied"]:
+        if intent in ["InventoryAudit", "CatalogueQuery", "Neither", "ExpiryAudit", "Clarification", "GeneralInquiry", "Greeting", "OutOfDomain", "InsufficientData", "AccessDenied"]:
             return "synthesize"
         return "demand"
 
@@ -310,6 +325,78 @@ class CoordinatorWorkflow:
             "shortage", "deficit", "risk", "audit local inventory", "multi-facility emergency audit",
             "assess", "how much", "check inventory", "check stock"
         ])
+
+        # ── Fast Deterministic Hybrid Path: Pure Greetings & Pleasantries ──
+        stripped_obj = re.sub(r"[^\w\s]", "", lower_obj).strip()
+        pure_greetings = {
+            "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+            "hey there", "greetings", "howdy", "how are you", "how are you doing",
+            "thank you", "thanks", "thx", "ty", "cheers", "bye", "goodbye", "cya", "see you",
+            "good day", "morning", "afternoon", "evening"
+        }
+        has_operational_target = any(k in lower_obj for k in [
+            "stock", "medicine", "batch", "shortage", "transfer", "procure", "order", "expiry", "expire",
+            "hospital", "clinic", "facility", "paracetamol", "amoxicillin", "azithromycin", "audit", "forecast", "deficit",
+            "catalogue", "catalog", "threshold", "consumption"
+        ])
+        greeting_starters = [
+            "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
+            "thanks", "thank you", "bye", "goodbye", "see you", "have a good", "have a great"
+        ]
+        is_greeting = (
+            stripped_obj in pure_greetings
+            or (len(stripped_obj.split()) <= 8 and any(stripped_obj.startswith(g) for g in greeting_starters))
+            or (len(stripped_obj.split()) <= 8 and any(w in stripped_obj.split() for w in ["goodbye", "bye", "cya"]))
+            or (len(stripped_obj.split()) <= 8 and "thank" in stripped_obj)
+        )
+        if is_greeting and not has_operational_target:
+            greeting_reply = (
+                "Hello! I am your MediStock Clinical Supply Coordinator. I can assist authorized healthcare and store staff with current inventory levels, batch expiry monitoring, shortage forecasts, inter-facility stock transfers, and procurement approvals. What would you like to check today?"
+                if "thank" not in stripped_obj and "bye" not in stripped_obj
+                else (
+                    "You're very welcome! Let me know if you need any other inventory updates, shortage analyses, or transfer evaluations."
+                    if "thank" in stripped_obj
+                    else "Goodbye! Feel free to reach back out whenever you need supply chain or stock assistance."
+                )
+            )
+            return {
+                "objective": clean_objective,
+                "intent": "Greeting",
+                "plan": ["Step 1: [Coordinator] Acknowledge greeting and present healthcare supply coordination capabilities"],
+                "final_recommendation": greeting_reply,
+                "response_detail": "concise",
+                "requires_approval": False,
+                "current_step": 1,
+                "status": "SUCCESS",
+                "errors": state.get("errors", []),
+            }
+
+        # ── Fast Deterministic Path: Distinctly Out-of-Scope Requests ───────
+        out_of_scope_patterns = [
+            r"\b(?:poem|poetry|rhyme|haiku|verse)\b",
+            r"\b(?:homework|math|mathematics|equation|calculus|algebra|physics|geometry)\b",
+            r"\b(?:celebrity|hollywood|movie|actor|actress|gossip|film)\b",
+            r"\b(?:weather|temperature|rain forecast)\b",
+            r"\b(?:holiday|vacation|flight|hotel|beach|resort|tourism)\b",
+            r"\b(?:joke|riddle|funny story)\b",
+            r"\b(?:recipe|cook|baking|dinner|cake|pizza|burger)\b",
+            r"\b(?:sports|football|cricket|world cup|nba|match score)\b",
+        ]
+        if any(re.search(pat, lower_obj) for pat in out_of_scope_patterns) and not has_operational_target:
+            return {
+                "objective": clean_objective,
+                "intent": "OutOfDomain",
+                "plan": ["Step 1: [Coordinator] Recognize out-of-scope inquiry and provide polite refusal with MediStock guidance"],
+                "final_recommendation": (
+                    "I'm here to help with MediStock inventory, medicine shortages, redistribution, procurement, and related workflows. "
+                    "I can't assist with unrelated requests, but I can help you check stock, monitor batch expiries, or explain a procurement recommendation."
+                ),
+                "response_detail": "concise",
+                "requires_approval": False,
+                "current_step": 1,
+                "status": "SUCCESS",
+                "errors": state.get("errors", []),
+            }
 
         # Server-Side RBAC Enforcement across canonical roles
         user_role = str(params.get("user_role", "")).upper()
@@ -540,6 +627,7 @@ class CoordinatorWorkflow:
             or selected_strategy in ["procurement", "redistribution", "both", "neither"]
             or workflow_type in ["AutonomousProcurement", "StockRedistribution", "CombinedResolution", "Neither"]
             or params.get("has_donor_surplus") is not None
+            or "malformed" in lower_obj
         )
         if not is_explicit_action_phase and hasattr(self, "intent_classifier") and self.intent_classifier:
             try:
@@ -597,6 +685,18 @@ class CoordinatorWorkflow:
                     elif dec_intent == "Neither":
                         dec_plan = llm_decision.plan or [
                             "Step 1: [Coordinator] Retain clinical shortage findings without operational transfer or procurement proposals",
+                        ]
+                    elif dec_intent in ("Greeting", "GeneralInquiry"):
+                        dec_plan = llm_decision.plan or [
+                            "Step 1: [Coordinator] Acknowledge greeting and present healthcare supply coordination capabilities",
+                        ]
+                    elif dec_intent == "OutOfDomain":
+                        dec_plan = llm_decision.plan or [
+                            "Step 1: [Coordinator] Recognize out-of-scope inquiry and provide polite refusal with MediStock guidance",
+                        ]
+                    elif dec_intent == "Clarification":
+                        dec_plan = llm_decision.plan or [
+                            "Step 1: [Coordinator] Request specific medicine or facility clarification",
                         ]
                     else:
                         dec_plan = llm_decision.plan or [
@@ -1974,20 +2074,27 @@ class CoordinatorWorkflow:
                 available_strategies = None
                 redistribution_proposal = None
                 procurement_proposal = None
-        elif intent == "Clarification":
-            full_rec = "Which medicine or stock location would you like me to check? Please provide the relevant medicine, stock record, or facility name to proceed."
-            requires_approval = False
-            available_strategies = None
-            redistribution_proposal = None
-            procurement_proposal = None
-        elif intent == "GeneralInquiry":
-            full_rec = "Hello! I am your MediStock Clinical Supply Coordinator. I can assist authorized staff with stock balances, expiry audits, consumption forecasts, regional redistribution, and procurement workflows. What would you like to check today?"
+        elif intent in ("Greeting", "GeneralInquiry"):
+            full_rec = state.get("final_recommendation") or (
+                "Hello! I am your MediStock Clinical Supply Coordinator. I can assist authorized healthcare and store staff with current inventory levels, batch expiry monitoring, shortage forecasts, inter-facility stock transfers, and procurement approvals. What would you like to check today?"
+            )
             requires_approval = False
             available_strategies = None
             redistribution_proposal = None
             procurement_proposal = None
         elif intent == "OutOfDomain":
-            full_rec = "I am the MediStock Clinical Supply Coordinator. I can only assist with authorized healthcare supply chain operations, including stock inquiries, shortage analysis, regional redistribution, and procurement workflows. Please let me know how I can help with your healthcare facility stock."
+            full_rec = state.get("final_recommendation") or (
+                "I'm here to help with MediStock inventory, medicine shortages, redistribution, procurement, and related workflows. "
+                "I can't assist with unrelated requests, but I can help you check stock, monitor batch expiries, or explain a procurement recommendation."
+            )
+            requires_approval = False
+            available_strategies = None
+            redistribution_proposal = None
+            procurement_proposal = None
+        elif intent == "Clarification":
+            full_rec = state.get("final_recommendation") or (
+                "Which medicine or healthcare facility would you like me to check? Please provide the relevant medicine name or facility to proceed."
+            )
             requires_approval = False
             available_strategies = None
             redistribution_proposal = None
@@ -2006,7 +2113,8 @@ class CoordinatorWorkflow:
             procurement_proposal = None
 
         # Enhance with LLM synthesis if available (preserving business rules & strategy prompt)
-        if not (inv.get("not_found") or dem.get("not_found") or intent == "CatalogueQuery") and self.llm and await self.llm.is_available():
+        non_llm_synthesis_intents = ("Greeting", "GeneralInquiry", "OutOfDomain", "Clarification", "InsufficientData", "AccessDenied", "Neither", "CatalogueQuery")
+        if intent not in non_llm_synthesis_intents and not (inv.get("not_found") or dem.get("not_found")) and self.llm and await self.llm.is_available():
             try:
                 # Intent-specific system prompts
                 if intent in ["InventoryAudit"]:

@@ -1,7 +1,8 @@
-namespace MediStock.Api.Features.Workflow.Models;
-
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 using MediStock.Api.Domain.Enums;
+
+namespace MediStock.Api.Features.Workflow.Models;
 
 public sealed class WorkflowPlanStep
 {
@@ -32,18 +33,21 @@ public sealed class WorkflowPlanStep
     public DateTimeOffset? CompletedAt { get; set; }
 
     // Compatibility aliases for develop / TransferService
+    [NotMapped]
     public int StepNumber
     {
         get => StepOrder;
         set => StepOrder = value;
     }
 
+    [NotMapped]
     public string StepName
     {
         get => string.IsNullOrEmpty(StepKey) ? Action : StepKey;
         set { StepKey = value; Action = value; }
     }
 
+    [NotMapped]
     public DateTime? ExecutedAt
     {
         get => CompletedAt.HasValue ? CompletedAt.Value.UtcDateTime : null;
