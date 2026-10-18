@@ -9,8 +9,6 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Boxes,
-  UserCheck,
 } from "lucide-react";
 
 /* ─── Official Brand Mark ────────────────────────────────────────── */
@@ -40,7 +38,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -54,13 +51,6 @@ export function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function handleQuickFill(roleKey: string, demoEmail: string, demoPass: string) {
-    setSelectedRole(roleKey);
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
   }
 
   return (
@@ -350,69 +340,6 @@ export function LoginPage() {
               <span style={{ lineHeight: 1.45 }}>{error}</span>
             </div>
           )}
-
-          {/* Quick Demo Access: Interactive Role Selector Cards */}
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                One-Click Role Demonstration
-              </span>
-              <span style={{ fontSize: "0.7rem", color: "#0f766e", fontWeight: 600 }}>Click to auto-populate</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {[
-                {
-                  id: "admin",
-                  label: "Admin",
-                  sub: "System Full Access",
-                  email: "admin@medistock.com",
-                  pass: "Admin123!",
-                  icon: <ShieldCheck size={14} color="#0f766e" />,
-                },
-                {
-                  id: "lead",
-                  label: "Facility Lead",
-                  sub: "Approver & Director",
-                  email: "lead@medistock.com",
-                  pass: "Admin123!",
-                  icon: <UserCheck size={14} color="#0284c7" />,
-                },
-                {
-                  id: "staff",
-                  label: "Store Staff",
-                  sub: "Inventory & Dispatch",
-                  email: "staff@medistock.com",
-                  pass: "Admin123!",
-                  icon: <Boxes size={14} color="#d97706" />,
-                },
-              ].map((role) => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => handleQuickFill(role.id, role.email, role.pass)}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    padding: "9px 10px",
-                    borderRadius: "8px",
-                    background: selectedRole === role.id ? "#f0fdfa" : "#f8fafc",
-                    border: selectedRole === role.id ? "1.5px solid #0d9488" : "1px solid #e2e8f0",
-                    boxShadow: selectedRole === role.id ? "0 0 0 2px rgba(13, 148, 136, 0.15)" : "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "all 140ms ease",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
-                    {role.icon}
-                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#0f172a" }}>{role.label}</span>
-                  </div>
-                  <span style={{ fontSize: "0.6875rem", color: "#64748b", whiteSpace: "nowrap" }}>{role.sub}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>

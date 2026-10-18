@@ -9,6 +9,8 @@ using MediStock.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using MediStock.Api.Infrastructure.Persistence;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace MediStock.Api.Controllers;
 
 [ApiController]
@@ -17,7 +19,7 @@ public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly CurrentUserService _currentUserService;
-    private readonly IAuditService _auditService;
+    private readonly IAuditService? _auditService;
     private readonly ApplicationDbContext? _dbContext;
 
     public AuthController(
@@ -28,6 +30,7 @@ public sealed class AuthController : ControllerBase
     {
     }
 
+    [ActivatorUtilitiesConstructor]
     public AuthController(
         AuthService authService,
         CurrentUserService currentUserService,

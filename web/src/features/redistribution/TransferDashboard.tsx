@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock,
   Package,
+  Plus,
   RefreshCw,
   Truck,
 } from 'lucide-react';
@@ -134,6 +135,14 @@ export const TransferDashboard: React.FC = () => {
           >
             <RefreshCw size={16} />
             Refresh
+          </button>
+          <button
+            onClick={() => navigate('/transfers/new')}
+            className="btn btn-primary"
+            style={{ height: '40px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} />
+            New Transfer Request
           </button>
         </div>
       </div>

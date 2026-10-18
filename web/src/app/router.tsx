@@ -114,6 +114,7 @@ export const router = createBrowserRouter([
 
       // Redistribution
       { path: "transfers", element: <TransferDashboard /> },
+      { path: "transfers/new", element: <TransferForm /> },
       { path: "transfers/:id", element: <TransferDetail /> },
       { path: "transfers/:id/candidates", element: <CandidateFacilities /> },
       { path: "transfers/:id/route", element: <RouteComparison /> },

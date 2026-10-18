@@ -406,6 +406,8 @@ builder.Services.AddSwaggerGen(options =>
         Description = "MediStock Core & Redistribution Platform API"
     });
 
+    options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
