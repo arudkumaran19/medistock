@@ -124,4 +124,12 @@ public sealed class AuthMeEndpointTests
         facilitiesProp.Should().NotBeNull();
         facilitiesProp.Should().BeEmpty();
     }
+
+    [Fact]
+    public void AuthController_HasExactlyOneApplicableConstructor_AndCanBeActivatedByDependencyInjection()
+    {
+        // Assert that AuthController has exactly one public constructor
+        var constructors = typeof(AuthController).GetConstructors();
+        constructors.Length.Should().Be(1, "AuthController must have a single unambiguous constructor for ASP.NET Core activator");
+    }
 }

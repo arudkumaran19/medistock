@@ -20,6 +20,33 @@ interface InChatApprovalCardProps {
   compact?: boolean;
 }
 
+interface InChatProposalResult {
+  approval_type?: string;
+  approval_reason?: string;
+  inventory_data?: {
+    medicine?: string;
+    facility?: string;
+    [key: string]: unknown;
+  };
+  redistribution_proposal?: {
+    feasible?: boolean;
+    donor_facility?: string;
+    quantity?: number | string;
+    estimated_transit_hours?: number | string;
+    distance_km?: number | string;
+    [key: string]: unknown;
+  };
+  procurement_proposal?: {
+    needed?: boolean;
+    recommended_supplier?: string;
+    order_quantity?: number | string;
+    estimated_cost_lkr?: number | string;
+    unit_price?: number | string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export function InChatApprovalCard({
   message,
   workflow,
@@ -32,7 +59,7 @@ export function InChatApprovalCard({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Parse resultJson from workflow
-  let result: Record<string, any> | null = null;
+  let result: InChatProposalResult | null = null;
   if (workflow?.resultJson) {
     try {
       result = JSON.parse(workflow.resultJson);

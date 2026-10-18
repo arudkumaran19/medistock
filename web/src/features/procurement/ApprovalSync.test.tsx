@@ -6,6 +6,8 @@ import { MemoryRouter } from "react-router-dom";
 import { ApprovalConsole } from "./ApprovalConsole";
 import { procurementApi, type PurchaseOrder } from "../../services/procurementApi";
 import { InChatApprovalCard } from "../coordinator/InChatApprovalCard";
+import type { ChatMessage } from "../coordinator/types";
+import type { WorkflowRun } from "@/types/workflow";
 
 // Mock procurementApi
 vi.mock("../../services/procurementApi", () => ({
@@ -107,7 +109,7 @@ describe("Procurement Approval & Rejection Synchronization Suite", () => {
 
   it("triggers reject workflow and invalidates server cache", async () => {
     vi.mocked(procurementApi.getPendingApprovals).mockResolvedValue(mockOrders);
-    vi.mocked(procurementApi.rejectPurchaseOrder).mockResolvedValueOnce({} as any);
+    vi.mocked(procurementApi.rejectPurchaseOrder).mockResolvedValueOnce({} as unknown as PurchaseOrder);
 
     renderApprovalConsole();
 
@@ -192,8 +194,8 @@ describe("Procurement Approval & Rejection Synchronization Suite", () => {
 
     render(
       <InChatApprovalCard
-        message={mockMessage as any}
-        workflow={mockWorkflow as any}
+        message={mockMessage as unknown as ChatMessage}
+        workflow={mockWorkflow as unknown as WorkflowRun}
         onSubmitApproval={onSubmitApproval}
       />
     );

@@ -149,7 +149,7 @@ export function MultiFacilityCatalogueView({
 
   const chartDataByFacility = useMemo(() => {
     return DEFAULT_FACILITIES.map((fac) => {
-      const row: Record<string, any> = { facility: fac.short };
+      const row: Record<string, string | number> = { facility: fac.short };
       enrichedItems.forEach((m) => {
         const shortName = m.name.split(" ")[0] + " " + (m.name.split(" ")[1] || "");
         row[shortName] = Math.round(m.total_stock / 3);

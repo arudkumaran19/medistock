@@ -25,22 +25,13 @@ public sealed class AuthController : ControllerBase
     public AuthController(
         AuthService authService,
         CurrentUserService currentUserService,
-        ApplicationDbContext dbContext)
-        : this(authService, currentUserService, null, dbContext)
-    {
-    }
-
-    [ActivatorUtilitiesConstructor]
-    public AuthController(
-        AuthService authService,
-        CurrentUserService currentUserService,
-        IAuditService? auditService,
-        ApplicationDbContext? dbContext = null)
+        ApplicationDbContext dbContext,
+        IAuditService? auditService = null)
     {
         _authService = authService;
         _currentUserService = currentUserService;
-        _auditService = auditService;
         _dbContext = dbContext;
+        _auditService = auditService;
     }
 
     private async Task LogAuditAsync(

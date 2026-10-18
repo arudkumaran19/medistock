@@ -104,7 +104,7 @@ export function StockThresholdChart({
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} />
             <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
             <Tooltip
-              formatter={(val: any, name: any) => [
+              formatter={(val: unknown, name: unknown) => [
                 `${Number(val ?? 0).toLocaleString()} ${unit}`,
                 String(name ?? ""),
               ]}
@@ -239,7 +239,7 @@ export function DemandRunwayChart({
             <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#64748b" }} />
             <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
             <Tooltip
-              formatter={(val: any) => [
+              formatter={(val: unknown) => [
                 `${Number(val ?? 0).toLocaleString()} ${unit}`,
                 "Projected Balance",
               ]}

@@ -84,12 +84,54 @@ function AgentCard({ icon, name, badge, badgeColor, iconBg, iconColor: _iconColo
   );
 }
 
+interface SubAgentTelemetryData {
+  inventory_data?: {
+    medicine?: string;
+    facility?: string;
+    available_stock?: number | string;
+    agent_findings?: string;
+    [key: string]: unknown;
+  };
+  shortage_analysis?: {
+    daily_consumption_rate?: number | string;
+    days_of_supply_remaining?: number | string;
+    projected_deficit_units?: number | string;
+    agent_findings?: string;
+    [key: string]: unknown;
+  };
+  redistribution_proposal?: {
+    feasible?: boolean;
+    donor_facility?: string;
+    quantity?: number | string;
+    distance_km?: number | string;
+    estimated_transit_hours?: number | string;
+    recommendation?: string;
+    reason?: string;
+    [key: string]: unknown;
+  };
+  procurement_proposal?: {
+    needed?: boolean;
+    recommended_supplier?: string;
+    supplier_score?: number | string;
+    draft_po_number?: string;
+    total_estimated_cost?: number;
+    summary?: string;
+    [key: string]: unknown;
+  };
+  policy_validation?: {
+    approval_tier?: string;
+    rules_checked?: string[];
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export function SubAgentTelemetry({ workflow }: Props) {
   const [showRaw, setShowRaw] = useState(false);
 
   if (!workflow) return null;
 
-  let parsed: Record<string, any> | null = null;
+  let parsed: SubAgentTelemetryData | null = null;
   if (workflow.resultJson) {
     try { parsed = JSON.parse(workflow.resultJson); } catch { parsed = null; }
   }

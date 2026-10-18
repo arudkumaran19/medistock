@@ -8,6 +8,12 @@ interface GovernanceApprovalCardProps {
   onSubmitApproval: (decision: "Approved" | "Rejected", comments?: string) => Promise<void>;
 }
 
+interface GovernanceApprovalPayload {
+  approval_reason?: string;
+  approval_type?: string;
+  [key: string]: unknown;
+}
+
 export function GovernanceApprovalCard({
   workflow,
   onSubmitApproval,
@@ -31,7 +37,7 @@ export function GovernanceApprovalCard({
   }
 
   // Parse resultJson if available
-  let parsedResult: Record<string, any> | null = null;
+  let parsedResult: GovernanceApprovalPayload | null = null;
   if (workflow.resultJson) {
     try {
       parsedResult = JSON.parse(workflow.resultJson);

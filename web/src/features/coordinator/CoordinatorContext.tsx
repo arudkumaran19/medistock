@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -23,6 +24,22 @@ import {
   saveSessions,
   INITIAL_WELCOME_MESSAGE,
 } from "./sessionStore";
+
+interface CoordinatorResultPayload {
+  final_recommendation?: string;
+  sub_agents_involved?: string[];
+  available_strategies?: string[];
+  intent?: string;
+  procurement_proposal?: {
+    needed?: boolean;
+    recommended_supplier?: string;
+    draft_po_number?: string;
+    [key: string]: unknown;
+  };
+  approval_reason?: string;
+  approval_type?: string;
+  [key: string]: unknown;
+}
 
 interface CoordinatorContextValue {
   sessions: ChatSession[];
@@ -92,9 +109,14 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
   const lastPromptRef = useRef<string>("");
 
   // Derived values from active session
-  const sessionWorkflows: WorkflowRun[] = activeSession?.workflows ?? [];
-  const activeWorkflow: WorkflowRun | null =
-    sessionWorkflows.length > 0 ? sessionWorkflows[sessionWorkflows.length - 1] : null;
+  const sessionWorkflows: WorkflowRun[] = useMemo(
+    () => activeSession?.workflows ?? [],
+    [activeSession?.workflows]
+  );
+  const activeWorkflow: WorkflowRun | null = useMemo(
+    () => (sessionWorkflows.length > 0 ? sessionWorkflows[sessionWorkflows.length - 1] : null),
+    [sessionWorkflows]
+  );
 
   // Reload sessions whenever authenticated user changes (switched user or fresh login)
   const prevUserIdRef = useRef<string | undefined>(userId);
@@ -271,7 +293,7 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
    */
 
   function buildAssistantMessage(run: WorkflowRun, _userMsgId?: string): ChatMessage {
-    let parsedResult: Record<string, any> | null = null;
+    let parsedResult: CoordinatorResultPayload | null = null;
     if (run.resultJson) {
       try {
         parsedResult = JSON.parse(run.resultJson);
@@ -499,7 +521,7 @@ export function CoordinatorProvider({ children }: { children: ReactNode }) {
 
         const updated = await workflowApi.getWorkflow(currentWf.id);
 
-        let parsedResult: Record<string, any> | null = null;
+        let parsedResult: CoordinatorResultPayload | null = null;
         const sourceJson = updated?.resultJson ?? currentWf.resultJson;
         if (sourceJson) {
           try {

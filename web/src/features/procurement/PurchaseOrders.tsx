@@ -35,6 +35,8 @@ interface MedicineOption {
 interface FacilityOption {
   id: string;
   name: string;
+  code?: string;
+  isActive?: boolean;
   latitude?: number | null;
   longitude?: number | null;
 }

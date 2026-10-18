@@ -18,8 +18,19 @@ import {
   Layers,
   X,
   History,
+  type LucideProps,
 } from "lucide-react";
 import "./coordinator.css";
+
+interface WorkflowTimelineResultPayload {
+  final_recommendation?: string;
+  inventory_data?: Record<string, unknown>;
+  shortage_analysis?: Record<string, unknown>;
+  redistribution_proposal?: Record<string, unknown>;
+  procurement_proposal?: Record<string, unknown>;
+  policy_validation?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 const C = {
   brand:     "#0f766e",
@@ -214,7 +225,7 @@ function WorkflowCard({
   const [showAllDetails, setShowAllDetails] = useState(false);
   const [showFullObjective, setShowFullObjective] = useState(false);
 
-  let parsedResult: Record<string, any> | null = null;
+  let parsedResult: WorkflowTimelineResultPayload | null = null;
   if (workflow.resultJson) {
     try {
       parsedResult = JSON.parse(workflow.resultJson);
@@ -778,7 +789,7 @@ function WorkflowRunningPlaceholder({
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getAgentMeta(name: string): { Icon: React.ComponentType<any>; badge: { bg: string; text: string } } {
+function getAgentMeta(name: string): { Icon: React.ComponentType<LucideProps>; badge: { bg: string; text: string } } {
   const lower = (name || "").toLowerCase();
   if (lower.includes("inventory")) return { Icon: PackageSearch, badge: { bg: "#dcfce7", text: "#166534" } };
   if (lower.includes("demand") || lower.includes("forecast")) return { Icon: TrendingUp, badge: { bg: "#dbeafe", text: "#1d4ed8" } };
@@ -804,7 +815,7 @@ function getInferredTool(action: string, agent: string): string {
   return "coordinator_orchestration";
 }
 
-function getStepPayload(step: WorkflowStep, parsed: Record<string, any> | null) {
+function getStepPayload(step: WorkflowStep, parsed: WorkflowTimelineResultPayload | null) {
   const s = (step.action + " " + step.agentName).toLowerCase();
   if (s.includes("inventory") && parsed?.inventory_data) return parsed.inventory_data;
   if (s.includes("demand") && parsed?.shortage_analysis) return parsed.shortage_analysis;
