@@ -31,7 +31,9 @@ public sealed record ValidateProcurementResponse(
     string Message,
     bool RequiresApproval,
     decimal TotalEstimatedCost,
-    int SupplierLeadTimeDays);
+    int SupplierLeadTimeDays,
+    string? ApproverRole = null,
+    IReadOnlyList<string>? Warnings = null);
 
 public sealed record PolicyRuleResponse(
     string RuleName,

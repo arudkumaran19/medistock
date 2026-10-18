@@ -225,7 +225,7 @@ class TransferApiService {
       queryParams['transferId'] = transferId;
     }
 
-    final response = await _apiClient.get('/api/notifications',
+    final response = await _apiClient.get('/api/redistribution/notifications',
         queryParameters: queryParams);
     if (response is List) {
       return response
@@ -236,16 +236,16 @@ class TransferApiService {
     return [];
   }
 
-  // 9. POST /api/notifications/{id}/read
+  // 9. POST /api/redistribution/notifications/{id}/read
   Future<void> markNotificationAsRead(String id) async {
-    await _apiClient.post('/api/notifications/$id/read');
+    await _apiClient.post('/api/redistribution/notifications/$id/read');
   }
 
-  // 10. POST /api/notifications/read-all
+  // 10. POST /api/redistribution/notifications/read-all
   Future<void> markAllNotificationsAsRead({String? audience}) async {
     final path = (audience != null && audience.isNotEmpty)
-        ? '/api/notifications/read-all?audience=$audience'
-        : '/api/notifications/read-all';
+        ? '/api/redistribution/notifications/read-all?audience=$audience'
+        : '/api/redistribution/notifications/read-all';
     await _apiClient.post(path);
   }
 }

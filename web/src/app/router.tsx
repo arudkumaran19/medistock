@@ -97,79 +97,35 @@ export const router = createBrowserRouter([
   {
     path: "/procurement/approvals",
     element: (
-      <ProtectedRoute requiredRole="FacilityManager">
+      <ProtectedRoute allowedRoles={["Administrator", "ADMIN", "FacilityManager", "FACILITY_MANAGER"]}>
         <DashboardLayout><ApprovalConsole /></DashboardLayout>
       </ProtectedRoute>
     ),
-    children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "dashboard", element: <DashboardPage /> },
-
-      // Inventory
-      { path: "inventory", element: <InventoryPage /> },
-      { path: "inventory/:id", element: <InventoryDetailPage /> },
-      { path: "batches/:id", element: <BatchDetailPage /> },
-      { path: "inventory/receive", element: <ReceiveStockPage /> },
-      { path: "inventory/expiry", element: <ExpiryPage /> },
-
-      // Redistribution
-      { path: "transfers", element: <TransferDashboard /> },
-      { path: "transfers/new", element: <TransferForm /> },
-      { path: "transfers/:id", element: <TransferDetail /> },
-      { path: "transfers/:id/candidates", element: <CandidateFacilities /> },
-      { path: "transfers/:id/route", element: <RouteComparison /> },
-      { path: "history", element: <TransferHistory /> },
-
-      // Procurement
-      { path: "procurement/suppliers", element: <SupplierDashboard /> },
-      { path: "procurement/suppliers/:id", element: <SupplierDetail /> },
-      { path: "procurement/orders", element: <PurchaseOrders /> },
-      { path: "procurement/priorities", element: <ProcurementPriority /> },
-      {
-        path: "procurement/approvals",
-        element: (
-          <ProtectedRoute requiredRole="FacilityManager">
-            <ApprovalConsole />
-          </ProtectedRoute>
-        ),
-      },
-      { path: "procurement/workflow", element: <WorkflowMonitor /> },
-
-      // Demand & Shortage
-      { path: "demand/shortages", element: <ShortageDashboard /> },
-      {
-        path: "demand/shortages/new",
-        element: (
-          <ProtectedRoute requiredRole="FacilityManager">
-            <ShortageForm />
-          </ProtectedRoute>
-        ),
-      },
-      { path: "demand/shortages/:id", element: <ShortageDetail /> },
-      {
-        path: "demand/shortages/:id/edit",
-        element: (
-          <ProtectedRoute requiredRole="FacilityManager">
-            <ShortageForm />
-          </ProtectedRoute>
-        ),
-      },
-      { path: "demand/forecasts", element: <ForecastPage /> },
-      { path: "demand/consumption", element: <ConsumptionAnalytics /> },
-
-      // Admin
-      {
-        path: "admin/users",
-        element: (
-          <ProtectedRoute requiredRole="Administrator">
-            <AdminPage />
-          </ProtectedRoute>
-        ),
-      },
-    ],
   },
-
-  // Fallback
+  {
+    path: "/transfers",
+    element: <ProtectedRoute><DashboardLayout><TransferDashboard /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/transfers/new",
+    element: <ProtectedRoute><DashboardLayout><TransferForm /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/transfers/:id",
+    element: <ProtectedRoute><DashboardLayout><TransferDetail /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/transfers/:id/candidates",
+    element: <ProtectedRoute><DashboardLayout><CandidateFacilities /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/transfers/:id/route",
+    element: <ProtectedRoute><DashboardLayout><RouteComparison /></DashboardLayout></ProtectedRoute>,
+  },
+  {
+    path: "/history",
+    element: <ProtectedRoute><DashboardLayout><TransferHistory /></DashboardLayout></ProtectedRoute>,
+  },
   {
     path: "/procurement/workflow",
     element: <ProtectedRoute><DashboardLayout><WorkflowMonitor /></DashboardLayout></ProtectedRoute>,

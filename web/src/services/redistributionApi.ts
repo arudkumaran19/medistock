@@ -213,7 +213,7 @@ export const redistributionApi = {
     if (params?.pageSize) query.append('pageSize', String(params.pageSize));
 
     const qs = query.toString();
-    const url = `/api/notifications${qs ? `?${qs}` : ''}`;
+    const url = `/api/redistribution/notifications${qs ? `?${qs}` : ''}`;
     const res = await apiClient.get<any>(url);
     if (res && Array.isArray(res.items)) {
       return res.items;
@@ -224,16 +224,16 @@ export const redistributionApi = {
     return [];
   },
 
-  // 10. POST /api/notifications/{id}/read
+  // 10. POST /api/redistribution/notifications/{id}/read
   markNotificationAsRead: async (id: string): Promise<TransferNotificationDto> => {
-    const res = await apiClient.post<any>(`/api/notifications/${id}/read`, {});
+    const res = await apiClient.post<any>(`/api/redistribution/notifications/${id}/read`, {});
     return res?.data ?? res;
   },
 
-  // 11. POST /api/notifications/read-all
+  // 11. POST /api/redistribution/notifications/read-all
   markAllNotificationsAsRead: async (audience?: string): Promise<number> => {
     const qs = audience ? `?audience=${encodeURIComponent(audience)}` : '';
-    const res = await apiClient.post<any>(`/api/notifications/read-all${qs}`, {});
+    const res = await apiClient.post<any>(`/api/redistribution/notifications/read-all${qs}`, {});
     return res?.data ?? 0;
   },
 };

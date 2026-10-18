@@ -101,7 +101,9 @@ export function PurchaseOrders() {
           apiRequest<MedicineOption[]>("/api/medicines"),
           apiRequest<FacilityOption[]>("/api/facilities"),
         ]);
-        const validFacilities = facList.filter((f) => f.latitude != null && f.longitude != null && (f.latitude !== 0 || f.longitude !== 0));
+        const validFacilities = Array.isArray(facList)
+          ? facList.filter((f) => f && f.id && f.isActive !== false)
+          : [];
         setMedicines(medList);
         setFacilities(validFacilities);
         if (validFacilities.length > 0 && !facilityId) setFacilityId(validFacilities[0].id);

@@ -19,7 +19,7 @@ public class ShortageAlertConfiguration : IEntityTypeConfiguration<ShortageAlert
         builder.Property(x => x.MedicineId).IsRequired();
         builder.Property(x => x.CurrentStock).IsRequired();
         builder.Property(x => x.AverageDailyConsumption).IsRequired();
-        builder.Property(x => x.DaysRemaining).IsRequired();
+        builder.Property(x => x.DaysRemaining).IsRequired(false);
         builder.Property(x => x.LeadTimeDays).IsRequired();
         builder.Property(x => x.RequiresTransfer).IsRequired();
         builder.Property(x => x.RelatedTransferId).IsRequired(false);

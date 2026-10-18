@@ -891,7 +891,7 @@ public sealed class WorkflowService : IWorkflowService
             await _approvalService.RequestApprovalAsync(
                 run.Id,
                 approvalType,
-                "HospitalAdmin",
+                MediStock.Api.Common.Constants.Roles.FacilityManager,
                 cancellationToken);
         }
         else

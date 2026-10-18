@@ -1,7 +1,9 @@
+using System.Text.Json;
 using MediStock.Api.Domain.Enums;
 using MediStock.Api.Features.Procurement;
 using MediStock.Api.Features.Procurement.DTOs;
 using MediStock.Api.Features.Procurement.Models;
+using MediStock.Api.Features.Workflow.Models;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -261,6 +263,121 @@ public sealed class ProcurementService(
 
         purchaseOrder.Status = PurchaseOrderStatus.PendingApproval;
 
+        // Synchronize or create corresponding WorkflowRun and Approval
+        var poIdStr = purchaseOrder.Id.ToString();
+        var existingWorkflow = await db.WorkflowRuns
+            .Include(w => w.Approvals)
+            .FirstOrDefaultAsync(w => w.ContextJson != null && w.ContextJson.Contains(poIdStr), cancellationToken);
+
+        if (existingWorkflow is null)
+        {
+            var firstItem = purchaseOrder.Items.FirstOrDefault();
+            var medicine = firstItem != null
+                ? await db.Medicines.FindAsync(new object[] { firstItem.MedicineId }, cancellationToken)
+                : null;
+            var facility = await db.Facilities.FindAsync(new object[] { purchaseOrder.FacilityId }, cancellationToken);
+
+            var totalQty = purchaseOrder.Items.Sum(i => i.RequestedQuantity);
+            var totalCost = purchaseOrder.Items.Sum(i => i.RequestedQuantity * i.UnitPrice);
+            var shortPoId = purchaseOrder.Id.ToString()[..8].ToUpperInvariant();
+
+            var workflow = new WorkflowRun
+            {
+                Id = Guid.NewGuid(),
+                WorkflowType = "AutonomousProcurement",
+                Objective = $"Procurement authorization for {totalQty} units of {medicine?.Name ?? "Medicine"} at {facility?.Name ?? "Facility"} (PO-{shortPoId})",
+                Status = WorkflowStatus.WaitingForApproval,
+                FacilityId = purchaseOrder.FacilityId,
+                MedicineId = firstItem?.MedicineId,
+                InitiatedByUserId = currentUserService?.UserId,
+                RequiresApproval = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                ContextJson = JsonSerializer.Serialize(new
+                {
+                    purchaseOrderId = purchaseOrder.Id,
+                    supplierId = purchaseOrder.SupplierId,
+                    facilityId = purchaseOrder.FacilityId,
+                    facilityName = facility?.Name,
+                    medicineName = medicine?.Name,
+                    totalQuantity = totalQty,
+                    totalEstimatedCost = totalCost,
+                    items = purchaseOrder.Items.Select(i => new { i.MedicineId, i.RequestedQuantity, i.UnitPrice })
+                }),
+                ResultJson = JsonSerializer.Serialize(new
+                {
+                    procurement_proposal = new
+                    {
+                        needed = true,
+                        draft_po_number = $"PO-{shortPoId}",
+                        purchase_order_id = purchaseOrder.Id,
+                        medicine_name = medicine?.Name,
+                        quantity = totalQty,
+                        unit_price = firstItem?.UnitPrice ?? 0m,
+                        total_estimated_cost = totalCost,
+                        facility_id = purchaseOrder.FacilityId,
+                        supplier_id = purchaseOrder.SupplierId
+                    }
+                }),
+                Steps = new List<WorkflowPlanStep>
+                {
+                    new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        StepOrder = 1,
+                        StepKey = "Requisition Drafted",
+                        Action = "Draft Requisition",
+                        Status = "Completed",
+                        AgentName = "ProcurementSpecialist",
+                        StartedAt = DateTimeOffset.UtcNow,
+                        CompletedAt = DateTimeOffset.UtcNow
+                    },
+                    new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        StepOrder = 2,
+                        StepKey = "Managerial Approval Gating",
+                        Action = "Review and Authorize",
+                        Status = "WaitingForApproval",
+                        AgentName = "PolicySafetyGate",
+                        StartedAt = DateTimeOffset.UtcNow
+                    },
+                    new WorkflowPlanStep
+                    {
+                        Id = Guid.NewGuid(),
+                        StepOrder = 3,
+                        StepKey = "Vendor Dispatch & Delivery",
+                        Action = "Dispatch Inventory",
+                        Status = "Pending",
+                        AgentName = "ProcurementSpecialist"
+                    }
+                }
+            };
+
+            var approval = new Approval
+            {
+                Id = Guid.NewGuid(),
+                WorkflowRunId = workflow.Id,
+                ApprovalType = "PurchaseOrderApproval",
+                RequiredRole = MediStock.Api.Common.Constants.Roles.FacilityManager,
+                Decision = ApprovalDecision.Pending,
+                RequestedAt = DateTimeOffset.UtcNow
+            };
+
+            workflow.Approvals.Add(approval);
+            db.WorkflowRuns.Add(workflow);
+        }
+        else
+        {
+            existingWorkflow.Status = WorkflowStatus.WaitingForApproval;
+            existingWorkflow.UpdatedAt = DateTimeOffset.UtcNow;
+            foreach (var app in existingWorkflow.Approvals.Where(a => a.Decision != ApprovalDecision.Approved))
+            {
+                app.Decision = ApprovalDecision.Pending;
+                app.RequestedAt = DateTimeOffset.UtcNow;
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetRequiredAsync(id, cancellationToken);
@@ -289,6 +406,33 @@ public sealed class ProcurementService(
         purchaseOrder.ApprovedById = currentUserService?.UserId;
         purchaseOrder.RejectionReason = null;
         purchaseOrder.RevisionReason = null;
+
+        // Synchronize linked WorkflowRun and Approval
+        var poIdStr = purchaseOrder.Id.ToString();
+        var linkedWorkflow = await db.WorkflowRuns
+            .Include(w => w.Approvals)
+            .Include(w => w.Steps)
+            .FirstOrDefaultAsync(w => w.ContextJson != null && w.ContextJson.Contains(poIdStr), cancellationToken);
+
+        if (linkedWorkflow is not null)
+        {
+            linkedWorkflow.Status = WorkflowStatus.Completed;
+            linkedWorkflow.CompletedAt = DateTimeOffset.UtcNow;
+            linkedWorkflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            foreach (var step in linkedWorkflow.Steps)
+            {
+                step.Status = "Completed";
+            }
+
+            foreach (var app in linkedWorkflow.Approvals.Where(a => a.Decision == ApprovalDecision.Pending))
+            {
+                app.Decision = ApprovalDecision.Approved;
+                app.DecidedAt = DateTimeOffset.UtcNow;
+                app.DecidedByUserId = currentUserService?.UserId;
+                app.DecidedByUserName = currentUserService?.Email ?? "Manager";
+            }
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -321,6 +465,30 @@ public sealed class ProcurementService(
         purchaseOrder.RejectionReason = request.Reason!.Trim();
         purchaseOrder.ApprovedById = currentUserService?.UserId;
 
+        // Synchronize linked WorkflowRun and Approval
+        var poIdStr = purchaseOrder.Id.ToString();
+        var linkedWorkflow = await db.WorkflowRuns
+            .Include(w => w.Approvals)
+            .Include(w => w.Steps)
+            .FirstOrDefaultAsync(w => w.ContextJson != null && w.ContextJson.Contains(poIdStr), cancellationToken);
+
+        if (linkedWorkflow is not null)
+        {
+            linkedWorkflow.Status = WorkflowStatus.Rejected;
+            linkedWorkflow.ErrorMessage = request.Reason.Trim();
+            linkedWorkflow.CompletedAt = DateTimeOffset.UtcNow;
+            linkedWorkflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            foreach (var app in linkedWorkflow.Approvals.Where(a => a.Decision == ApprovalDecision.Pending))
+            {
+                app.Decision = ApprovalDecision.Rejected;
+                app.Comments = request.Reason.Trim();
+                app.DecidedAt = DateTimeOffset.UtcNow;
+                app.DecidedByUserId = currentUserService?.UserId;
+                app.DecidedByUserName = currentUserService?.Email ?? "Manager";
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetRequiredAsync(id, cancellationToken);
@@ -350,6 +518,23 @@ public sealed class ProcurementService(
         purchaseOrder.Status = PurchaseOrderStatus.RevisionRequired;
         purchaseOrder.RevisionReason = request.Reason!.Trim();
         purchaseOrder.ApprovedById = currentUserService?.UserId;
+
+        var poIdStr = purchaseOrder.Id.ToString();
+        var linkedWorkflow = await db.WorkflowRuns
+            .Include(w => w.Approvals)
+            .FirstOrDefaultAsync(w => w.ContextJson != null && w.ContextJson.Contains(poIdStr), cancellationToken);
+
+        if (linkedWorkflow is not null)
+        {
+            linkedWorkflow.Status = WorkflowStatus.WaitingForApproval;
+            linkedWorkflow.ErrorMessage = $"Revision requested: {request.Reason.Trim()}";
+            linkedWorkflow.UpdatedAt = DateTimeOffset.UtcNow;
+
+            foreach (var app in linkedWorkflow.Approvals.Where(a => a.Decision == ApprovalDecision.Pending))
+            {
+                app.Comments = $"Revision requested: {request.Reason.Trim()}";
+            }
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -249,7 +249,6 @@ public sealed class ApprovalService : IApprovalService
             {
                 procureQty = Math.Max(100, pdVal);
             }
-            if (procureQty <= 0) procureQty = 500;
 
             if (string.IsNullOrWhiteSpace(procureMedName) && root.ValueKind == JsonValueKind.Object && root.TryGetProperty("medicine", out var rMedProp))
             {
@@ -305,6 +304,12 @@ public sealed class ApprovalService : IApprovalService
                 medicine = await _db.Medicines.FirstOrDefaultAsync(m => m.Code == "AMOX-500", cancellationToken)
                            ?? await _db.Medicines.FirstOrDefaultAsync(m => m.Code == "AMOX-250", cancellationToken)
                            ?? await _db.Medicines.FirstOrDefaultAsync(m => m.IsActive, cancellationToken);
+            }
+
+            // Apply medicine-specific threshold fallback
+            if (procureQty <= 0)
+            {
+                procureQty = medicine?.MinimumStockLevel > 0 ? medicine.MinimumStockLevel : 100;
             }
 
             // Resolve target facility
@@ -370,9 +375,10 @@ public sealed class ApprovalService : IApprovalService
                 // Check if an existing PendingApproval PO exists
                 var existingPo = await _db.PurchaseOrders
                     .Include(p => p.Items)
-                    .FirstOrDefaultAsync(p => p.FacilityId == targetFacility.Id
-                        && p.Status == PurchaseOrderStatus.PendingApproval
-                        && p.Items.Any(i => i.MedicineId == medicine.Id), cancellationToken);
+                    .FirstOrDefaultAsync(p => (workflow.ContextJson != null && workflow.ContextJson.Contains(p.Id.ToString()))
+                        || (p.FacilityId == targetFacility.Id
+                            && p.Status == PurchaseOrderStatus.PendingApproval
+                            && p.Items.Any(i => i.MedicineId == medicine.Id)), cancellationToken);
 
                 Guid poId;
                 if (existingPo is not null)
@@ -609,37 +615,35 @@ public sealed class ApprovalService : IApprovalService
                         poNumber = poNumProp.GetString();
                     }
 
-                    // If we have a PO number, try to find and reject the PO
-                    if (!string.IsNullOrWhiteSpace(poNumber))
+                    PurchaseOrder? po = null;
+                    if (!string.IsNullOrWhiteSpace(workflow.ContextJson))
                     {
-                        var po = await _db.PurchaseOrders
-                            .FirstOrDefaultAsync(p => p.Id.ToString().Contains(poNumber) || p.Status == PurchaseOrderStatus.PendingApproval, cancellationToken);
-
-                        if (po is not null && po.Status == PurchaseOrderStatus.PendingApproval)
-                        {
-                            po.Status = PurchaseOrderStatus.Rejected;
-                            po.RejectionReason = comments ?? $"Rejected via Multi-Agent Coordinator Console by {decidedByUserName}";
-                            _logger.LogInformation("Rejected associated PurchaseOrder {POId} for workflow {WorkflowRunId}", po.Id, workflow.Id);
-                        }
+                        var poList = await _db.PurchaseOrders.Where(p => p.Status == PurchaseOrderStatus.PendingApproval).ToListAsync(cancellationToken);
+                        po = poList.FirstOrDefault(p => workflow.ContextJson.Contains(p.Id.ToString()));
                     }
-                    else
-                    {
-                        // No PO number, try to find a PO by matching the workflow's medicine and facility
-                        if (workflow.MedicineId.HasValue && workflow.FacilityId.HasValue)
-                        {
-                            var po = await _db.PurchaseOrders
-                                .Include(p => p.Items)
-                                .FirstOrDefaultAsync(p => p.FacilityId == workflow.FacilityId.Value
-                                    && p.Status == PurchaseOrderStatus.PendingApproval
-                                    && p.Items.Any(i => i.MedicineId == workflow.MedicineId.Value), cancellationToken);
 
-                            if (po is not null)
-                            {
-                                po.Status = PurchaseOrderStatus.Rejected;
-                                po.RejectionReason = comments ?? $"Rejected via Multi-Agent Coordinator Console by {decidedByUserName}";
-                                _logger.LogInformation("Rejected associated PurchaseOrder {POId} for workflow {WorkflowRunId} (matched by medicine/facility)", po.Id, workflow.Id);
-                            }
-                        }
+                    if (po is null && !string.IsNullOrWhiteSpace(poNumber))
+                    {
+                        var cleanPo = poNumber.Trim();
+                        po = await _db.PurchaseOrders
+                            .FirstOrDefaultAsync(p => p.Status == PurchaseOrderStatus.PendingApproval
+                                && (p.Id.ToString().Contains(cleanPo) || cleanPo.Contains(p.Id.ToString())), cancellationToken);
+                    }
+
+                    if (po is null && workflow.MedicineId.HasValue && workflow.FacilityId.HasValue)
+                    {
+                        po = await _db.PurchaseOrders
+                            .Include(p => p.Items)
+                            .FirstOrDefaultAsync(p => p.FacilityId == workflow.FacilityId.Value
+                                && p.Status == PurchaseOrderStatus.PendingApproval
+                                && p.Items.Any(i => i.MedicineId == workflow.MedicineId.Value), cancellationToken);
+                    }
+
+                    if (po is not null && po.Status == PurchaseOrderStatus.PendingApproval)
+                    {
+                        po.Status = PurchaseOrderStatus.Rejected;
+                        po.RejectionReason = comments ?? $"Rejected via Multi-Agent Coordinator Console by {decidedByUserName}";
+                        _logger.LogInformation("Rejected associated PurchaseOrder {POId} for workflow {WorkflowRunId}", po.Id, workflow.Id);
                     }
                 }
             }
@@ -662,7 +666,10 @@ public sealed class ApprovalService : IApprovalService
 
         if (!string.IsNullOrWhiteSpace(requiredRole))
         {
-            query = query.Where(a => a.RequiredRole == requiredRole);
+            var roleUpper = requiredRole.ToUpperInvariant();
+            query = query.Where(a => a.RequiredRole.ToUpper() == roleUpper
+                || (roleUpper.Contains("ADMIN") && a.RequiredRole.ToUpper().Contains("ADMIN"))
+                || (roleUpper.Contains("FACILITY") && a.RequiredRole.ToUpper().Contains("FACILITY")));
         }
 
         return await query

@@ -12,7 +12,7 @@ public sealed class Approval
 
     public string ApprovalType { get; set; } = "ManagerApproval"; // PurchaseOrderApproval, StockTransferApproval, etc.
 
-    public string RequiredRole { get; set; } = "HospitalAdmin";
+    public string RequiredRole { get; set; } = MediStock.Api.Common.Constants.Roles.FacilityManager;
 
     public ApprovalDecision Decision { get; set; } = ApprovalDecision.Pending;
 

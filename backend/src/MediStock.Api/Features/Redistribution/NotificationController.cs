@@ -14,7 +14,7 @@ using MediStock.Api.Features.Redistribution.Models;
 namespace MediStock.Api.Features.Redistribution;
 
 [ApiController]
-[Route("api/notifications")]
+[Route("api/redistribution/notifications")]
 [Produces(MediaTypeNames.Application.Json)]
 public class NotificationController : ControllerBase
 {

@@ -236,6 +236,8 @@ public sealed class PolicyValidationService
         }
 
         int leadTimeDays = 0;
+        var warnings = new List<string>();
+        bool requiresApproval = false;
 
         if (_dbContext is not null)
         {
@@ -256,16 +258,60 @@ public sealed class PolicyValidationService
             }
 
             leadTimeDays = supplier!.LeadTimeDays;
+
+            // Medicine-specific policy evaluation
+            var medicineIds = request.Items.Select(i => i.MedicineId).Distinct().ToList();
+            var medicines = await _dbContext.Medicines
+                .AsNoTracking()
+                .Where(m => medicineIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id, cancellationToken);
+
+            foreach (var item in request.Items)
+            {
+                if (medicines.TryGetValue(item.MedicineId, out var med))
+                {
+                    // Medicine-specific policy threshold: 2x minimum stock level (or 500 max bulk)
+                    var medThreshold = Math.Max(med.MinimumStockLevel * 2, 50);
+                    if (item.RequestedQuantity >= medThreshold || item.RequestedQuantity >= 500)
+                    {
+                        requiresApproval = true;
+                        warnings.Add($"Requested quantity for {med.Name} ({item.RequestedQuantity} {med.Unit}s) exceeds medicine policy threshold ({medThreshold} {med.Unit}s based on min stock {med.MinimumStockLevel}).");
+                    }
+                }
+                else
+                {
+                    if (item.RequestedQuantity >= 500)
+                    {
+                        requiresApproval = true;
+                        warnings.Add($"Requested quantity ({item.RequestedQuantity}) exceeds standard bulk safety threshold (500 units).");
+                    }
+                }
+            }
+
+            if (totalEstimatedCost >= 10000m)
+            {
+                requiresApproval = true;
+                warnings.Add($"Total order cost (${totalEstimatedCost:N2}) meets or exceeds the institutional procurement ceiling of $10,000.00.");
+            }
+        }
+        else
+        {
+            requiresApproval = CheckApprovalRequirement(totalEstimatedCost, totalQuantity);
         }
 
-        bool requiresApproval = CheckApprovalRequirement(totalEstimatedCost, totalQuantity);
+        string approverRole = requiresApproval ? MediStock.Api.Common.Constants.Roles.FacilityManager : null;
+        string message = requiresApproval
+            ? "Procurement policy validation passed with mandatory approval requirement."
+            : "Procurement policy validation passed within standard institutional thresholds.";
 
         return new ValidateProcurementResponse(
             true,
             "VALID",
-            "Procurement policy validation passed.",
+            message,
             requiresApproval,
             totalEstimatedCost,
-            leadTimeDays);
+            leadTimeDays,
+            approverRole,
+            warnings);
     }
 }

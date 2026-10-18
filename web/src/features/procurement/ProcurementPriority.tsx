@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ProcurementAgentPanel } from "./ProcurementAgentPanel";
 import {
   procurementApi,
@@ -26,6 +27,8 @@ interface InventoryMedicineItem {
   id: string;
   name: string;
   code: string;
+  unit?: string;
+  minimumStockLevel?: number;
   currentStock?: number;
   minimumStock?: number;
   unitPrice?: number;
@@ -34,11 +37,14 @@ interface InventoryMedicineItem {
 interface FacilityOption {
   id: string;
   name: string;
+  code?: string;
+  isActive?: boolean;
   latitude?: number | null;
   longitude?: number | null;
 }
 
 export function ProcurementPriority() {
+  const queryClient = useQueryClient();
   const [medicines, setMedicines] = useState<InventoryMedicineItem[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
   const [facilities, setFacilities] = useState<FacilityOption[]>([]);
@@ -52,6 +58,11 @@ export function ProcurementPriority() {
   const [validationResult, setValidationResult] = useState<ValidateProcurementResponse | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
+  function getReplenishmentQuantity(med: InventoryMedicineItem): number {
+    const minThreshold = med.minimumStockLevel ?? med.minimumStock ?? 100;
+    return Math.max(minThreshold, 10);
+  }
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -61,14 +72,16 @@ export function ProcurementPriority() {
         procurementApi.getSuppliers(undefined, true),
         apiRequest<FacilityOption[]>("/api/facilities"),
       ]);
-      const validFacilities = facList.filter((f) => f.latitude != null && f.longitude != null && (f.latitude !== 0 || f.longitude !== 0));
-      setMedicines(medList);
-      setSuppliers(supList);
+      const validFacilities = Array.isArray(facList)
+        ? facList.filter((f) => f && f.id && f.isActive !== false)
+        : [];
+      setMedicines(medList || []);
+      setSuppliers(supList || []);
       setFacilities(validFacilities);
-      if (validFacilities.length > 0 && !selectedFacilityId) {
+      if (validFacilities.length > 0 && (!selectedFacilityId || !validFacilities.some((f) => f.id === selectedFacilityId))) {
         setSelectedFacilityId(validFacilities[0].id);
       }
-      if (supList.length > 0 && !selectedSupplierId) {
+      if (supList.length > 0 && (!selectedSupplierId || !supList.some((s) => s.id === selectedSupplierId))) {
         setSelectedSupplierId(supList[0].id);
       }
     } catch (e) {
@@ -82,9 +95,10 @@ export function ProcurementPriority() {
     void loadData();
   }, [loadData]);
 
-  async function handleTestValidation(med: InventoryMedicineItem, qty: number) {
+  async function handleTestValidation(med: InventoryMedicineItem) {
     const facilityId = selectedFacilityId || facilities[0]?.id;
     const supplierId = selectedSupplierId || suppliers[0]?.id;
+    const qty = getReplenishmentQuantity(med);
 
     if (!facilityId) {
       setError("Select a target healthcare facility before checking policy compliance.");
@@ -124,6 +138,8 @@ export function ProcurementPriority() {
   async function handleFastReplenish(med: InventoryMedicineItem) {
     const facilityId = selectedFacilityId || facilities[0]?.id;
     const supplierId = selectedSupplierId || suppliers[0]?.id;
+    const qty = getReplenishmentQuantity(med);
+    const unitName = med.unit ?? "units";
 
     if (!facilityId) {
       setError("No registered clinical facility selected.");
@@ -136,18 +152,34 @@ export function ProcurementPriority() {
 
     setError(null);
     try {
-      await procurementApi.createPurchaseOrder({
+      const order = await procurementApi.createPurchaseOrder({
         supplierId,
         facilityId,
         items: [
           {
             medicineId: med.id,
-            requestedQuantity: 200,
+            requestedQuantity: qty,
             unitPrice: med.unitPrice || 12.0,
           },
         ],
       });
-      setSuccessMessage(`Purchase order requisition created for ${med.name} (200 units).`);
+
+      // Submit immediately so the requisition enters PendingApproval and appears on the Approvals & Workflow views
+      await procurementApi.submitPurchaseOrder(order.id);
+
+      setSuccessMessage(
+        `Purchase order PO-${order.id.slice(0, 8)} created & submitted for approval for ${med.name} (${qty} ${unitName}).`
+      );
+
+      // Invalidate queries so that other screens / views update immediately
+      void queryClient.invalidateQueries({ queryKey: ["approvals", "pending"] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+
+      window.dispatchEvent(
+        new CustomEvent("medistock:approval-updated", {
+          detail: { orderId: order.id, status: "PendingApproval" },
+        })
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Requisition creation failed. Please try again.");
     }
@@ -290,42 +322,61 @@ export function ProcurementPriority() {
           padding: "16px 20px",
         }}
       >
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
           <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 6, textTransform: "uppercase" }}>
-            Target Clinical Facility
+            Target Clinical Facility {isLoading ? "(Loading...)" : `(${facilities.length} available)`}
           </label>
-          <select
-            className={styles.filterSelect}
-            style={{ width: "100%" }}
-            value={selectedFacilityId}
-            onChange={(e) => setSelectedFacilityId(e.target.value)}
-            aria-label="Target Healthcare Facility"
-          >
-            {facilities.map((fac) => (
-              <option key={fac.id} value={fac.id}>
-                {fac.name}
-              </option>
-            ))}
-          </select>
+          {isLoading ? (
+            <div style={{ fontSize: "0.875rem", color: "#64748b", padding: "8px 0" }}>Loading authorized facilities…</div>
+          ) : facilities.length === 0 ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: "0.8125rem", color: "#b91c1c" }}>No eligible active facilities found.</span>
+              <button
+                type="button"
+                onClick={() => void loadData()}
+                style={{ fontSize: "0.75rem", padding: "3px 8px", cursor: "pointer" }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <select
+              className={styles.filterSelect}
+              style={{ width: "100%" }}
+              value={selectedFacilityId}
+              onChange={(e) => setSelectedFacilityId(e.target.value)}
+              aria-label="Target Healthcare Facility"
+            >
+              {facilities.map((fac) => (
+                <option key={fac.id} value={fac.id}>
+                  {fac.name} {fac.code ? `(${fac.code})` : ""}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
           <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: 6, textTransform: "uppercase" }}>
             Primary Vendor Partner
           </label>
-          <select
-            className={styles.filterSelect}
-            style={{ width: "100%" }}
-            value={selectedSupplierId}
-            onChange={(e) => setSelectedSupplierId(e.target.value)}
-            aria-label="Primary Vendor Partner"
-          >
-            {suppliers.map((sup) => (
-              <option key={sup.id} value={sup.id}>
-                {sup.name} ({sup.leadTimeDays ?? 5}d lead time)
-              </option>
-            ))}
-          </select>
+          {suppliers.length === 0 ? (
+            <div style={{ fontSize: "0.8125rem", color: "#64748b" }}>No active suppliers found.</div>
+          ) : (
+            <select
+              className={styles.filterSelect}
+              style={{ width: "100%" }}
+              value={selectedSupplierId}
+              onChange={(e) => setSelectedSupplierId(e.target.value)}
+              aria-label="Primary Vendor Partner"
+            >
+              {suppliers.map((sup) => (
+                <option key={sup.id} value={sup.id}>
+                  {sup.name} ({sup.leadTimeDays ?? 5}d lead time)
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -334,7 +385,7 @@ export function ProcurementPriority() {
         {isLoading ? (
           <div className={styles.emptyState}>
             <div className="spinner mb-2" style={{ margin: "0 auto" }} />
-            <p>Evaluating clinical inventory balances and policy rules…</p>
+            <p>Evaluating clinical inventory balances and medicine-specific policy rules…</p>
           </div>
         ) : medicines.length === 0 ? (
           <div className={styles.emptyState}>No medicines currently recorded in the central catalogue.</div>
@@ -343,47 +394,60 @@ export function ProcurementPriority() {
             <thead>
               <tr>
                 <th className={styles.th}>Medicine Name</th>
-                <th className={styles.th}>Identifier Code</th>
+                <th className={styles.th}>Code & Unit</th>
+                <th className={styles.th}>Policy Safety Level</th>
                 <th className={styles.th}>Estimated Unit Cost</th>
                 <th className={styles.th}>Policy Pre-Check</th>
-                <th className={styles.th} style={{ minWidth: 200 }}>Procurement Action</th>
+                <th className={styles.th} style={{ minWidth: 210 }}>Procurement Action</th>
               </tr>
             </thead>
             <tbody>
-              {medicines.map((med) => (
-                <tr key={med.id} className={styles.tr}>
-                  <td className={styles.td}>
-                    <strong>{med.name}</strong>
-                  </td>
-                  <td className={styles.td}>
-                    <code>{med.code}</code>
-                  </td>
-                  <td className={styles.td} style={{ whiteSpace: "nowrap" }}>
-                    <strong style={{ color: "#0f172a" }}>${(med.unitPrice || 12.5).toFixed(2)}</strong>
-                  </td>
-                  <td className={styles.td}>
-                    <button
-                      type="button"
-                      className={styles.actionBtnSecondary}
-                      disabled={isValidating}
-                      onClick={() => void handleTestValidation(med, 500)}
-                      title="Test compliance for 500 units"
-                    >
-                      <ShieldCheck size={13} /> Check 500 Units Policy
-                    </button>
-                  </td>
-                  <td className={styles.td}>
-                    <button
-                      type="button"
-                      className={styles.actionBtnPrimary}
-                      onClick={() => void handleFastReplenish(med)}
-                      title="Quick draft purchase requisition for 200 units"
-                    >
-                      <Plus size={13} /> Fast Requisition (200)
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {medicines.map((med) => {
+                const replenishQty = getReplenishmentQuantity(med);
+                const unitStr = med.unit ?? "units";
+                return (
+                  <tr key={med.id} className={styles.tr}>
+                    <td className={styles.td}>
+                      <strong>{med.name}</strong>
+                    </td>
+                    <td className={styles.td}>
+                      <code>{med.code}</code>
+                      <span style={{ marginLeft: 8, fontSize: "0.75rem", color: "#64748b", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>
+                        {unitStr}
+                      </span>
+                    </td>
+                    <td className={styles.td}>
+                      <span style={{ fontSize: "0.8125rem", color: "#0f766e", fontWeight: 600 }}>
+                        Min {med.minimumStockLevel ?? med.minimumStock ?? 100} {unitStr}
+                      </span>
+                    </td>
+                    <td className={styles.td} style={{ whiteSpace: "nowrap" }}>
+                      <strong style={{ color: "#0f172a" }}>${(med.unitPrice || 12.5).toFixed(2)}</strong>
+                    </td>
+                    <td className={styles.td}>
+                      <button
+                        type="button"
+                        className={styles.actionBtnSecondary}
+                        disabled={isValidating}
+                        onClick={() => void handleTestValidation(med)}
+                        title={`Test policy compliance for ${replenishQty} ${unitStr}`}
+                      >
+                        <ShieldCheck size={13} /> Check Policy ({replenishQty} {unitStr})
+                      </button>
+                    </td>
+                    <td className={styles.td}>
+                      <button
+                        type="button"
+                        className={styles.actionBtnPrimary}
+                        onClick={() => void handleFastReplenish(med)}
+                        title={`Initiate & submit purchase requisition for ${replenishQty} ${unitStr}`}
+                      >
+                        <Plus size={13} /> Replenish ({replenishQty} {unitStr})
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
