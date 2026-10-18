@@ -110,10 +110,38 @@ def run_command(name: str, cmd: list[str] | str, cwd: Path, env: dict[str, str] 
 
         return TestResult(name, passed, duration, "".join(output_lines))
 
+    except KeyboardInterrupt:
+        duration = time.time() - start_time
+        print(f"\n{YELLOW}[CANCEL] Interrupted by user.{RESET}")
+        if "proc" in locals() and proc:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+        sys.exit(130)
+
     except Exception as ex:
         duration = time.time() - start_time
         print(f"\n{RED}[ERROR] Could not execute {name}: {ex}{RESET}")
         return TestResult(name, False, duration, str(ex))
+
+
+def check_and_resolve_backend_lock() -> None:
+    """Detects and resolves running MediStock.Api instances that lock build output binaries."""
+    if sys.platform == "win32":
+        try:
+            output = subprocess.check_output(
+                ["tasklist", "/FI", "IMAGENAME eq MediStock.Api.exe", "/FO", "CSV", "/NH"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            if "MediStock.Api.exe" in output:
+                print(f"{YELLOW}[NOTICE] Detected running MediStock.Api.exe process locking build binaries.{RESET}")
+                print(f"{YELLOW}[NOTICE] Stopping running API process to allow clean test compilation...{RESET}")
+                subprocess.run(["taskkill", "/F", "/IM", "MediStock.Api.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                time.sleep(1)
+        except Exception:
+            pass
 
 
 def main() -> int:
@@ -147,6 +175,7 @@ def main() -> int:
 
     # 1. Backend Tests
     if run_backend:
+        check_and_resolve_backend_lock()
         backend_suites = [
             ("Backend Unit Tests", "dotnet test backend/tests/MediStock.UnitTests/MediStock.UnitTests.csproj", ROOT_DIR),
             ("Backend API Tests", "dotnet test backend/tests/MediStock.Api.Tests/MediStock.Api.Tests.csproj", ROOT_DIR),
