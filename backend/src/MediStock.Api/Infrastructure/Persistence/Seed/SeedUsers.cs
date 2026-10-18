@@ -114,19 +114,42 @@ public static class SeedUsers
                 await userManager.AddToRolesAsync(user, missingRoles);
             }
 
-            // Ensure UserFacility associations for operational & manager roles
-            var userFacilities = await dbContext.UserFacilities
+            // Determine legitimate facility assignments:
+            // - admin@medistock.com: System Administrator has system-wide scope; no personal facility forced.
+            // - manager@medistock.com: Assigned to Central Facility.
+            // - user@medistock.com: Multi-facility manager assigned to Central Facility & Northside Community Clinic.
+            // - store@medistock.com: Operational Staff assigned to Central Facility.
+            // - officer@medistock.com: Field Officer assigned to Eastview General Hospital.
+            // - supplier@medistock.com: External supplier representative; no internal healthcare facility assigned.
+            var targetFacilities = u.Email switch
+            {
+                "manager@medistock.com" => new[] { SeedData.CentralFacilityId },
+                "user@medistock.com" => new[] { SeedData.CentralFacilityId, SeedData.NorthClinicFacilityId },
+                "store@medistock.com" => new[] { SeedData.CentralFacilityId },
+                "officer@medistock.com" => new[] { SeedData.EastHospitalFacilityId },
+                "admin@medistock.com" => Array.Empty<Guid>(),
+                "supplier@medistock.com" => Array.Empty<Guid>(),
+                _ => Array.Empty<Guid>()
+            };
+
+            // Synchronize UserFacility associations
+            var existingAssignments = await dbContext.UserFacilities
                 .Where(uf => uf.UserId == user.Id)
-                .Select(uf => uf.FacilityId)
                 .ToListAsync();
 
-            var targetFacilities = (u.Roles.Contains("ADMIN") || u.Roles.Contains("FacilityManager"))
-                ? allFacilityIds
-                : new[] { SeedData.CentralFacilityId };
+            var obsolete = existingAssignments
+                .Where(uf => !targetFacilities.Contains(uf.FacilityId))
+                .ToList();
 
+            if (obsolete.Count > 0)
+            {
+                dbContext.UserFacilities.RemoveRange(obsolete);
+            }
+
+            var existingIds = existingAssignments.Select(uf => uf.FacilityId).ToHashSet();
             foreach (var facId in targetFacilities)
             {
-                if (!userFacilities.Contains(facId))
+                if (!existingIds.Contains(facId))
                 {
                     dbContext.UserFacilities.Add(new UserFacility
                     {

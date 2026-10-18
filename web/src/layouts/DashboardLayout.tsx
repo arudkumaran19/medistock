@@ -309,14 +309,13 @@ function ProfileDropdown({
           role="menu"
           style={{
             position: "fixed",
-            left: isCollapsed ? "calc(64px + 8px)" : "calc(240px - 244px)",
-            bottom: isCollapsed ? "auto" : "32px",
-            top: isCollapsed ? "auto" : "auto",
-            width: 240,
+            left: isCollapsed ? "72px" : "12px",
+            bottom: "76px",
+            width: 275,
             background: "#1e293b",
             border: "1px solid #334155",
             borderRadius: "10px",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.45)",
             overflow: "hidden",
             zIndex: 9999,
             opacity: 1,
@@ -324,29 +323,85 @@ function ProfileDropdown({
         >
           <div
             style={{
-              padding: "6px 8px 8px",
+              padding: "10px 12px 10px",
               borderBottom: "1px solid rgba(255,255,255,0.06)",
               marginBottom: 4,
             }}
           >
-            <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>Signed in as</p>
+            <p style={{ margin: 0, fontSize: "0.6875rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>Signed in as</p>
             <p
               style={{
-                margin: 0,
+                margin: "2px 0 6px",
                 fontSize: "0.8125rem",
                 fontWeight: 600,
-                color: "#e2e8f0",
+                color: "#f8fafc",
                 wordBreak: "break-all",
               }}
             >
               {user.email || "Not available"}
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
-              Role: <span style={{ color: roleAccent, fontWeight: 500 }}>{roleLabel || "Not available"}</span>
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: "0.75rem", color: "#64748b" }}>
-              Facility: <span style={{ color: "#e2e8f0" }}>{user.facilities && user.facilities.length > 0 ? user.facilities.map((f) => f.name).join(", ") : "Not available"}</span>
-            </p>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "4px 0", fontSize: "0.75rem" }}>
+              <span style={{ color: "#64748b" }}>Role:</span>
+              <span style={{ color: roleAccent, fontWeight: 600, background: `${roleAccent}15`, padding: "2px 6px", borderRadius: 4, border: `1px solid ${roleAccent}30` }}>
+                {roleLabel || "Not available"}
+              </span>
+            </div>
+
+            {user.roles?.some((r) => ["Administrator", "ADMIN"].includes(r)) && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "4px 0", fontSize: "0.75rem" }}>
+                <span style={{ color: "#64748b" }}>Scope:</span>
+                <span style={{ color: "#38bdf8", fontWeight: 500, background: "rgba(56, 189, 248, 0.1)", padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(56, 189, 248, 0.2)" }}>
+                  System-wide (All Facilities)
+                </span>
+              </div>
+            )}
+
+            {user.roles?.some((r) => ["SupplierOfficer", "SUPPLIER_OFFICER"].includes(r)) && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "4px 0", fontSize: "0.75rem" }}>
+                <span style={{ color: "#64748b" }}>Scope:</span>
+                <span style={{ color: "#0d9488", fontWeight: 500, background: "rgba(13, 148, 136, 0.1)", padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(13, 148, 136, 0.2)" }}>
+                  Authorized Supplier Domain
+                </span>
+              </div>
+            )}
+
+            <div style={{ margin: "6px 0 0", fontSize: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ color: "#64748b" }}>
+                  {user.roles?.some((r) => ["Administrator", "ADMIN"].includes(r)) ? "Personal Facility:" : "Assigned Facility:"}
+                </span>
+                {user.facilities && user.facilities.length > 1 && (
+                  <span style={{ fontSize: "0.6875rem", color: "#94a3b8", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: 3 }}>
+                    {user.facilities.length} assigned
+                  </span>
+                )}
+              </div>
+
+              {(!user.facilities || user.facilities.length === 0) ? (
+                <div style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "0.75rem", padding: "2px 0" }}>
+                  No facility assigned
+                </div>
+              ) : user.facilities.length === 1 ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 5, border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
+                  <span style={{ color: "#e2e8f0", fontWeight: 500, fontSize: "0.75rem", lineHeight: 1.3, wordBreak: "break-word" }}>
+                    {user.facilities[0].name}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 110, overflowY: "auto", paddingRight: 2 }}>
+                  {user.facilities.map((f) => (
+                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "rgba(255,255,255,0.03)", borderRadius: 5, border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#38bdf8", flexShrink: 0 }} />
+                      <span style={{ color: "#e2e8f0", fontSize: "0.75rem", fontWeight: 500, lineHeight: 1.2, wordBreak: "break-word" }}>
+                        {f.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ padding: "6px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>

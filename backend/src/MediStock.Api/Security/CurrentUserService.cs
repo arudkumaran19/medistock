@@ -39,4 +39,17 @@ public sealed class CurrentUserService
             .User?
             .Identity?
             .IsAuthenticated == true;
+
+    public bool IsInRole(string role) =>
+        _httpContextAccessor
+            .HttpContext?
+            .User?
+            .IsInRole(role) == true;
+
+    public IEnumerable<string> Roles =>
+        _httpContextAccessor
+            .HttpContext?
+            .User?
+            .FindAll(ClaimTypes.Role)
+            .Select(c => c.Value) ?? Enumerable.Empty<string>();
 }

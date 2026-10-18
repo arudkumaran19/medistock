@@ -120,6 +120,41 @@ public sealed class FacilityAuthorizationServiceTests : IDisposable
         Assert.False(result);
     }
 
+    [Fact]
+    public async Task CanAccessFacilityAsync_ReturnsTrue_WhenUserIsAdministrator_EvenWithoutFacilityAssignment()
+    {
+        var adminId = Guid.NewGuid();
+        var facilityId = Guid.NewGuid();
+
+        _dbContext.Facilities.Add(
+            new Facility
+            {
+                Id = facilityId,
+                Code = $"FAC-{facilityId:N}",
+                Name = "General Hospital",
+                IsActive = true
+            });
+
+        await _dbContext.SaveChangesAsync();
+
+        var httpContext = new DefaultHttpContext();
+        httpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, adminId.ToString()),
+                    new Claim(ClaimTypes.Role, "ADMIN")
+                },
+                authenticationType: "Test"));
+
+        var currentUserService = new CurrentUserService(new HttpContextAccessor { HttpContext = httpContext });
+        var authorizationService = new FacilityAuthorizationService(_dbContext, currentUserService);
+
+        var result = await authorizationService.CanAccessFacilityAsync(facilityId);
+
+        Assert.True(result);
+    }
+
     private async Task SeedUserAndFacilityAsync(
         Guid userId,
         Guid facilityId)

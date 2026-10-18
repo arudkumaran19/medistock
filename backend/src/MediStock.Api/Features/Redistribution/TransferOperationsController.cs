@@ -2,6 +2,7 @@ using System;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MediStock.Api.Common;
@@ -23,6 +24,7 @@ public class TransferOperationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
+    [Authorize(Policy = "ProcurementApprovalAccess")]
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(typeof(ApiResponse<TransferResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]

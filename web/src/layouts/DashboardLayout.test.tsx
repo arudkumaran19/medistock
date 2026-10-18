@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardLayout } from "./DashboardLayout";
 import { AuthProvider } from "@/features/auth/AuthContext";
@@ -189,5 +189,117 @@ describe("DashboardLayout Global Navigation Sidebar", () => {
 
     // Should have tooltip showing full user info
     expect(userMenuBtn).toHaveAttribute("title");
+  });
+
+  it("renders single-facility user with clear email, role, and facility", async () => {
+    localStorage.setItem(
+      "medistock_user",
+      JSON.stringify({
+        userId: "manager-id",
+        email: "manager@medistock.com",
+        roles: ["FacilityManager"],
+        facilities: [{ id: "f1", name: "Central Facility" }],
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <AuthProvider>
+          <ProcurementAgentProvider>
+            <CoordinatorProvider>
+              <DashboardLayout>
+                <div>Page Content</div>
+              </DashboardLayout>
+            </CoordinatorProvider>
+          </ProcurementAgentProvider>
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    const userMenuBtn = screen.getByRole("button", { name: /User menu/i });
+    fireEvent.click(userMenuBtn);
+
+    const menu = screen.getByRole("menu");
+    expect(menu).toBeInTheDocument();
+    expect(within(menu).getByText("manager@medistock.com")).toBeInTheDocument();
+    expect(within(menu).getByText("Facility Manager")).toBeInTheDocument();
+    expect(within(menu).getByText("Assigned Facility:")).toBeInTheDocument();
+    expect(within(menu).getByText("Central Facility")).toBeInTheDocument();
+  });
+
+  it("distinguishes administrator scope from personal unassigned facility", async () => {
+    localStorage.setItem(
+      "medistock_user",
+      JSON.stringify({
+        userId: "admin-id",
+        email: "admin@medistock.com",
+        roles: ["Administrator", "ADMIN"],
+        facilities: [],
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <AuthProvider>
+          <ProcurementAgentProvider>
+            <CoordinatorProvider>
+              <DashboardLayout>
+                <div>Page Content</div>
+              </DashboardLayout>
+            </CoordinatorProvider>
+          </ProcurementAgentProvider>
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    const userMenuBtn = screen.getByRole("button", { name: /User menu/i });
+    fireEvent.click(userMenuBtn);
+
+    const menu = screen.getByRole("menu");
+    expect(menu).toBeInTheDocument();
+    expect(within(menu).getByText("admin@medistock.com")).toBeInTheDocument();
+    expect(within(menu).getByText("Administrator")).toBeInTheDocument();
+    expect(within(menu).getByText("System-wide (All Facilities)")).toBeInTheDocument();
+    expect(within(menu).getByText("Personal Facility:")).toBeInTheDocument();
+    expect(within(menu).getByText("No facility assigned")).toBeInTheDocument();
+  });
+
+  it("displays multiple facilities as separate readable entries without concatenation", async () => {
+    localStorage.setItem(
+      "medistock_user",
+      JSON.stringify({
+        userId: "multi-id",
+        email: "user@medistock.com",
+        roles: ["FacilityManager"],
+        facilities: [
+          { id: "f1", name: "Central Facility" },
+          { id: "f2", name: "Northside Community Clinic" },
+        ],
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <AuthProvider>
+          <ProcurementAgentProvider>
+            <CoordinatorProvider>
+              <DashboardLayout>
+                <div>Page Content</div>
+              </DashboardLayout>
+            </CoordinatorProvider>
+          </ProcurementAgentProvider>
+        </AuthProvider>
+      </MemoryRouter>
+    );
+
+    const userMenuBtn = screen.getByRole("button", { name: /User menu/i });
+    fireEvent.click(userMenuBtn);
+
+    const menu = screen.getByRole("menu");
+    expect(menu).toBeInTheDocument();
+    expect(within(menu).getByText("user@medistock.com")).toBeInTheDocument();
+    expect(within(menu).getByText("2 assigned")).toBeInTheDocument();
+    expect(within(menu).getByText("Central Facility")).toBeInTheDocument();
+    expect(within(menu).getByText("Northside Community Clinic")).toBeInTheDocument();
   });
 });

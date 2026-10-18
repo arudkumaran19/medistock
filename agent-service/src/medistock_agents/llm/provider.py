@@ -461,9 +461,13 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
     - LLM_PROVIDER=ollama  -> OllamaProvider primary (with Gemini fallback)
     - LLM_PROVIDER=mock    -> MockLLMProvider (tests only)
     """
-    env_provider = os.getenv("LLM_PROVIDER")
     cfg = settings or get_settings()
-    provider_type = (env_provider or cfg.llm_provider or "gemini").lower().strip()
+    provider_type = (
+        (settings.llm_provider if settings is not None else None)
+        or os.getenv("LLM_PROVIDER")
+        or cfg.llm_provider
+        or "gemini"
+    ).lower().strip()
 
     if provider_type == "mock":
         return MockLLMProvider()

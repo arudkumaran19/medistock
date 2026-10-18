@@ -1,3 +1,4 @@
+using MediStock.Api.Common;
 using MediStock.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +26,12 @@ public sealed class FacilityAuthorizationService
         if (userId is null)
         {
             return false;
+        }
+
+        // Global administrators have cross-facility administrative scope
+        if (_currentUserService.IsInRole(Constants.Roles.Admin) || _currentUserService.IsInRole("Administrator"))
+        {
+            return true;
         }
 
         return await _dbContext.UserFacilities

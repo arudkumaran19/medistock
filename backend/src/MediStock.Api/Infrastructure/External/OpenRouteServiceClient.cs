@@ -16,7 +16,8 @@ public sealed class OpenRouteServiceClient
         _logger = logger;
     }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_configuration["OpenRouteService:ApiKey"]);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(
+        _configuration["OpenRouteService:ApiKey"] ?? _configuration["OPENROUTESERVICE_API_KEY"]);
 
     public async Task<(decimal DistanceKm, decimal DurationMinutes)?> GetRouteEstimateAsync(
         double startLat,
@@ -29,7 +30,7 @@ public sealed class OpenRouteServiceClient
 
         try
         {
-            var apiKey = _configuration["OpenRouteService:ApiKey"];
+            var apiKey = _configuration["OpenRouteService:ApiKey"] ?? _configuration["OPENROUTESERVICE_API_KEY"];
             var url = $"https://api.openrouteservice.org/v2/directions/driving-car?api_key={apiKey}&start={startLon},{startLat}&end={endLon},{endLat}";
             using var response = await _http.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode) return null;

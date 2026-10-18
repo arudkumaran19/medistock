@@ -56,8 +56,12 @@ public class RoutingService : IRoutingService
         Guid? destId = null,
         CancellationToken ct = default)
     {
-        var apiKey = _configuration["OpenRouteService:ApiKey"];
-        var baseUrl = _configuration["OpenRouteService:BaseUrl"] ?? Constants.OpenRouteServiceBaseUrl;
+        var apiKey = _configuration["OpenRouteService:ApiKey"]
+            ?? _configuration["OPENROUTESERVICE_API_KEY"]
+            ?? _configuration["OpenRouteService__ApiKey"];
+        var baseUrl = _configuration["OpenRouteService:BaseUrl"]
+            ?? _configuration["OPENROUTESERVICE_BASE_URL"]
+            ?? Constants.OpenRouteServiceBaseUrl;
 
         // If API key is missing, immediately use fallback without failing
         if (string.IsNullOrWhiteSpace(apiKey))
